@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+    "opamp-client",
+    "opamp-server",
+]
+
+[workspace.package]
+license-file = "LICENSE"
