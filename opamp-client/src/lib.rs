@@ -1,14 +1,9 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+pub mod opamp {
+    //! The opamp module contains all those entities defined by the
+    //! [Opamp specification](https://github.com/open-telemetry/opamp-spec/blob/main/specification.md)
+    pub mod proto {
+        //! The proto module contains the protobuffers structures defined by the
+        //! [Opamp specification](https://github.com/open-telemetry/opamp-spec/blob/main/specification.md)
+        include!(concat!(env!("OUT_DIR"), "/opamp.proto.rs"));
     }
 }
