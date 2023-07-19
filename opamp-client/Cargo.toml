@@ -8,4 +8,5 @@ license-file.workspace = true
 prost-build = "0.11.8"
 
 [dependencies]
+async-trait = "0.1.71"
 prost = "0.11.8"
