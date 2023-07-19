@@ -1,4 +1,4 @@
-use crate::opamp::proto::{EffectiveConfig, ServerErrorResponse};
+use crate::opamp::proto::{OpAmpConnectionSettings, ServerErrorResponse, ServerToAgentCommand};
 
 /// MessageData represents a message received from the server and handled by Callbacks.
 pub struct MessageData {}
@@ -31,10 +31,34 @@ pub trait Callbacks {
     // to avoid blocking the OpAMPClient.
     fn on_message(&self, msg: MessageData);
 
-    // get_effective_config returns the current effective config. Only one
-    // get_effective_config  call can be active at any time. Until get_effective_config
-    // returns it will not be called again.
-    fn get_effective_config(&self) -> Result<EffectiveConfig, Self::Error>;
+    // on_opamp_connection_settings is called when the Agent receives an OpAMP
+    // connection settings offer from the Server. Typically, the settings can specify
+    // authorization headers or TLS certificate, potentially also a different
+    // OpAMP destination to work with.
+    //
+    // The Agent should process the offer and return an error if the Agent does not
+    // want to accept the settings (e.g. if the TSL certificate in the settings
+    // cannot be verified).
+    //
+    // If on_opamp_connection_settings returns nil and then the caller will
+    // attempt to reconnect to the OpAMP Server using the new settings.
+    // If the connection fails the settings will be rejected and an error will
+    // be reported to the Server. If the connection succeeds the new settings
+    // will be used by the client from that moment on.
+    //
+    // Only one on_opamp_connection_settings call can be active at any time.
+    // See on_remote_config for the behavior.
+    fn on_opamp_connection_settings(
+        &self,
+        settings: &OpAmpConnectionSettings,
+    ) -> Result<(), Self::Error>;
 
-    // TODO: add all traits
+    // on_opamp_connection_settings_accepted will be called after the settings are
+    // verified and accepted (OnOpampConnectionSettingsOffer and connection using
+    // new settings succeeds). The Agent should store the settings and use them
+    // in the future. Old connection settings should be forgotten.
+    fn on_opamp_connection_settings_accepted(&self, settings: &OpAmpConnectionSettings);
+
+    /// on_command is called when the Server requests that the connected Agent perform a command.
+    fn on_command(&self, command: &ServerToAgentCommand) -> Result<(), Self::Error>;
 }

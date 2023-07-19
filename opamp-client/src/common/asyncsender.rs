@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tokio_util::sync::CancellationToken;
 
 use crate::opamp::proto::AgentToServer;
 
@@ -24,4 +25,72 @@ pub(crate) trait Sender {
 
     // set_instance_uid sets a new instanceUid to be used for all subsequent messages to be sent.
     fn set_instance_uid(&mut self, instance_uid: String) -> Result<(), Self::Error>;
+}
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub(crate) enum TransportError {
+    // TODO: fix
+    #[error("some error")]
+    Invalid,
+}
+
+#[async_trait]
+pub(crate) trait TransportRunner {
+    // run internal networking transport until canceled.
+    async fn run(&mut self, cancel: CancellationToken) -> Result<(), TransportError>;
+}
+
+#[cfg(test)]
+pub(crate) mod test {
+
+    use crate::opamp::proto;
+
+    use super::{Sender, TransportError, TransportRunner};
+    use async_trait::async_trait;
+    use thiserror::Error;
+    use tokio::select;
+    use tokio_util::sync::CancellationToken;
+
+    #[derive(Error, Debug)]
+    pub(crate) enum SenderError {}
+
+    pub(crate) struct SenderMock;
+    pub(crate) struct TransportMock;
+
+    pub(crate) fn new_sender_mocks() -> (TransportMock, SenderMock) {
+        (TransportMock, SenderMock)
+    }
+
+    #[async_trait]
+    impl Sender for SenderMock {
+        type Error = SenderError;
+        fn update<F>(&mut self, _modifier: F)
+        where
+            F: Fn(&mut proto::AgentToServer),
+        {
+        }
+
+        async fn schedule_send(&mut self) {}
+
+        fn set_instance_uid(&mut self, _instance_uid: String) -> Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl TransportRunner for TransportMock {
+        async fn run(&mut self, cancel: CancellationToken) -> Result<(), TransportError> {
+            select! {
+                _ = cancel.cancelled() => {
+                    // The token was cancelled
+                    Ok(())
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_secs(600)) => {
+                    Err(TransportError::Invalid)
+                }
+            }
+        }
+    }
 }
