@@ -27,6 +27,12 @@ pub(crate) trait Sender {
     fn set_instance_uid(&mut self, instance_uid: String) -> Result<(), Self::Error>;
 }
 
+#[async_trait]
+pub(crate) trait TransportRunner {
+    // run internal networking transport until canceled.
+    async fn run(&mut self, cancel: CancellationToken) -> Result<(), TransportError>;
+}
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -34,12 +40,6 @@ pub(crate) enum TransportError {
     // TODO: fix
     #[error("some error")]
     Invalid,
-}
-
-#[async_trait]
-pub(crate) trait TransportRunner {
-    // run internal networking transport until canceled.
-    async fn run(&mut self, cancel: CancellationToken) -> Result<(), TransportError>;
 }
 
 #[cfg(test)]

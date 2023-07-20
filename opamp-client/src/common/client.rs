@@ -85,9 +85,9 @@ where
 
     fn start_connect_and_run<T>(self, mut runner: T) -> CommonClient<A, S, Started>
     where
-        // we could add a cancel channel as parameter
         T: TransportRunner + Send + 'static,
     {
+        // TODO: Do a sanity check to runner (head request?)
         let handle = spawn({
             let cancel = self.cancel.clone();
             async move { runner.run(cancel).await }
