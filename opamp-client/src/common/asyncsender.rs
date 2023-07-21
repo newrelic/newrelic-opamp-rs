@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use tokio_util::sync::CancellationToken;
 
 use crate::opamp::proto::AgentToServer;
 
@@ -7,6 +6,16 @@ use crate::opamp::proto::AgentToServer;
 // the NextMessage to be sent and can be ordered to send the message.
 #[async_trait]
 pub(crate) trait Sender {
+    type Controller: TransportController;
+    type Runner: TransportRunner + Send + 'static;
+
+    fn transport(self) -> (Self::Controller, Self::Runner);
+}
+
+// Sender is an interface of the sending portion of OpAMP protocol that stores
+// the NextMessage to be sent and can be ordered to send the message.
+#[async_trait]
+pub trait TransportController {
     type Error: std::error::Error + Send + Sync;
 
     fn update<F>(&mut self, modifier: F)
@@ -25,18 +34,22 @@ pub(crate) trait Sender {
 
     // set_instance_uid sets a new instanceUid to be used for all subsequent messages to be sent.
     fn set_instance_uid(&mut self, instance_uid: String) -> Result<(), Self::Error>;
+
+    // stop cancels the transport runner
+    fn stop(self);
 }
 
+// TODO: Change to Sender?
 #[async_trait]
-pub(crate) trait TransportRunner {
+pub trait TransportRunner {
     // run internal networking transport until canceled.
-    async fn run(&mut self, cancel: CancellationToken) -> Result<(), TransportError>;
+    async fn run(&mut self) -> Result<(), TransportError>;
 }
 
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum TransportError {
+pub enum TransportError {
     // TODO: fix
     #[error("some error")]
     Invalid,
@@ -47,7 +60,7 @@ pub(crate) mod test {
 
     use crate::opamp::proto;
 
-    use super::{Sender, TransportError, TransportRunner};
+    use super::{Sender, TransportController, TransportError, TransportRunner};
     use async_trait::async_trait;
     use thiserror::Error;
     use tokio::select;
@@ -56,15 +69,31 @@ pub(crate) mod test {
     #[derive(Error, Debug)]
     pub(crate) enum SenderError {}
 
-    pub(crate) struct SenderMock;
-    pub(crate) struct TransportMock;
+    pub(crate) struct TransportControllerMock {
+        cancel: CancellationToken,
+    }
+    pub(crate) struct TransportMock {
+        cancel: CancellationToken,
+    }
 
-    pub(crate) fn new_sender_mocks() -> (TransportMock, SenderMock) {
-        (TransportMock, SenderMock)
+    pub(crate) struct SenderMock {}
+
+    impl Sender for SenderMock {
+        type Controller = TransportControllerMock;
+        type Runner = TransportMock;
+        fn transport(self) -> (Self::Controller, Self::Runner) {
+            let cancel = CancellationToken::new();
+            (
+                TransportControllerMock {
+                    cancel: cancel.clone(),
+                },
+                TransportMock { cancel },
+            )
+        }
     }
 
     #[async_trait]
-    impl Sender for SenderMock {
+    impl TransportController for TransportControllerMock {
         type Error = SenderError;
         fn update<F>(&mut self, _modifier: F)
         where
@@ -77,13 +106,17 @@ pub(crate) mod test {
         fn set_instance_uid(&mut self, _instance_uid: String) -> Result<(), Self::Error> {
             Ok(())
         }
+
+        fn stop(self) {
+            self.cancel.cancel();
+        }
     }
 
     #[async_trait]
     impl TransportRunner for TransportMock {
-        async fn run(&mut self, cancel: CancellationToken) -> Result<(), TransportError> {
+        async fn run(&mut self) -> Result<(), TransportError> {
             select! {
-                _ = cancel.cancelled() => {
+                _ = self.cancel.cancelled() => {
                     // The token was cancelled
                     Ok(())
                 }

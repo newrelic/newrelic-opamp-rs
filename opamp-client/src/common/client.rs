@@ -2,44 +2,52 @@ use tokio::{
     spawn,
     task::{JoinError, JoinHandle},
 };
-use tokio_util::sync::CancellationToken;
 
 use crate::{
-    opamp::proto::{AgentCapabilities, PackageStatuses},
+    opamp::proto::{
+        AgentCapabilities, AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatuses,
+    },
     operation::agent::Agent,
 };
 
 use super::{
-    asyncsender::{Sender, TransportError, TransportRunner},
+    asyncsender::{TransportController, TransportError, TransportRunner},
     clientstate::ClientSyncedState,
 };
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum ClientError {
+pub enum CommonClientError {
     #[error("`{0}`")]
     Transport(#[from] TransportError),
 
     #[error("`{0}`")]
     Join(#[from] JoinError),
+
+    #[error("capabilities error: `{0}`")]
+    UnsetCapabilities(String),
+
+    #[error("get effective config error: `{0}`")]
+    GetConfig(String),
 }
 
 // State machine client
 // Unstarted only has preparation functions (TODO: change to unstared/started)
-pub(crate) struct Unstarted;
+pub struct Unstarted;
 
 // StartedClient contains start and modification functions
-pub(crate) struct Started {
+pub struct Started {
     handles: Vec<JoinHandle<Result<(), TransportError>>>,
 }
 
 // Client contains the OpAMP logic that is common between WebSocket and
 // plain HTTP transports.
 #[derive(Debug)]
-pub(crate) struct CommonClient<A, S, Stage = Unstarted>
+pub(crate) struct CommonClient<A, C, R, Stage = Unstarted>
 where
     A: Agent,
-    S: Sender,
+    C: TransportController,
+    R: TransportRunner + Send + 'static,
 {
     stage: Stage,
 
@@ -52,22 +60,29 @@ where
     capabilities: AgentCapabilities,
 
     // The transport-specific sender.
-    sender: S,
+    sender: C,
 
-    // Cancellation token
-    cancel: CancellationToken,
+    // The transport-specific runner.
+    runner: Option<R>,
 }
 
-impl<A, S> CommonClient<A, S, Unstarted>
+impl<A, C, R> CommonClient<A, C, R, Unstarted>
 where
     A: Agent,
-    S: Sender,
+    C: TransportController,
+    R: TransportRunner + Send + 'static,
 {
-    fn new(
+    // TODO: align with upstream
+    fn prepare_start(&mut self, _last_statuses: Option<PackageStatuses>) {
+        // See: https://github.com/open-telemetry/opamp-go/blob/main/client/internal/clientcommon.go#L70
+    }
+
+    pub(crate) fn new(
         agent: A,
-        sender: S,
         client_synced_state: ClientSyncedState,
         capabilities: AgentCapabilities,
+        sender: C,
+        runner: R,
     ) -> Self {
         Self {
             stage: Unstarted,
@@ -75,23 +90,14 @@ where
             client_synced_state,
             capabilities,
             sender,
-            cancel: CancellationToken::new(),
+            runner: Some(runner),
         }
     }
 
-    fn prepare_start(&mut self, _last_statuses: Option<PackageStatuses>) {
-        // See: https://github.com/open-telemetry/opamp-go/blob/main/client/internal/clientcommon.go#L70
-    }
-
-    fn start_connect_and_run<T>(self, mut runner: T) -> CommonClient<A, S, Started>
-    where
-        T: TransportRunner + Send + 'static,
-    {
+    pub(crate) fn start_connect_and_run(mut self) -> CommonClient<A, C, R, Started> {
+        let mut runner = self.runner.take().unwrap();
         // TODO: Do a sanity check to runner (head request?)
-        let handle = spawn({
-            let cancel = self.cancel.clone();
-            async move { runner.run(cancel).await }
-        });
+        let handle = spawn(async move { runner.run().await });
 
         CommonClient {
             stage: Started {
@@ -101,40 +107,97 @@ where
             client_synced_state: self.client_synced_state,
             capabilities: self.capabilities,
             sender: self.sender,
-            cancel: self.cancel,
+            runner: None,
         }
     }
 }
 
-impl<A, S> CommonClient<A, S, Started>
+impl<A, C, R> CommonClient<A, C, R, Started>
 where
     A: Agent,
-    S: Sender,
+    C: TransportController,
+    R: TransportRunner + Send + 'static,
 {
-    async fn stop(self) -> Result<(), ClientError> {
-        self.cancel.cancel();
+    async fn stop(self) -> Result<(), CommonClientError> {
+        // TODO: handle Option unwrap
+        self.sender.stop();
         for handle in self.stage.handles {
             handle.await??;
         }
         Ok(())
     }
+
+    // set_agent_description sends a status update to the Server with the new AgentDescription
+    // and remembers the AgentDescription in the client state so that it can be sent
+    // to the Server when the Server asks for it.
+    pub(crate) async fn set_agent_description(
+        &mut self,
+        description: &AgentDescription,
+    ) -> Result<(), CommonClientError> {
+        // update next message with provided description
+        self.sender.update(|msg| {
+            msg.agent_description = Some(description.clone());
+        });
+
+        Ok(self.sender.schedule_send().await)
+    }
+
+    pub(crate) async fn set_health(
+        &mut self,
+        health: &AgentHealth,
+    ) -> Result<(), CommonClientError> {
+        // update next message with provided description
+        self.sender.update(|msg| {
+            msg.health = Some(health.clone());
+        });
+
+        Ok(self.sender.schedule_send().await)
+    }
+
+    // update_effective_config fetches the current local effective config using
+    // get_effective_config callback and sends it to the Server using provided Sender.
+    pub(crate) async fn update_effective_config(&mut self) -> Result<(), CommonClientError> {
+        if self.capabilities as u64 & AgentCapabilities::ReportsRemoteConfig as u64 == 0 {
+            return Err(CommonClientError::UnsetCapabilities(
+                "report remote configuration capabilities is not set".into(),
+            ));
+        }
+
+        let config = self
+            .agent
+            .get_effective_config()
+            .map_err(|err| CommonClientError::GetConfig(err.to_string()))?;
+
+        // update next message with effective config
+        self.sender.update(|msg| {
+            msg.effective_config = Some(config.clone());
+        });
+
+        Ok(self.sender.schedule_send().await)
+    }
 }
 
 #[cfg(test)]
 mod test {
+
     use super::*;
-    use crate::{common::asyncsender::test::new_sender_mocks, operation::agent::test::AgentMock};
+    use crate::{
+        common::asyncsender::{test::SenderMock, Sender},
+        operation::agent::test::AgentMock,
+    };
 
     #[tokio::test]
     async fn start_stop() {
-        let (transport, sender) = new_sender_mocks();
+        let sender = SenderMock {};
+        let (controller, runner) = sender.transport();
 
         let client = CommonClient::new(
             AgentMock,
-            sender,
             ClientSyncedState::default(),
             AgentCapabilities::ReportsStatus,
+            controller,
+            runner,
         );
-        assert!(client.start_connect_and_run(transport).stop().await.is_ok())
+        assert!(client.start_connect_and_run().stop().await.is_ok())
     }
 }

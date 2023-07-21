@@ -12,13 +12,15 @@ pub mod opamp {
     }
 }
 
-use crate::opamp::proto::AgentDescription;
+pub mod error;
+pub mod httpclient;
+
 use async_trait::async_trait;
-use opamp::proto::{AgentHealth, PackageStatuses, RemoteConfigStatus};
+use opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus};
 
 #[async_trait]
-pub trait Client {
-    type Handle: ClientHandle;
+pub trait OpAMPClient {
+    type Handle: OpAMPClientHandle;
     type Error: std::error::Error + Send + Sync;
 
     /// start the client and begin attempts to connect to the Server. Once connection
@@ -41,7 +43,7 @@ pub trait Client {
 }
 
 #[async_trait]
-pub trait ClientHandle {
+pub trait OpAMPClientHandle {
     type Error: std::error::Error + Send + Sync;
 
     /// After this call returns successfully it is guaranteed that no
@@ -59,9 +61,9 @@ pub trait ClientHandle {
         description: &AgentDescription,
     ) -> Result<(), Self::Error>;
 
-    /// agent_description returns the last value successfully set by set_agent_description().
-    fn agent_description(&self) -> &AgentDescription;
-
+    // /// agent_description returns the last value successfully set by set_agent_description().
+    // fn agent_description(&self) -> &AgentDescription;
+    //
     /// set_health sets the health status of the Agent. The AgentHealth will be included
     async fn set_health(&mut self, health: &AgentHealth) -> Result<(), Self::Error>;
 
@@ -69,13 +71,12 @@ pub trait ClientHandle {
     // get_effective_config callback and sends it to the Server.
     async fn update_effective_config(&mut self) -> Result<(), Self::Error>;
 
-    /// set_remote_config_status sets the current RemoteConfigStatus.
-    // LastRemoteConfigHash field must be non-nil.
-    async fn set_remote_config_status(
-        &mut self,
-        status: &RemoteConfigStatus,
-    ) -> Result<(), Self::Error>;
+    // /// set_remote_config_status sets the current RemoteConfigStatus.
+    // async fn set_remote_config_status(
+    //     &mut self,
+    //     status: &RemoteConfigStatus,
+    // ) -> Result<(), Self::Error>;
 
-    /// set_package_statuses sets the current PackageStatuses.
-    async fn set_package_statuses(&mut self, statuses: PackageStatuses) -> Result<(), Self::Error>;
+    // /// set_package_statuses sets the current PackageStatuses.
+    // async fn set_package_statuses(&mut self, statuses: PackageStatuses) -> Result<(), Self::Error>;
 }
