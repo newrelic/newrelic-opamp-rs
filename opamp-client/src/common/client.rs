@@ -7,7 +7,7 @@ use crate::{
     opamp::proto::{
         AgentCapabilities, AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatuses,
     },
-    operation::agent::Agent,
+    operation::{agent::Agent, settings::StartSettings},
 };
 
 use super::{
@@ -29,6 +29,9 @@ pub enum CommonClientError {
 
     #[error("get effective config error: `{0}`")]
     GetConfig(String),
+
+    #[error("error setting ulid: `{0}`")]
+    InvalidUlid(String),
 }
 
 // State machine client
@@ -73,25 +76,27 @@ where
     R: TransportRunner + Send + 'static,
 {
     // TODO: align with upstream
-    fn prepare_start(&mut self, _last_statuses: Option<PackageStatuses>) {
-        // See: https://github.com/open-telemetry/opamp-go/blob/main/client/internal/clientcommon.go#L70
-    }
-
+    // See: https://github.com/open-telemetry/opamp-go/blob/main/client/internal/clientcommon.go#L70
     pub(crate) fn new(
         agent: A,
         client_synced_state: ClientSyncedState,
-        capabilities: AgentCapabilities,
+        start_settings: StartSettings,
         sender: C,
         runner: R,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, CommonClientError> {
+        let mut client = Self {
             stage: Unstarted,
             agent,
             client_synced_state,
-            capabilities,
+            capabilities: start_settings.capabilities,
             sender,
             runner: Some(runner),
-        }
+        };
+        client
+            .sender
+            .set_instance_uid(start_settings.instance_id)
+            .map_err(|err| CommonClientError::InvalidUlid(err.to_string()))?;
+        Ok(client)
     }
 
     pub(crate) fn start_connect_and_run(mut self) -> CommonClient<A, C, R, Started> {
@@ -194,10 +199,15 @@ mod test {
         let client = CommonClient::new(
             AgentMock,
             ClientSyncedState::default(),
-            AgentCapabilities::ReportsStatus,
+            StartSettings {
+                instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
+                capabilities: AgentCapabilities::ReportsStatus,
+            },
             controller,
             runner,
-        );
+        )
+        .unwrap();
+
         assert!(client.start_connect_and_run().stop().await.is_ok())
     }
 }

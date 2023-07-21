@@ -11,6 +11,7 @@ use opamp_client::{
     operation::{
         agent::Agent,
         callbacks::{Callbacks, MessageData},
+        settings::StartSettings,
     },
     OpAMPClient, OpAMPClientHandle,
 };
@@ -67,7 +68,10 @@ async fn main() {
         AgentMock {},
         "https://127.0.0.1/v1/opamp",
         Some(headers),
-        AgentCapabilities::ReportsStatus,
+        StartSettings {
+            instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
+            capabilities: AgentCapabilities::ReportsStatus,
+        },
         CallbacksMock {},
     )
     .unwrap();

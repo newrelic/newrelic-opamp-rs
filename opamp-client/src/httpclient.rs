@@ -12,6 +12,7 @@ use crate::opamp::proto::AgentDescription;
 use crate::opamp::proto::AgentHealth;
 use crate::operation::agent::Agent;
 use crate::operation::callbacks::Callbacks;
+use crate::operation::settings::StartSettings;
 use crate::{OpAMPClient, OpAMPClientHandle};
 
 use async_trait::async_trait;
@@ -44,7 +45,7 @@ where
         agent: A,
         url: &str,
         headers: Option<HeaderMap>,
-        capabilites: AgentCapabilities,
+        start_settings: StartSettings,
         callbacks: C,
     ) -> Result<Self, ClientError> {
         let url = Url::parse(url)?;
@@ -60,10 +61,10 @@ where
         let internal_client = CommonClient::new(
             agent,
             ClientSyncedState::default(),
-            capabilites,
+            start_settings,
             http_contoller,
             http_runner,
-        );
+        )?;
 
         Ok(Self {
             url,
