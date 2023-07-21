@@ -9,12 +9,14 @@ use crate::{
         nextmessage::NextMessage,
     },
     opamp::proto::{AgentToServer, ServerToAgent},
+    operation::callbacks::Callbacks,
 };
 use async_trait::async_trait;
-use http::HeaderMap;
+use http::{header::InvalidHeaderValue, HeaderMap};
 use log::{debug, error, info};
 use prost::DecodeError;
 use prost::Message;
+use reqwest::Client;
 use thiserror::Error;
 use tokio::{select, sync::mpsc::Receiver, time::interval};
 
@@ -41,21 +43,25 @@ impl Transport for ReqwestSender {
     }
 }
 
-fn opamp_headers(custom_headers: Option<HeaderMap>) -> HeaderMap {
+fn opamp_headers(custom_headers: Option<HeaderMap>) -> Result<HeaderMap, HttpError> {
     let mut headers = custom_headers.unwrap_or(HeaderMap::new());
 
-    headers.insert("Content-Type", "application/x-protobuf".parse().unwrap());
-    headers
+    headers.insert("Content-Type", "application/x-protobuf".parse()?);
+    Ok(headers)
 }
 
 #[derive(Debug)]
-pub struct HttpTransport<T: Transport = ReqwestSender> {
+pub struct HttpTransport<C, T: Transport = ReqwestSender>
+where
+    C: Callbacks,
+{
     pub(crate) pending_messages: Receiver<()>,
     http_client: reqwest::Client,
     url: url::Url,
-    // key-value vector of headers
-    headers: HeaderMap,
     sender: T,
+
+    // callbacks function when a new message is received
+    callbacks: C,
 
     // polling interval has passed. Force a status update.
     polling: Duration,
@@ -64,34 +70,44 @@ pub struct HttpTransport<T: Transport = ReqwestSender> {
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum HttpError {
-    #[error("protobuf decode error: `{0}`")]
-    ProtobufDecoding(DecodeError),
-    #[error("reqwest error: `{0}`")]
+pub enum HttpError {
+    #[error("`{0}`")]
+    ProtobufDecoding(#[from] DecodeError),
+    #[error("`{0}`")]
     ReqwestError(#[from] reqwest::Error),
+    #[error("`{0}`")]
+    InvalidHeader(#[from] InvalidHeaderValue),
 }
 
-impl HttpTransport<ReqwestSender> {
+impl<C> HttpTransport<C, ReqwestSender>
+where
+    C: Callbacks,
+{
     pub(crate) fn new(
         url: url::Url,
         headers: Option<HeaderMap>,
         polling: Duration,
         pending_messages: Receiver<()>,
         next_message: Arc<Mutex<NextMessage>>,
-    ) -> HttpTransport {
-        HttpTransport {
-            http_client: reqwest::Client::new(),
+        callbacks: C,
+    ) -> Result<Self, HttpError> {
+        let http_client = Client::builder()
+            .default_headers(opamp_headers(headers)?)
+            .build()?;
+
+        Ok(HttpTransport {
+            http_client,
             sender: ReqwestSender {},
             pending_messages,
             url,
-            headers: opamp_headers(headers),
             polling,
             next_message,
-        }
+            callbacks,
+        })
     }
 }
 
-impl<T: Transport> HttpTransport<T> {
+impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
     pub(crate) fn with_transport(
         url: url::Url,
         headers: Option<HeaderMap>,
@@ -99,16 +115,20 @@ impl<T: Transport> HttpTransport<T> {
         transport: T,
         pending_messages: Receiver<()>,
         next_message: Arc<Mutex<NextMessage>>,
-    ) -> HttpTransport<T> {
-        HttpTransport {
-            http_client: reqwest::Client::new(),
+        callbacks: C,
+    ) -> Result<HttpTransport<C, T>, HttpError> {
+        let http_client = Client::builder()
+            .default_headers(opamp_headers(headers)?)
+            .build()?;
+        Ok(HttpTransport {
+            http_client,
             sender: transport,
             pending_messages,
             url,
-            headers: opamp_headers(headers),
             polling,
             next_message,
-        }
+            callbacks,
+        })
     }
 
     async fn send_message(&self, msg: AgentToServer) -> Result<ServerToAgent, HttpError> {
@@ -120,7 +140,6 @@ impl<T: Transport> HttpTransport<T> {
             .send(
                 self.http_client
                     .post(self.url.clone())
-                    .headers(self.headers.clone())
                     .body(reqwest::Body::from(bytes)),
             )
             .await?;
@@ -136,12 +155,18 @@ impl<T: Transport> HttpTransport<T> {
         //     println!("Response is encoded!")
         // }
 
-        ServerToAgent::decode(response_bytes).map_err(|err| HttpError::ProtobufDecoding(err))
+        let response = ServerToAgent::decode(response_bytes)?;
+
+        self.callbacks.on_connect();
+
+        Ok(response)
     }
 }
 
 #[async_trait]
-impl<T: Transport + Send + Sync> TransportRunner for HttpTransport<T> {
+impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
+    for HttpTransport<C, T>
+{
     async fn run(&mut self) -> Result<(), TransportError> {
         let mut polling_ticker = interval(self.polling);
 
@@ -184,7 +209,7 @@ pub(crate) mod test {
     use async_trait::async_trait;
     use tokio::{spawn, sync::mpsc::channel};
 
-    use crate::common::asyncsender::TransportRunner;
+    use crate::{common::asyncsender::TransportRunner, operation::callbacks::test::CallbacksMock};
 
     use super::*;
 
@@ -223,7 +248,9 @@ pub(crate) mod test {
             transport,
             receiver,
             next_message,
-        );
+            CallbacksMock {},
+        )
+        .unwrap();
 
         let handle = spawn(async move {
             runner.run().await.unwrap();

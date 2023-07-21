@@ -189,7 +189,7 @@ mod test {
     #[tokio::test]
     async fn start_stop() {
         let sender = SenderMock {};
-        let (controller, runner) = sender.transport();
+        let (controller, runner) = sender.transport().unwrap();
 
         let client = CommonClient::new(
             AgentMock,

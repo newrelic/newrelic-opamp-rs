@@ -8,8 +8,9 @@ use crate::opamp::proto::AgentToServer;
 pub(crate) trait Sender {
     type Controller: TransportController;
     type Runner: TransportRunner + Send + 'static;
+    type Error: std::error::Error + Send + Sync;
 
-    fn transport(self) -> (Self::Controller, Self::Runner);
+    fn transport(self) -> Result<(Self::Controller, Self::Runner), Self::Error>;
 }
 
 // Sender is an interface of the sending portion of OpAMP protocol that stores
@@ -81,14 +82,15 @@ pub(crate) mod test {
     impl Sender for SenderMock {
         type Controller = TransportControllerMock;
         type Runner = TransportMock;
-        fn transport(self) -> (Self::Controller, Self::Runner) {
+        type Error = SenderError;
+        fn transport(self) -> Result<(Self::Controller, Self::Runner), SenderError> {
             let cancel = CancellationToken::new();
-            (
+            Ok((
                 TransportControllerMock {
                     cancel: cancel.clone(),
                 },
                 TransportMock { cancel },
-            )
+            ))
         }
     }
 
