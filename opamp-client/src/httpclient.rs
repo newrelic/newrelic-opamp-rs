@@ -104,7 +104,7 @@ where
     type Error = ClientError;
 
     async fn stop(self) -> Result<(), Self::Error> {
-        Ok(())
+        Ok(self.internal_client.unwrap().stop().await?)
     }
 
     async fn set_agent_description(

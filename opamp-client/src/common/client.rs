@@ -123,7 +123,7 @@ where
     C: TransportController,
     R: TransportRunner + Send + 'static,
 {
-    async fn stop(self) -> Result<(), CommonClientError> {
+    pub(crate) async fn stop(self) -> Result<(), CommonClientError> {
         // TODO: handle Option unwrap
         self.sender.stop();
         for handle in self.stage.handles {
