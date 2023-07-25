@@ -75,25 +75,25 @@ pub(crate) mod test {
 
     impl Callbacks for CallbacksMock {
         type Error = CallbacksMockError;
-        fn on_error(&self, err: crate::opamp::proto::ServerErrorResponse) {}
+        fn on_error(&self, _err: crate::opamp::proto::ServerErrorResponse) {}
         fn on_connect(&self) {}
-        fn on_message(&self, msg: super::MessageData) {}
+        fn on_message(&self, _msg: super::MessageData) {}
         fn on_command(
             &self,
-            command: &crate::opamp::proto::ServerToAgentCommand,
+            _command: &crate::opamp::proto::ServerToAgentCommand,
         ) -> Result<(), Self::Error> {
             Ok(())
         }
-        fn on_connect_failed(&self, err: Self::Error) {}
+        fn on_connect_failed(&self, _err: Self::Error) {}
         fn on_opamp_connection_settings(
             &self,
-            settings: &crate::opamp::proto::OpAmpConnectionSettings,
+            _settings: &crate::opamp::proto::OpAmpConnectionSettings,
         ) -> Result<(), Self::Error> {
             Ok(())
         }
         fn on_opamp_connection_settings_accepted(
             &self,
-            settings: &crate::opamp::proto::OpAmpConnectionSettings,
+            _settings: &crate::opamp::proto::OpAmpConnectionSettings,
         ) {
         }
     }

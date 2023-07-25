@@ -204,8 +204,6 @@ impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
 #[cfg(test)]
 pub(crate) mod test {
 
-    use std::sync::atomic::AtomicUsize;
-
     use async_trait::async_trait;
     use tokio::{spawn, sync::mpsc::channel};
 
@@ -215,7 +213,7 @@ pub(crate) mod test {
 
     // Define a struct to represent the mock client
     pub struct TransportMock {
-        counter: Arc<AtomicUsize>,
+        messages: Arc<Mutex<Vec<AgentToServer>>>,
     }
 
     #[async_trait]
@@ -224,10 +222,14 @@ pub(crate) mod test {
 
         async fn send(
             &self,
-            _request: reqwest::RequestBuilder,
+            request: reqwest::RequestBuilder,
         ) -> Result<reqwest::Response, Self::Error> {
-            self.counter
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            // get acutal message
+            let binding = request.build()?;
+            let msg_bytes = binding.body().unwrap().as_bytes().unwrap();
+            let agent_to_server_msg = AgentToServer::decode(msg_bytes).unwrap();
+
+            self.messages.lock().unwrap().push(agent_to_server_msg);
             Ok(http::Response::new(ServerToAgent::default().encode_to_vec()).into())
         }
     }
@@ -237,9 +239,9 @@ pub(crate) mod test {
         let next_message = Arc::new(Mutex::new(NextMessage::new()));
         let (sender, receiver) = channel(10);
 
-        let counter = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::new(Mutex::new(vec![]));
         let transport = TransportMock {
-            counter: counter.clone(),
+            messages: counter.clone(),
         };
         let mut runner = HttpTransport::with_transport(
             url::Url::parse("http://example.com").unwrap(),
@@ -254,7 +256,9 @@ pub(crate) mod test {
 
         let handle = spawn(async move {
             runner.run().await.unwrap();
-            counter.load(std::sync::atomic::Ordering::Relaxed)
+            // drop runner to decrease arc references
+            drop(runner);
+            Arc::into_inner(counter)
         });
 
         // send 3 messages
@@ -264,6 +268,22 @@ pub(crate) mod test {
         // cancel the runner
         drop(sender);
 
-        assert_eq!(handle.await.unwrap(), 3);
+        let send_messages = handle.await.unwrap().unwrap();
+
+        // 3 messages where send
+        assert_eq!(send_messages.lock().unwrap().len(), 3);
+
+        // consecutive sequence numbers
+        assert_eq!(
+            send_messages
+                .lock()
+                .unwrap()
+                .iter()
+                .fold(vec![], |mut acc, msg| {
+                    acc.push(msg.sequence_num);
+                    acc
+                }),
+            vec![1, 2, 3],
+        );
     }
 }

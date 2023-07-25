@@ -16,7 +16,7 @@ pub mod error;
 pub mod httpclient;
 
 use async_trait::async_trait;
-use opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus};
+use opamp::proto::{AgentDescription, AgentHealth};
 
 #[async_trait]
 pub trait OpAMPClient {

@@ -4,9 +4,7 @@ use tokio::{
 };
 
 use crate::{
-    opamp::proto::{
-        AgentCapabilities, AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatuses,
-    },
+    opamp::proto::{AgentCapabilities, AgentDescription, AgentHealth},
     operation::{agent::Agent, settings::StartSettings},
 };
 
@@ -144,7 +142,8 @@ where
             msg.agent_description = Some(description.clone());
         });
 
-        Ok(self.sender.schedule_send().await)
+        self.sender.schedule_send().await;
+        Ok(())
     }
 
     pub(crate) async fn set_health(
@@ -156,7 +155,8 @@ where
             msg.health = Some(health.clone());
         });
 
-        Ok(self.sender.schedule_send().await)
+        self.sender.schedule_send().await;
+        Ok(())
     }
 
     // update_effective_config fetches the current local effective config using
@@ -178,7 +178,8 @@ where
             msg.effective_config = Some(config.clone());
         });
 
-        Ok(self.sender.schedule_send().await)
+        self.sender.schedule_send().await;
+        Ok(())
     }
 }
 

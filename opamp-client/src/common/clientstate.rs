@@ -15,21 +15,10 @@ use crate::opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, Remote
 // discarded from memory. See implementation of UpdateEffectiveConfig().
 //
 // It is safe to call methods of this struct concurrently.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct ClientSyncedState {
     agent_description: AgentDescription,
     healt: AgentHealth,
     remote_config_status: RemoteConfigStatus,
     package_status: PackageStatuses,
-}
-
-impl Default for ClientSyncedState {
-    fn default() -> Self {
-        ClientSyncedState {
-            agent_description: AgentDescription::default(),
-            healt: AgentHealth::default(),
-            remote_config_status: RemoteConfigStatus::default(),
-            package_status: PackageStatuses::default(),
-        }
-    }
 }

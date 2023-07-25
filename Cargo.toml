@@ -3,7 +3,7 @@ resolver = "2"
 
 members = [
     "opamp-client",
-    "opamp-server",
+    # "opamp-server",
 ]
 
 [workspace.package]
