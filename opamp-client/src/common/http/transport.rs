@@ -5,8 +5,8 @@ use std::{
 
 use crate::{
     common::{
-        asyncsender::{TransportError, TransportRunner},
         nextmessage::NextMessage,
+        transport::{TransportError, TransportRunner},
     },
     opamp::proto::{AgentToServer, ServerToAgent},
     operation::callbacks::Callbacks,
@@ -207,7 +207,7 @@ pub(crate) mod test {
     use async_trait::async_trait;
     use tokio::{spawn, sync::mpsc::channel};
 
-    use crate::{common::asyncsender::TransportRunner, operation::callbacks::test::CallbacksMock};
+    use crate::{common::transport::TransportRunner, operation::callbacks::test::CallbacksMock};
 
     use super::*;
 

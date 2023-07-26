@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 use std::time::Duration;
 
-use crate::common::asyncsender::Sender;
 use crate::common::client::{CommonClient, Started, Unstarted};
 use crate::common::clientstate::ClientSyncedState;
 use crate::common::http::sender::HttpController;
 use crate::common::http::transport::HttpTransport;
 use crate::common::http::HttpSender;
+use crate::common::transport::Sender;
 use crate::error::ClientError;
 use crate::opamp::proto::AgentDescription;
 use crate::opamp::proto::AgentHealth;

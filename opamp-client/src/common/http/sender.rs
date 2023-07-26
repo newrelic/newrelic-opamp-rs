@@ -5,7 +5,7 @@ use thiserror::Error;
 use tokio::sync::mpsc;
 
 use crate::{
-    common::{asyncsender::TransportController, nextmessage::NextMessage},
+    common::{nextmessage::NextMessage, transport::TransportController},
     opamp::proto::AgentToServer,
 };
 

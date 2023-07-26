@@ -9,8 +9,8 @@ use crate::{
 };
 
 use super::{
-    asyncsender::{TransportController, TransportError, TransportRunner},
     clientstate::ClientSyncedState,
+    transport::{TransportController, TransportError, TransportRunner},
 };
 use thiserror::Error;
 
@@ -188,7 +188,7 @@ mod test {
 
     use super::*;
     use crate::{
-        common::asyncsender::{test::SenderMock, Sender},
+        common::transport::{test::SenderMock, Sender},
         operation::agent::test::AgentMock,
     };
 

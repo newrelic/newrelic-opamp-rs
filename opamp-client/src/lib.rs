@@ -13,6 +13,8 @@ pub mod opamp {
 }
 
 pub mod error;
+
+#[cfg(feature = "async-http")]
 pub mod httpclient;
 
 use async_trait::async_trait;

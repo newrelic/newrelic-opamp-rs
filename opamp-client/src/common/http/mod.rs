@@ -14,7 +14,7 @@ use self::{
     transport::{HttpError, HttpTransport},
 };
 
-use super::{asyncsender::Sender, nextmessage::NextMessage};
+use super::{nextmessage::NextMessage, transport::Sender};
 
 pub(crate) mod sender;
 pub(crate) mod transport;
