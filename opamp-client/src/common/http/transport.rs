@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     common::{
+        clientstate::ClientSyncedState,
         nextmessage::NextMessage,
         transport::{TransportError, TransportRunner},
     },
@@ -13,12 +14,12 @@ use crate::{
 };
 use async_trait::async_trait;
 use http::{header::InvalidHeaderValue, HeaderMap};
-use log::{debug, error, info};
 use prost::DecodeError;
 use prost::Message;
 use reqwest::Client;
 use thiserror::Error;
 use tokio::{select, sync::mpsc::Receiver, time::interval};
+use tracing::{debug, error, info};
 
 #[async_trait]
 pub trait Transport {
@@ -167,7 +168,8 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
 impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
     for HttpTransport<C, T>
 {
-    async fn run(&mut self) -> Result<(), TransportError> {
+    type State = Arc<ClientSyncedState>;
+    async fn run(&mut self, _state: Self::State) -> Result<(), TransportError> {
         let mut polling_ticker = interval(self.polling);
 
         let send_handler = |result: Result<ServerToAgent, HttpError>| {
@@ -207,7 +209,10 @@ pub(crate) mod test {
     use async_trait::async_trait;
     use tokio::{spawn, sync::mpsc::channel};
 
-    use crate::{common::transport::TransportRunner, operation::callbacks::test::CallbacksMock};
+    use crate::{
+        common::{clientstate::ClientSyncedState, transport::TransportRunner},
+        operation::callbacks::test::CallbacksMock,
+    };
 
     use super::*;
 
@@ -255,7 +260,8 @@ pub(crate) mod test {
         .unwrap();
 
         let handle = spawn(async move {
-            runner.run().await.unwrap();
+            let state = Arc::new(ClientSyncedState::default());
+            runner.run(state).await.unwrap();
             // drop runner to decrease arc references
             drop(runner);
             Arc::into_inner(counter)

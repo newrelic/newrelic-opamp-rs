@@ -1,11 +1,13 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use thiserror::Error;
 use tokio::sync::mpsc;
 
 use crate::{
-    common::{nextmessage::NextMessage, transport::TransportController},
+    common::{
+        nextmessage::NextMessage,
+        transport::{TransportController, TransportError},
+    },
     opamp::proto::AgentToServer,
 };
 
@@ -29,44 +31,33 @@ impl HttpController {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum HttpControllerError {
-    #[error("cannot set instance uid to empty value")]
-    EmptyUlid,
-    #[error("ulid could not be deserialized: `{0}`")]
-    InvalidUlid(ulid::DecodeError),
-}
-
 #[async_trait]
 impl TransportController for HttpController {
-    type Error = HttpControllerError;
-
-    fn update<F>(&mut self, modifier: F)
+    fn update<F>(&mut self, modifier: F) -> Result<(), TransportError>
     where
         F: Fn(&mut AgentToServer),
     {
-        // TODO: handle unwrap
-        self.next_message.lock().unwrap().update(modifier);
+        Ok(self.next_message.lock()?.update(modifier))
     }
 
-    async fn schedule_send(&mut self) {
+    async fn schedule_send(&mut self) -> Result<(), TransportError> {
         // let msg_to_send = self.next_message.lock().unwrap().pop();
-        self.pending_messages.send(()).await.unwrap();
+        self.pending_messages.send(()).await?;
+        Ok(())
     }
 
     fn stop(self) {}
 
-    fn set_instance_uid(&mut self, instance_uid: String) -> Result<(), Self::Error> {
+    fn set_instance_uid(&mut self, instance_uid: String) -> Result<(), TransportError> {
         if instance_uid.is_empty() {
-            return Err(HttpControllerError::EmptyUlid);
+            return Err(TransportError::EmptyUlid);
         }
 
         // just check if is a valid ulid
-        let _ = ulid::Ulid::from_string(&instance_uid).map_err(HttpControllerError::InvalidUlid)?;
+        let _ = ulid::Ulid::from_string(&instance_uid).map_err(TransportError::InvalidUlid)?;
 
         self.next_message
-            .lock()
-            .unwrap()
+            .lock()?
             .update(move |msg: &mut AgentToServer| {
                 msg.instance_uid = instance_uid.clone();
             });
@@ -100,14 +91,16 @@ mod test {
             next_message: Arc::new(Mutex::new(NextMessage::new())),
         };
 
-        controller.update(|msg| {
-            msg.sequence_num = 99;
-            msg.health = Some(crate::opamp::proto::AgentHealth {
-                healthy: true,
-                start_time_unix_nano: 12345,
-                last_error: "".to_string(),
-            });
-        });
+        controller
+            .update(|msg| {
+                msg.sequence_num = 99;
+                msg.health = Some(crate::opamp::proto::AgentHealth {
+                    healthy: true,
+                    start_time_unix_nano: 12345,
+                    last_error: "".to_string(),
+                });
+            })
+            .unwrap();
 
         // pop increments sequence_num
         let msg = controller.next_message.lock().unwrap().pop();
@@ -133,13 +126,13 @@ mod test {
         // invalid uid
         assert_err!(
             controller.set_instance_uid("invalid_ulid".to_string()),
-            Err(HttpControllerError::InvalidUlid(_))
+            Err(TransportError::InvalidUlid(_))
         );
 
         // empty uid
         assert_err!(
             controller.set_instance_uid("".to_string()),
-            Err(HttpControllerError::EmptyUlid)
+            Err(TransportError::EmptyUlid)
         );
 
         // valid uid

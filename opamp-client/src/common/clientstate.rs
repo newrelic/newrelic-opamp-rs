@@ -1,4 +1,9 @@
-use crate::opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus};
+use std::sync::{Arc, RwLock};
+
+use crate::{
+    opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus},
+    operation::syncedstate::{SyncedState, SyncedStateError},
+};
 
 // ClientSyncedState stores the state of the Agent messages that the OpAMP Client needs to
 // have access to synchronize to the Server. 4 messages can be stored in this store:
@@ -16,9 +21,37 @@ use crate::opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, Remote
 //
 // It is safe to call methods of this struct concurrently.
 #[derive(Debug, Default)]
-pub(crate) struct ClientSyncedState {
+pub struct ClientSyncedState {
+    data: RwLock<Data>,
+}
+
+#[derive(Debug, Default)]
+struct Data {
     agent_description: AgentDescription,
     healt: AgentHealth,
     remote_config_status: RemoteConfigStatus,
     package_status: PackageStatuses,
+}
+
+impl SyncedState for Arc<ClientSyncedState> {
+    fn agent_description(&self) -> Result<AgentDescription, SyncedStateError> {
+        Ok(self.data.read()?.agent_description.clone())
+    }
+
+    fn set_agent_description(&self, description: AgentDescription) -> Result<(), SyncedStateError> {
+        if description.identifying_attributes.len() == 0
+            && description.non_identifying_attributes.len() == 0
+        {
+            return Err(SyncedStateError::AgentDescriptionNoAttributes);
+        }
+
+        self.data.write()?.agent_description = description;
+
+        Ok(())
+    }
+
+    fn set_health(&self, health: AgentHealth) -> Result<(), SyncedStateError> {
+        self.data.write()?.healt = health;
+        Ok(())
+    }
 }

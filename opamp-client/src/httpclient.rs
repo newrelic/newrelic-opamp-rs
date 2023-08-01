@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::common::client::{CommonClient, Started, Unstarted};
@@ -23,13 +24,15 @@ static CHANNEL_BUFFER: usize = 1;
 static POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
 pub struct NotReady<A, C, State = Unstarted>(
-    CommonClient<A, HttpController, HttpTransport<C>, State>,
+    CommonClient<A, HttpController, HttpTransport<C>, Arc<ClientSyncedState>, State>,
 )
 where
     A: Agent,
     C: Callbacks + Send + Sync + 'static;
 
-pub struct Ready<A, C, State = Started>(CommonClient<A, HttpController, HttpTransport<C>, State>)
+pub struct Ready<A, C, State = Started>(
+    CommonClient<A, HttpController, HttpTransport<C>, Arc<ClientSyncedState>, State>,
+)
 where
     A: Agent,
     C: Callbacks + Send + Sync + 'static;
@@ -65,7 +68,7 @@ where
 
         let internal_client = CommonClient::new(
             agent,
-            ClientSyncedState::default(),
+            Arc::new(ClientSyncedState::default()),
             start_settings,
             http_contoller,
             http_runner,
@@ -108,6 +111,10 @@ where
 
     async fn stop(self) -> Result<(), Self::Error> {
         Ok(self.client.0.stop().await?)
+    }
+
+    fn agent_description(&self) -> Result<AgentDescription, Self::Error> {
+        Ok(self.client.0.agent_description()?)
     }
 
     async fn set_agent_description(

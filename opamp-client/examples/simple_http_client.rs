@@ -1,7 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
 use http::HeaderMap;
-use log::info;
 use opamp_client::{
     httpclient::HttpClient,
     opamp::proto::{
@@ -15,6 +14,7 @@ use opamp_client::{
     },
     OpAMPClient, OpAMPClientHandle,
 };
+use tracing::info;
 
 use thiserror::Error;
 #[derive(Error, Debug)]

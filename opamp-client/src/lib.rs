@@ -63,9 +63,9 @@ pub trait OpAMPClientHandle {
         description: &AgentDescription,
     ) -> Result<(), Self::Error>;
 
-    // /// agent_description returns the last value successfully set by set_agent_description().
-    // fn agent_description(&self) -> &AgentDescription;
-    //
+    /// agent_description returns the last value successfully set by set_agent_description().
+    fn agent_description(&self) -> Result<AgentDescription, Self::Error>;
+
     /// set_health sets the health status of the Agent. The AgentHealth will be included
     async fn set_health(&mut self, health: &AgentHealth) -> Result<(), Self::Error>;
 

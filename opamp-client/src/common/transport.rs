@@ -1,6 +1,9 @@
-use async_trait::async_trait;
+use std::sync::PoisonError;
 
-use crate::opamp::proto::AgentToServer;
+use crate::{opamp::proto::AgentToServer, operation::syncedstate::SyncedState};
+use async_trait::async_trait;
+use thiserror::Error;
+use tokio::sync::mpsc::error::SendError;
 
 // Sender is an interface of the sending portion of OpAMP protocol that stores
 // the NextMessage to be sent and can be ordered to send the message.
@@ -13,28 +16,42 @@ pub(crate) trait Sender {
     fn transport(self) -> Result<(Self::Controller, Self::Runner), Self::Error>;
 }
 
+#[derive(Error, Debug)]
+pub enum TransportError {
+    #[error("some error")]
+    Invalid,
+    #[error("cannot set instance uid to empty value")]
+    EmptyUlid,
+    #[error("ulid could not be deserialized: `{0}`")]
+    InvalidUlid(ulid::DecodeError),
+    #[error("`{0}`")]
+    SendError(#[from] SendError<()>),
+    #[error("poison error, a thread paniced while holding a lock")]
+    PoisonError,
+}
+
+impl<T> From<PoisonError<T>> for TransportError {
+    fn from(_value: PoisonError<T>) -> Self {
+        TransportError::PoisonError
+    }
+}
+
 // Sender is an interface of the sending portion of OpAMP protocol that stores
 // the NextMessage to be sent and can be ordered to send the message.
 #[async_trait]
 pub trait TransportController {
-    type Error: std::error::Error + Send + Sync;
-
-    fn update<F>(&mut self, modifier: F)
+    fn update<F>(&mut self, modifier: F) -> Result<(), TransportError>
     where
         F: Fn(&mut AgentToServer);
-
-    // next_message gives access to the next message that will be sent by this Sender.
-    // Can be called concurrently with any other method.
-    // fn next_message(&self) -> Option<NextMessage>;
 
     // schedule_send signals to Sender that the message in NextMessage struct
     // is now ready to be sent.  The Sender should send the NextMessage as soon as possible.
     // If there is no pending message (e.g. the NextMessage was already sent and
     // "pending" flag is reset) then no message will be sent.
-    async fn schedule_send(&mut self);
+    async fn schedule_send(&mut self) -> Result<(), TransportError>;
 
     // set_instance_uid sets a new instanceUid to be used for all subsequent messages to be sent.
-    fn set_instance_uid(&mut self, instance_uid: String) -> Result<(), Self::Error>;
+    fn set_instance_uid(&mut self, instance_uid: String) -> Result<(), TransportError>;
 
     // stop cancels the transport runner
     fn stop(self);
@@ -43,89 +60,7 @@ pub trait TransportController {
 // TODO: Change to Sender?
 #[async_trait]
 pub trait TransportRunner {
+    type State: SyncedState;
     // run internal networking transport until canceled.
-    async fn run(&mut self) -> Result<(), TransportError>;
-}
-
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum TransportError {
-    // TODO: fix
-    #[error("some error")]
-    Invalid,
-}
-
-#[cfg(test)]
-pub(crate) mod test {
-
-    use crate::opamp::proto;
-
-    use super::{Sender, TransportController, TransportError, TransportRunner};
-    use async_trait::async_trait;
-    use thiserror::Error;
-    use tokio::select;
-    use tokio_util::sync::CancellationToken;
-
-    #[derive(Error, Debug)]
-    pub(crate) enum SenderError {}
-
-    pub(crate) struct TransportControllerMock {
-        cancel: CancellationToken,
-    }
-    pub(crate) struct TransportMock {
-        cancel: CancellationToken,
-    }
-
-    pub(crate) struct SenderMock {}
-
-    impl Sender for SenderMock {
-        type Controller = TransportControllerMock;
-        type Runner = TransportMock;
-        type Error = SenderError;
-        fn transport(self) -> Result<(Self::Controller, Self::Runner), SenderError> {
-            let cancel = CancellationToken::new();
-            Ok((
-                TransportControllerMock {
-                    cancel: cancel.clone(),
-                },
-                TransportMock { cancel },
-            ))
-        }
-    }
-
-    #[async_trait]
-    impl TransportController for TransportControllerMock {
-        type Error = SenderError;
-        fn update<F>(&mut self, _modifier: F)
-        where
-            F: Fn(&mut proto::AgentToServer),
-        {
-        }
-
-        async fn schedule_send(&mut self) {}
-
-        fn set_instance_uid(&mut self, _instance_uid: String) -> Result<(), Self::Error> {
-            Ok(())
-        }
-
-        fn stop(self) {
-            self.cancel.cancel();
-        }
-    }
-
-    #[async_trait]
-    impl TransportRunner for TransportMock {
-        async fn run(&mut self) -> Result<(), TransportError> {
-            select! {
-                _ = self.cancel.cancelled() => {
-                    // The token was cancelled
-                    Ok(())
-                }
-                _ = tokio::time::sleep(std::time::Duration::from_secs(600)) => {
-                    Err(TransportError::Invalid)
-                }
-            }
-        }
-    }
+    async fn run(&mut self, state: Self::State) -> Result<(), TransportError>;
 }
