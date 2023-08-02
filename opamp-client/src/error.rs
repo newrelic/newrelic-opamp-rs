@@ -1,7 +1,10 @@
 use thiserror::Error;
 use url::ParseError;
 
-use crate::{common::client::CommonClientError, operation::syncedstate::SyncedStateError};
+use crate::{
+    common::{client::CommonClientError, http::transport::HttpError},
+    operation::syncedstate::SyncedStateError,
+};
 
 use tracing::error;
 
@@ -14,6 +17,8 @@ pub enum ClientError {
     #[cfg(feature = "async-http")]
     #[error("`{0}`")]
     HttpSender(#[from] crate::common::http::HttpSenderError),
+    #[error("`{0}`")]
+    HttpError(#[from] HttpError),
     #[error("`{0}`")]
     InvalidUrl(#[from] ParseError),
 }

@@ -1,4 +1,5 @@
 use std::{
+    str::FromStr,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -13,13 +14,21 @@ use crate::{
     operation::callbacks::Callbacks,
 };
 use async_trait::async_trait;
-use http::{header::InvalidHeaderValue, HeaderMap};
+use http::{
+    header::{IntoHeaderName, InvalidHeaderName, InvalidHeaderValue},
+    HeaderMap, HeaderName, HeaderValue,
+};
 use prost::DecodeError;
 use prost::Message;
 use reqwest::Client;
 use thiserror::Error;
-use tokio::{select, sync::mpsc::Receiver, time::interval};
+use tokio::{
+    select,
+    sync::mpsc::Receiver,
+    time::{interval, Interval},
+};
 use tracing::{debug, error, info};
+use url::Url;
 
 #[async_trait]
 pub trait Transport {
@@ -44,11 +53,61 @@ impl Transport for ReqwestSender {
     }
 }
 
-fn opamp_headers(custom_headers: Option<HeaderMap>) -> Result<HeaderMap, HttpError> {
-    let mut headers = custom_headers.unwrap_or(HeaderMap::new());
+fn opamp_headers() -> HeaderMap {
+    let mut headers = HeaderMap::new();
 
-    headers.insert("Content-Type", "application/x-protobuf".parse()?);
-    Ok(headers)
+    headers.insert(
+        "Content-Type",
+        HeaderValue::from_static("application/x-protobuf"),
+    );
+
+    headers
+}
+
+// HttpConfig wraps configuration parameters for the internal HTTP client
+// gzip compression is enabled by default
+pub(crate) struct HttpConfig {
+    url: Url,
+    headers: HeaderMap,
+    compression: bool,
+}
+
+impl HttpConfig {
+    pub(crate) fn new(url: Url) -> Self {
+        Self {
+            url,
+            headers: opamp_headers(),
+            compression: true,
+        }
+    }
+
+    pub(crate) fn with_headers<'a, I>(&mut self, headers: I) -> Result<(), HttpError>
+    where
+        I: IntoIterator<Item = (&'a str, &'a str)>,
+    {
+        for (key, val) in headers {
+            // do nothing if value already in internal headers map
+            let _ = self
+                .headers
+                .insert(HeaderName::from_str(key)?, val.parse()?);
+        }
+        Ok(())
+    }
+
+    // disables gzip compression
+    pub(crate) fn no_gzip(&mut self) {
+        self.compression = false;
+    }
+}
+
+impl TryFrom<&HttpConfig> for reqwest::Client {
+    type Error = HttpError;
+    fn try_from(value: &HttpConfig) -> Result<Self, Self::Error> {
+        Ok(Client::builder()
+            .default_headers(value.headers.clone())
+            .gzip(false)
+            .build()?)
+    }
 }
 
 #[derive(Debug)]
@@ -65,7 +124,7 @@ where
     callbacks: C,
 
     // polling interval has passed. Force a status update.
-    polling: Duration,
+    polling: Interval,
     // next message structure for forced status updates
     next_message: Arc<Mutex<NextMessage>>,
 }
@@ -78,6 +137,8 @@ pub enum HttpError {
     ReqwestError(#[from] reqwest::Error),
     #[error("`{0}`")]
     InvalidHeader(#[from] InvalidHeaderValue),
+    #[error("`{0}`")]
+    InvalidHeaderName(#[from] InvalidHeaderName),
 }
 
 impl<C> HttpTransport<C, ReqwestSender>
@@ -85,23 +146,18 @@ where
     C: Callbacks,
 {
     pub(crate) fn new(
-        url: url::Url,
-        headers: Option<HeaderMap>,
+        client_config: HttpConfig,
         polling: Duration,
         pending_messages: Receiver<()>,
         next_message: Arc<Mutex<NextMessage>>,
         callbacks: C,
     ) -> Result<Self, HttpError> {
-        let http_client = Client::builder()
-            .default_headers(opamp_headers(headers)?)
-            .build()?;
-
         Ok(HttpTransport {
-            http_client,
+            http_client: reqwest::Client::try_from(&client_config)?,
             sender: ReqwestSender {},
             pending_messages,
-            url,
-            polling,
+            url: client_config.url,
+            polling: interval(polling),
             next_message,
             callbacks,
         })
@@ -109,24 +165,21 @@ where
 }
 
 impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
+    #[cfg(test)]
     pub(crate) fn with_transport(
-        url: url::Url,
-        headers: Option<HeaderMap>,
+        client_config: HttpConfig,
         polling: Duration,
         transport: T,
         pending_messages: Receiver<()>,
         next_message: Arc<Mutex<NextMessage>>,
         callbacks: C,
     ) -> Result<HttpTransport<C, T>, HttpError> {
-        let http_client = Client::builder()
-            .default_headers(opamp_headers(headers)?)
-            .build()?;
         Ok(HttpTransport {
-            http_client,
+            http_client: reqwest::Client::try_from(&client_config)?,
             sender: transport,
             pending_messages,
-            url,
-            polling,
+            url: client_config.url,
+            polling: interval(polling),
             next_message,
             callbacks,
         })
@@ -156,11 +209,24 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
         //     println!("Response is encoded!")
         // }
 
+        info!("Packet size response_bytes: {}", response_bytes.len());
         let response = ServerToAgent::decode(response_bytes)?;
 
         self.callbacks.on_connect();
 
         Ok(response)
+    }
+
+    // next_send returns the unit type if a new message should be send, none if notifying
+    // channel has been closed. Asynchronous function which waits for the internal ticker
+    // or a pushed notification in the internal pending_messages channel.
+    async fn next_send(&mut self) -> Option<()> {
+        select! {
+            _ = self.polling.tick() => {
+                Some(())
+            }
+            recv_result = self.pending_messages.recv() => recv_result
+        }
     }
 }
 
@@ -170,8 +236,6 @@ impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
 {
     type State = Arc<ClientSyncedState>;
     async fn run(&mut self, _state: Self::State) -> Result<(), TransportError> {
-        let mut polling_ticker = interval(self.polling);
-
         let send_handler = |result: Result<ServerToAgent, HttpError>| {
             match result {
                 Ok(response) => debug!("Response: {:?}", response),
@@ -179,26 +243,12 @@ impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
             };
         };
 
-        loop {
-            select! {
-                _ = polling_ticker.tick() => {
-                    debug!("Polling ticker triggered, forcing status update");
-                    let msg = self.next_message.lock().unwrap().pop();
-                    send_handler(self.send_message(msg).await);
-                }
-                recv_result = self.pending_messages.recv() => match recv_result {
-                        Some(()) => {
-                            debug!("Pending message notification, sending message");
-                            let msg = self.next_message.lock().unwrap().pop();
-                            send_handler(self.send_message(msg).await);
-                        }
-                        None => {
-                            info!("HTTP Forwarder Receving channel closed! Exiting");
-                            break;
-                        }
-                    },
-            }
+        while let Some(_) = self.next_send().await {
+            let msg = self.next_message.lock().unwrap().pop();
+            send_handler(self.send_message(msg).await);
         }
+
+        info!("HTTP Forwarder Receving channel closed! Exiting");
         Ok(())
     }
 }
@@ -249,8 +299,7 @@ pub(crate) mod test {
             messages: counter.clone(),
         };
         let mut runner = HttpTransport::with_transport(
-            url::Url::parse("http://example.com").unwrap(),
-            None,
+            HttpConfig::new(url::Url::parse("http://example.com").unwrap()),
             Duration::from_secs(100),
             transport,
             receiver,

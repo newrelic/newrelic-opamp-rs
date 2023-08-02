@@ -5,7 +5,7 @@ use std::time::Duration;
 use crate::common::client::{CommonClient, Started, Unstarted};
 use crate::common::clientstate::ClientSyncedState;
 use crate::common::http::sender::HttpController;
-use crate::common::http::transport::HttpTransport;
+use crate::common::http::transport::{HttpConfig, HttpTransport};
 use crate::common::http::HttpSender;
 use crate::common::transport::Sender;
 use crate::error::ClientError;
@@ -17,7 +17,6 @@ use crate::operation::settings::StartSettings;
 use crate::{OpAMPClient, OpAMPClientHandle};
 
 use async_trait::async_trait;
-use http::HeaderMap;
 use url::Url;
 
 static CHANNEL_BUFFER: usize = 1;
@@ -54,16 +53,21 @@ where
     A: Agent + Send,
     C: Callbacks + Send + Sync + 'static,
 {
-    pub fn new(
+    pub fn new<'a, I>(
         agent: A,
         url: &str,
-        headers: Option<HeaderMap>,
+        headers: I,
         start_settings: StartSettings,
         callbacks: C,
-    ) -> Result<Self, ClientError> {
-        let url = Url::parse(url)?;
+    ) -> Result<Self, ClientError>
+    where
+        I: IntoIterator<Item = (&'a str, &'a str)>,
+    {
+        let mut http_config = HttpConfig::new(Url::parse(url)?);
+        http_config.with_headers(headers)?;
+
         let (http_contoller, http_runner) =
-            HttpSender::new(url, headers, POLLING_INTERVAL, CHANNEL_BUFFER, callbacks)
+            HttpSender::new(http_config, POLLING_INTERVAL, CHANNEL_BUFFER, callbacks)
                 .transport()?;
 
         let internal_client = CommonClient::new(
