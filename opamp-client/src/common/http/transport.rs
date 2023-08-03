@@ -100,12 +100,10 @@ impl HttpConfig {
     }
 }
 
-impl TryFrom<&HttpConfig> for reqwest::Client {
+impl TryFrom<HttpConfig> for reqwest::Client {
     type Error = HttpError;
-    fn try_from(value: &HttpConfig) -> Result<Self, Self::Error> {
-        Ok(Client::builder()
-            .default_headers(value.headers.clone())
-            .build()?)
+    fn try_from(value: HttpConfig) -> Result<Self, Self::Error> {
+        Ok(Client::builder().default_headers(value.headers).build()?)
     }
 }
 
@@ -151,11 +149,12 @@ where
         next_message: Arc<Mutex<NextMessage>>,
         callbacks: C,
     ) -> Result<Self, HttpError> {
+        let url = client_config.url.clone();
         Ok(HttpTransport {
-            http_client: reqwest::Client::try_from(&client_config)?,
+            http_client: reqwest::Client::try_from(client_config)?,
             sender: ReqwestSender {},
             pending_messages,
-            url: client_config.url,
+            url,
             polling: interval(polling),
             next_message,
             callbacks,
@@ -173,11 +172,12 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
         next_message: Arc<Mutex<NextMessage>>,
         callbacks: C,
     ) -> Result<HttpTransport<C, T>, HttpError> {
+        let url = client_config.url.clone();
         Ok(HttpTransport {
-            http_client: reqwest::Client::try_from(&client_config)?,
+            http_client: reqwest::Client::try_from(client_config)?,
             sender: transport,
             pending_messages,
-            url: client_config.url,
+            url,
             polling: interval(polling),
             next_message,
             callbacks,
