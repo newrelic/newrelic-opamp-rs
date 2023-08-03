@@ -7,6 +7,7 @@ use std::{
 use crate::{
     common::{
         clientstate::ClientSyncedState,
+        http::compression::{decode_message, encode_message},
         nextmessage::NextMessage,
         transport::{TransportError, TransportRunner},
     },
@@ -29,6 +30,8 @@ use tokio::{
 };
 use tracing::{debug, error, info};
 use url::Url;
+
+use super::compression::{Compressor, CompressorError, DecoderError, EncoderError};
 
 #[async_trait]
 pub trait Transport {
@@ -53,6 +56,8 @@ impl Transport for ReqwestSender {
     }
 }
 
+// opamp_headers returns a HeaderMap with the common HTTP headers used in an
+// OpAMP connection
 fn opamp_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
 
@@ -77,11 +82,12 @@ impl HttpConfig {
         Self {
             url,
             headers: opamp_headers(),
-            compression: true,
+            compression: false,
         }
     }
 
-    pub(crate) fn with_headers<'a, I>(&mut self, headers: I) -> Result<(), HttpError>
+    // with_headers allows to include custom headers into the http requests
+    pub(crate) fn with_headers<'a, I>(mut self, headers: I) -> Result<Self, HttpError>
     where
         I: IntoIterator<Item = (&'a str, &'a str)>,
     {
@@ -91,12 +97,17 @@ impl HttpConfig {
                 .headers
                 .insert(HeaderName::from_str(key)?, val.parse()?);
         }
-        Ok(())
+        Ok(self)
     }
 
-    // disables gzip compression
-    pub(crate) fn no_gzip(&mut self) {
-        self.compression = false;
+    // enables gzip compression
+    pub(crate) fn with_gzip_compression(mut self) -> Self {
+        self.headers
+            .insert("Content-Encoding", HeaderValue::from_static("gzip"));
+        self.headers
+            .insert("Accept-Encoding", HeaderValue::from_static("gzip"));
+        self.compression = true;
+        self
     }
 }
 
@@ -107,7 +118,15 @@ impl TryFrom<HttpConfig> for reqwest::Client {
     }
 }
 
-#[derive(Debug)]
+impl From<&HttpConfig> for Compressor {
+    fn from(value: &HttpConfig) -> Self {
+        if value.compression {
+            return Compressor::Gzip;
+        }
+        Compressor::Plain
+    }
+}
+
 pub struct HttpTransport<C, T: Transport = ReqwestSender>
 where
     C: Callbacks,
@@ -115,6 +134,7 @@ where
     pub(crate) pending_messages: Receiver<()>,
     http_client: reqwest::Client,
     url: url::Url,
+    compressor: Compressor,
     sender: T,
 
     // callbacks function when a new message is received
@@ -136,6 +156,12 @@ pub enum HttpError {
     InvalidHeader(#[from] InvalidHeaderValue),
     #[error("`{0}`")]
     InvalidHeaderName(#[from] InvalidHeaderName),
+    #[error("`{0}`")]
+    Encode(#[from] EncoderError),
+    #[error("`{0}`")]
+    Decode(#[from] DecoderError),
+    #[error("`{0}`")]
+    Compress(#[from] CompressorError),
 }
 
 impl<C> HttpTransport<C, ReqwestSender>
@@ -150,8 +176,10 @@ where
         callbacks: C,
     ) -> Result<Self, HttpError> {
         let url = client_config.url.clone();
+        let compressor = Compressor::from(&client_config);
         Ok(HttpTransport {
             http_client: reqwest::Client::try_from(client_config)?,
+            compressor,
             sender: ReqwestSender {},
             pending_messages,
             url,
@@ -173,8 +201,10 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
         callbacks: C,
     ) -> Result<HttpTransport<C, T>, HttpError> {
         let url = client_config.url.clone();
+        let compressor = Compressor::from(&client_config);
         Ok(HttpTransport {
             http_client: reqwest::Client::try_from(client_config)?,
+            compressor,
             sender: transport,
             pending_messages,
             url,
@@ -186,7 +216,7 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
 
     async fn send_message(&self, msg: AgentToServer) -> Result<ServerToAgent, HttpError> {
         // Serialize the message to bytes
-        let bytes = msg.encode_to_vec();
+        let bytes = encode_message(&self.compressor, msg)?;
 
         let response = self
             .sender
@@ -197,19 +227,12 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
             )
             .await?;
 
-        // decode response
-        let response_bytes = response.bytes().await?;
+        let compression = match response.headers().get("Content-Encoding") {
+            Some(algorithm) => Compressor::try_from(algorithm.as_bytes())?,
+            None => Compressor::Plain,
+        };
 
-        // TODO
-        // if let Some(encoding) = headers.get("Content-Encoding") {
-        //     if encoding == "gzip" {
-        //         println!("gzip encoding")
-        //     }
-        //     println!("Response is encoded!")
-        // }
-
-        info!("Packet size response_bytes: {}", response_bytes.len());
-        let response = ServerToAgent::decode(response_bytes)?;
+        let response = decode_message::<ServerToAgent>(&compression, &response.bytes().await?)?;
 
         self.callbacks.on_connect();
 

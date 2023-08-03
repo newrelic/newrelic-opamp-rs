@@ -15,6 +15,7 @@ use self::{
 
 use super::{nextmessage::NextMessage, transport::Sender};
 
+mod compression;
 pub(crate) mod sender;
 pub(crate) mod transport;
 

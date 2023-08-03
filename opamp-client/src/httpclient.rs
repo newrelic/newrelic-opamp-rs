@@ -63,8 +63,10 @@ where
     where
         I: IntoIterator<Item = (&'a str, &'a str)>,
     {
-        let mut http_config = HttpConfig::new(Url::parse(url)?);
-        http_config.with_headers(headers)?;
+        // TODO: parametrize compression
+        let http_config = HttpConfig::new(Url::parse(url)?)
+            .with_headers(headers)?
+            .with_gzip_compression();
 
         let (http_contoller, http_runner) =
             HttpSender::new(http_config, POLLING_INTERVAL, CHANNEL_BUFFER, callbacks)
