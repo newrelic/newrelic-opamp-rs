@@ -61,13 +61,12 @@ impl Callbacks for CallbacksMock {
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    let mut headers = HeaderMap::new();
-    headers.insert("super-key", "suuuuuuuperstrongkey".parse().unwrap());
+    let headers = [("super-key", "super-password")];
 
     let client = HttpClient::new(
         AgentMock {},
         "https://127.0.0.1/v1/opamp",
-        Some(headers),
+        headers,
         StartSettings {
             instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
             capabilities: AgentCapabilities::ReportsStatus,

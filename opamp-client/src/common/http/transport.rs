@@ -15,7 +15,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use http::{
-    header::{IntoHeaderName, InvalidHeaderName, InvalidHeaderValue},
+    header::{InvalidHeaderName, InvalidHeaderValue},
     HeaderMap, HeaderName, HeaderValue,
 };
 use prost::DecodeError;
@@ -105,7 +105,6 @@ impl TryFrom<&HttpConfig> for reqwest::Client {
     fn try_from(value: &HttpConfig) -> Result<Self, Self::Error> {
         Ok(Client::builder()
             .default_headers(value.headers.clone())
-            .gzip(false)
             .build()?)
     }
 }
