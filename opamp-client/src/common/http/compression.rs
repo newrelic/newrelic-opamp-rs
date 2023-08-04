@@ -71,3 +71,71 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use rand::distributions::{Alphanumeric, DistString};
+
+    use super::*;
+    use crate::opamp::proto::{AgentConfigFile, AgentConfigMap, AgentToServer, EffectiveConfig};
+
+    #[test]
+    fn empty_message() {
+        let default_message = AgentToServer::default();
+
+        let gzip_data = encode_message(&Compressor::Gzip, default_message.clone()).unwrap();
+        let plain_data = encode_message(&Compressor::Plain, default_message.clone()).unwrap();
+
+        // empty message with gzip contains gzip header
+        assert!(gzip_data.len() > plain_data.len());
+
+        assert_eq!(
+            decode_message::<AgentToServer>(&Compressor::Plain, &plain_data).unwrap(),
+            default_message
+        );
+
+        assert_eq!(
+            decode_message::<AgentToServer>(&Compressor::Gzip, &gzip_data).unwrap(),
+            default_message
+        );
+    }
+
+    #[test]
+    fn message_payload() {
+        let mut sample_message = AgentToServer::default();
+
+        // generate a big random effective configuration
+        sample_message.effective_config = Some(EffectiveConfig {
+            config_map: Some(AgentConfigMap {
+                config_map: HashMap::from([(
+                    "/test".to_string(),
+                    AgentConfigFile {
+                        body: Alphanumeric
+                            .sample_string(&mut rand::thread_rng(), 300)
+                            .as_bytes()
+                            .to_vec(),
+                        content_type: "random".to_string(),
+                    },
+                )]),
+            }),
+        });
+
+        let gzip_data = encode_message(&Compressor::Gzip, sample_message.clone()).unwrap();
+        let plain_data = encode_message(&Compressor::Plain, sample_message.clone()).unwrap();
+
+        // big message should have smaller size with gzip compression
+        assert!(gzip_data.len() < plain_data.len());
+
+        assert_eq!(
+            decode_message::<AgentToServer>(&Compressor::Plain, &plain_data).unwrap(),
+            sample_message
+        );
+
+        assert_eq!(
+            decode_message::<AgentToServer>(&Compressor::Gzip, &gzip_data).unwrap(),
+            sample_message
+        );
+    }
+}

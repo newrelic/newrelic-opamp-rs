@@ -705,6 +705,7 @@ dependencies = [
  "libflate",
  "prost",
  "prost-build",
+ "rand",
  "reqwest",
  "thiserror",
  "tokio",

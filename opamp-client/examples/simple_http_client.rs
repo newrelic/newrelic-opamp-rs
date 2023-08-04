@@ -1,6 +1,5 @@
 use std::{thread::sleep, time::Duration};
 
-use http::HeaderMap;
 use opamp_client::{
     httpclient::HttpClient,
     opamp::proto::{

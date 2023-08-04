@@ -19,8 +19,6 @@ use http::{
     header::{InvalidHeaderName, InvalidHeaderValue},
     HeaderMap, HeaderName, HeaderValue,
 };
-use prost::DecodeError;
-use prost::Message;
 use reqwest::Client;
 use thiserror::Error;
 use tokio::{
@@ -148,8 +146,6 @@ where
 
 #[derive(Error, Debug)]
 pub enum HttpError {
-    #[error("`{0}`")]
-    ProtobufDecoding(#[from] DecodeError),
     #[error("`{0}`")]
     ReqwestError(#[from] reqwest::Error),
     #[error("`{0}`")]
@@ -279,6 +275,7 @@ impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
 pub(crate) mod test {
 
     use async_trait::async_trait;
+    use prost::Message;
     use tokio::{spawn, sync::mpsc::channel};
 
     use crate::{
