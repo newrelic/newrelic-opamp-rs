@@ -28,7 +28,7 @@ pub struct ClientSyncedState {
 #[derive(Debug, Default)]
 struct Data {
     agent_description: AgentDescription,
-    healt: AgentHealth,
+    health: AgentHealth,
     remote_config_status: RemoteConfigStatus,
     package_status: PackageStatuses,
 }
@@ -51,7 +51,11 @@ impl SyncedState for Arc<ClientSyncedState> {
     }
 
     fn set_health(&self, health: AgentHealth) -> Result<(), SyncedStateError> {
-        self.data.write()?.healt = health;
+        self.data.write()?.health = health;
         Ok(())
+    }
+
+    fn health(&self) -> Result<AgentHealth, SyncedStateError> {
+        Ok(self.data.read()?.health.clone())
     }
 }

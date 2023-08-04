@@ -64,37 +64,28 @@ pub trait Callbacks {
 }
 
 pub(crate) mod test {
-    use super::Callbacks;
+    use super::*;
 
-    pub(crate) struct CallbacksMock;
-
+    use mockall::mock;
     use thiserror::Error;
+
 
     #[derive(Error, Debug)]
     pub(crate) enum CallbacksMockError {}
 
-    impl Callbacks for CallbacksMock {
-        type Error = CallbacksMockError;
-        fn on_error(&self, _err: crate::opamp::proto::ServerErrorResponse) {}
-        fn on_connect(&self) {}
-        fn on_message(&self, _msg: super::MessageData) {}
-        fn on_command(
-            &self,
-            _command: &crate::opamp::proto::ServerToAgentCommand,
-        ) -> Result<(), Self::Error> {
-            Ok(())
-        }
-        fn on_connect_failed(&self, _err: Self::Error) {}
-        fn on_opamp_connection_settings(
-            &self,
-            _settings: &crate::opamp::proto::OpAmpConnectionSettings,
-        ) -> Result<(), Self::Error> {
-            Ok(())
-        }
-        fn on_opamp_connection_settings_accepted(
-            &self,
-            _settings: &crate::opamp::proto::OpAmpConnectionSettings,
-        ) {
-        }
+    mock! {
+      pub(crate) CallbacksMockall {}
+
+      impl Callbacks for CallbacksMockall {
+            type Error = CallbacksMockError;
+
+            fn on_connect(&self);
+            fn on_connect_failed(&self, err: <Self as Callbacks>::Error);
+            fn on_error(&self, err: ServerErrorResponse);
+            fn on_message(&self, msg: MessageData);
+            fn on_opamp_connection_settings(&self,settings: &OpAmpConnectionSettings,) -> Result<(), <Self as Callbacks>::Error>;
+            fn on_opamp_connection_settings_accepted(&self, settings: &OpAmpConnectionSettings);
+            fn on_command(&self, command: &ServerToAgentCommand) -> Result<(), <Self as Callbacks>::Error>;
+      }
     }
 }

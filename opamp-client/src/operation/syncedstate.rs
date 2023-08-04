@@ -1,8 +1,8 @@
 use std::sync::PoisonError;
 
-use crate::opamp::proto::{AgentDescription, AgentHealth};
-
 use thiserror::Error;
+
+use crate::opamp::proto::{AgentDescription, AgentHealth};
 
 #[derive(Debug, Error)]
 pub enum SyncedStateError {
@@ -26,4 +26,6 @@ pub trait SyncedState {
     fn set_agent_description(&self, description: AgentDescription) -> Result<(), SyncedStateError>;
 
     fn set_health(&self, health: AgentHealth) -> Result<(), SyncedStateError>;
+
+    fn health(&self) -> Result<AgentHealth, SyncedStateError>;
 }

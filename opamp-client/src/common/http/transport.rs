@@ -4,16 +4,6 @@ use std::{
     time::Duration,
 };
 
-use crate::{
-    common::{
-        clientstate::ClientSyncedState,
-        http::compression::{decode_message, encode_message},
-        nextmessage::NextMessage,
-        transport::{TransportError, TransportRunner},
-    },
-    opamp::proto::{AgentToServer, ServerToAgent},
-    operation::callbacks::Callbacks,
-};
 use async_trait::async_trait;
 use http::{
     header::{InvalidHeaderName, InvalidHeaderValue},
@@ -28,6 +18,18 @@ use tokio::{
 };
 use tracing::{debug, error, info};
 use url::Url;
+
+use crate::{
+    common::{
+        clientstate::ClientSyncedState,
+        http::compression::{decode_message, encode_message},
+        nextmessage::NextMessage,
+        transport::{TransportError, TransportRunner},
+    },
+    opamp::proto::{AgentToServer, ServerToAgent, ServerToAgentFlags},
+    operation::callbacks::Callbacks,
+};
+use crate::operation::syncedstate::SyncedState;
 
 use super::compression::{Compressor, CompressorError, DecoderError, EncoderError};
 
@@ -86,8 +88,8 @@ impl HttpConfig {
 
     // with_headers allows to include custom headers into the http requests
     pub(crate) fn with_headers<'a, I>(mut self, headers: I) -> Result<Self, HttpError>
-    where
-        I: IntoIterator<Item = (&'a str, &'a str)>,
+        where
+            I: IntoIterator<Item=(&'a str, &'a str)>,
     {
         for (key, val) in headers {
             // do nothing if value already in internal headers map
@@ -126,8 +128,8 @@ impl From<&HttpConfig> for Compressor {
 }
 
 pub struct HttpTransport<C, T: Transport = ReqwestSender>
-where
-    C: Callbacks,
+    where
+        C: Callbacks,
 {
     pub(crate) pending_messages: Receiver<()>,
     http_client: reqwest::Client,
@@ -161,8 +163,8 @@ pub enum HttpError {
 }
 
 impl<C> HttpTransport<C, ReqwestSender>
-where
-    C: Callbacks,
+    where
+        C: Callbacks,
 {
     pub(crate) fn new(
         client_config: HttpConfig,
@@ -230,8 +232,6 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
 
         let response = decode_message::<ServerToAgent>(&compression, &response.bytes().await?)?;
 
-        self.callbacks.on_connect();
-
         Ok(response)
     }
 
@@ -246,24 +246,77 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
             recv_result = self.pending_messages.recv() => recv_result
         }
     }
+
+    async fn receive(&self, state: Arc<ClientSyncedState>, msg: ServerToAgent) {
+        if let Some(server_to_agent_command) = msg.command {
+            // TODO : Should on_command return the error? The error in on_commands belogs
+            // to the library user implementation and IMHO should not be used here (like the Go one)
+            _ = self.callbacks.on_command(&server_to_agent_command);
+            return;
+        }
+
+        let scheduled = self.rcv_flags(state, msg.flags);
+        println!("{:?}", scheduled.await);
+
+    }
+
+    async fn rcv_flags(&self, state: Arc<ClientSyncedState>, flags: u64) -> Option<bool> {
+        // if flags & ServerToAgentFlags::ReportFullState != 0 {
+        // if true {
+        //     self.next_message.lock()?.update(|msg: &mut AgentToServer| {
+        //         msg.AgentDescription = state.agent_description();
+        //         msg.Health = state.health();
+        //         // TODO...
+        //     });
+
+
+            // Go code...
+            // cfg, err := r.callbacks.GetEffectiveConfig(ctx)
+            // if err != nil {
+            //     r.logger.Errorf("Cannot GetEffectiveConfig: %v", err)
+            //     cfg = nil
+            // }
+            //
+            // r.sender.NextMessage().Update(
+            //     func(msg *protobufs.AgentToServer) {
+            //         msg.AgentDescription = r.clientSyncedState.AgentDescription()
+            //         msg.Health = r.clientSyncedState.Health()
+            //         msg.RemoteConfigStatus = r.clientSyncedState.RemoteConfigStatus()
+            //         msg.PackageStatuses = r.clientSyncedState.PackageStatuses()
+            //
+            //         // The logic for EffectiveConfig is similar to the previous 4 sub-messages however
+            //         // the EffectiveConfig is fetched using GetEffectiveConfig instead of
+            //         // from clientSyncedState. We do this to avoid keeping EffectiveConfig in-memory.
+            //         msg.EffectiveConfig = cfg
+            //     },
+            // )
+            // scheduleSend = true
+        // }
+        return Some(true);
+    }
 }
 
 #[async_trait]
 impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
-    for HttpTransport<C, T>
+for HttpTransport<C, T>
 {
     type State = Arc<ClientSyncedState>;
     async fn run(&mut self, _state: Self::State) -> Result<(), TransportError> {
-        let send_handler = |result: Result<ServerToAgent, HttpError>| {
-            match result {
-                Ok(response) => debug!("Response: {:?}", response),
-                Err(e) => error!("Error sending message: {:?}", e),
-            };
-        };
-
         while let Some(_) = self.next_send().await {
             let msg = self.next_message.lock().unwrap().pop();
-            send_handler(self.send_message(msg).await);
+            let result = self.send_message(msg).await;
+            match result {
+                Ok(response) => {
+                    debug!("Response: {:?}", response);
+                    self.callbacks.on_connect();
+                    self.receive(_state.clone(), response).await;
+                }
+                Err(e) => {
+                    // what happens with the typed error? Callbacks< With error + From:: Http)
+                    // self.callbacks.on_connect_failed(e);
+                    error!("Error sending message: {:?}", e);
+                }
+            };
         }
 
         info!("HTTP Forwarder Receving channel closed! Exiting");
@@ -273,91 +326,159 @@ impl<C: Callbacks + Send + Sync, T: Transport + Send + Sync> TransportRunner
 
 #[cfg(test)]
 pub(crate) mod test {
-
     use async_trait::async_trait;
+    use http::response::Builder;
+    use mockall::mock;
     use prost::Message;
+    use reqwest::{RequestBuilder, Response};
     use tokio::{spawn, sync::mpsc::channel};
 
     use crate::{
         common::{clientstate::ClientSyncedState, transport::TransportRunner},
-        operation::callbacks::test::CallbacksMock,
     };
+    use crate::opamp::proto::ServerToAgentCommand;
+    use crate::operation::callbacks::test::MockCallbacksMockall;
 
     use super::*;
 
-    // Define a struct to represent the mock client
-    pub struct TransportMock {
-        messages: Arc<Mutex<Vec<AgentToServer>>>,
-    }
+    //transport mock with mockall
+    mock! {
+      pub(crate) TransportMockall {}
 
-    #[async_trait]
-    impl Transport for TransportMock {
-        type Error = reqwest::Error;
+        #[async_trait]
+        impl Transport for TransportMockall {
+            type Error = reqwest::Error;
 
-        async fn send(
-            &self,
-            request: reqwest::RequestBuilder,
-        ) -> Result<reqwest::Response, Self::Error> {
-            // get acutal message
-            let binding = request.build()?;
-            let msg_bytes = binding.body().unwrap().as_bytes().unwrap();
-            let agent_to_server_msg = AgentToServer::decode(msg_bytes).unwrap();
-
-            self.messages.lock().unwrap().push(agent_to_server_msg);
-            Ok(http::Response::new(ServerToAgent::default().encode_to_vec()).into())
+             async fn send(&self,request: reqwest::RequestBuilder) -> Result<reqwest::Response, reqwest::Error>;
         }
     }
 
     #[tokio::test]
     async fn test_http_client_run() {
-        let next_message = Arc::new(Mutex::new(NextMessage::new()));
         let (sender, receiver) = channel(10);
+        // we'll send X messages and assert they are sent and the sequence numbers are consecutive
+        let messages_to_send = 4;
 
-        let counter = Arc::new(Mutex::new(vec![]));
-        let transport = TransportMock {
-            messages: counter.clone(),
-        };
-        let mut runner = HttpTransport::with_transport(
-            HttpConfig::new(url::Url::parse("http://example.com").unwrap()),
-            Duration::from_secs(100),
-            transport,
-            receiver,
-            next_message,
-            CallbacksMock {},
-        )
-        .unwrap();
+        let mut transport = MockTransportMockall::new();
+        // we will send X messages, so we expect transport to be called 3 times
+        // and we can validate the input message's sequence number
+        for i in 1..messages_to_send {
+            transport.expect_send()
+                .times(1)
+                .withf(move |req_builder: &RequestBuilder| {
+                    let agent_to_server = agent_to_server_from_req(req_builder);
+                    agent_to_server.sequence_num == i
+                })
+                .returning(|_| {
+                    Ok(reqwest_response_from_server_to_agent(&ServerToAgent::default()))
+                });
+        }
+
+        // on_connect callback is called every time a message is received
+        let mut callbacks_mock = MockCallbacksMockall::new();
+        for _ in 1..messages_to_send {
+            callbacks_mock.expect_on_connect().times(1).return_const(());
+        }
+
+        // create the http transport with the mocked transport,receiver and callbacks
+        let mut runner = create_runner(receiver, transport, callbacks_mock);
 
         let handle = spawn(async move {
             let state = Arc::new(ClientSyncedState::default());
             runner.run(state).await.unwrap();
             // drop runner to decrease arc references
             drop(runner);
-            Arc::into_inner(counter)
         });
 
-        // send 3 messages
-        sender.send(()).await.unwrap();
-        sender.send(()).await.unwrap();
-        sender.send(()).await.unwrap();
+        // send X messages
+        for _ in 1..messages_to_send {
+            sender.send(()).await.unwrap();
+        }
         // cancel the runner
         drop(sender);
 
-        let send_messages = handle.await.unwrap().unwrap();
+        assert!(handle.await.is_ok());
+    }
 
-        // 3 messages where send
-        assert_eq!(send_messages.lock().unwrap().len(), 3);
+    #[tokio::test]
+    async fn test_http_client_run_receive_message_on_command() {
+        let (sender, receiver) = channel(10);
+        // prepare the message form the server to the agent. It will just be a command
+        let mut server_to_agent = ServerToAgent::default();
+        server_to_agent.command = Some(ServerToAgentCommand::default());
 
-        // consecutive sequence numbers
-        assert_eq!(
-            send_messages
-                .lock()
-                .unwrap()
-                .iter()
-                .fold(vec![], |mut acc, msg| {
-                    acc.push(msg.sequence_num);
-                    acc
-                }),
-            vec![1, 2, 3],
-        );
+        // the http transport will return the message with a command, we don't care about validating
+        // the arguments
+        let mut transport = MockTransportMockall::new();
+        transport.expect_send()
+            .once()
+            .returning(move |_| {
+                Ok(reqwest_response_from_server_to_agent(&server_to_agent))
+            });
+
+        // expect on_command callback to be called
+        let mut callbacks_mock = MockCallbacksMockall::new();
+        callbacks_mock.expect_on_connect().times(1).return_const(());
+        callbacks_mock.expect_on_command()
+            .once()
+            .withf(|x| { x == &ServerToAgentCommand::default() })
+            .returning(|_| {
+                Ok(())
+            });
+
+        // create the http transport with the mocked transport,receiver and callbacks
+        let mut runner = create_runner(receiver, transport, callbacks_mock);
+
+        // run the http transport
+        let handle = spawn(async move {
+            let state = Arc::new(ClientSyncedState::default());
+            runner.run(state).await.unwrap();
+            // drop runner to decrease arc references
+            drop(runner);
+        });
+
+        sender.send(()).await.unwrap();
+
+        // cancel the runner
+        drop(sender);
+
+        handle.await.unwrap();
+    }
+
+    /////////////////////////////////////////////
+    // Test helpers
+    /////////////////////////////////////////////
+
+    // Create a reqwest response from a ServerToAgent
+    fn reqwest_response_from_server_to_agent(server_to_agent: &ServerToAgent) -> Response {
+        let mut buf = vec![];
+        let _ = &server_to_agent.encode(&mut buf);
+
+        let response = Builder::new()
+            .status(200)
+            .body(buf)
+            .unwrap();
+
+        Response::from(response)
+    }
+
+    // Create a ServerToAgent struct from a request body
+    fn agent_to_server_from_req(req_builder: &RequestBuilder) -> AgentToServer {
+        let request = req_builder.try_clone().unwrap().build().unwrap();
+        let body = request.body().unwrap().as_bytes().unwrap();
+        AgentToServer::decode(body).unwrap()
+    }
+
+    // Create runner
+    fn create_runner<C, T>(receiver: Receiver<()>, transport: T, callbacks: C) -> HttpTransport<C, T> where C: Callbacks, T: Transport {
+        let next_message = Arc::new(Mutex::new(NextMessage::new()));
+        HttpTransport::with_transport(
+            HttpConfig::new(url::Url::parse("http://example.com").unwrap()),
+            Duration::from_secs(100),
+            transport,
+            receiver,
+            next_message,
+            callbacks,
+        ).unwrap()
     }
 }
