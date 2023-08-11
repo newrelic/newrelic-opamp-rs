@@ -100,8 +100,9 @@ where
     pub(crate) fn start_connect_and_run(mut self) -> CommonClient<A, C, R, S, Started> {
         let mut runner = self.runner.take().unwrap();
         let state = self.client_synced_state.clone();
+        let capabilities = self.capabilities;
         // TODO: Do a sanity check to runner (head request?)
-        let handle = spawn(async move { runner.run(state).await });
+        let handle = spawn(async move { runner.run(state, capabilities).await });
 
         CommonClient {
             stage: Started {
@@ -246,7 +247,11 @@ mod test {
     #[async_trait]
     impl TransportRunner for TRunnerMock {
         type State = Arc<ClientSyncedState>;
-        async fn run(&mut self, _state: Self::State) -> Result<(), TransportError> {
+        async fn run(
+            &mut self,
+            _state: Self::State,
+            _capabilities: AgentCapabilities,
+        ) -> Result<(), TransportError> {
             loop {
                 select! {
                     result = self.cancel.recv() => match result {
@@ -325,7 +330,7 @@ mod test {
             .set_agent_description(new_description.clone())
             .unwrap();
 
-        // retrive current agent description
+        // retrieve current agent description
         assert_eq!(client.agent_description().unwrap(), new_description);
         assert!(client.stop().await.is_ok())
     }

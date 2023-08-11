@@ -3,8 +3,8 @@ use std::{thread::sleep, time::Duration};
 use opamp_client::{
     httpclient::HttpClient,
     opamp::proto::{
-        AgentCapabilities, AgentHealth, OpAmpConnectionSettings, ServerErrorResponse,
-        ServerToAgentCommand,
+        AgentCapabilities, AgentHealth, EffectiveConfig, OpAmpConnectionSettings,
+        ServerErrorResponse, ServerToAgentCommand,
     },
     operation::{
         agent::Agent,
@@ -55,6 +55,11 @@ impl Callbacks for CallbacksMock {
         Ok(())
     }
     fn on_opamp_connection_settings_accepted(&self, _settings: &OpAmpConnectionSettings) {}
+    fn get_effective_config(
+        &self,
+    ) -> Result<opamp_client::opamp::proto::EffectiveConfig, Self::Error> {
+        Ok(EffectiveConfig::default())
+    }
 }
 
 #[tokio::main]

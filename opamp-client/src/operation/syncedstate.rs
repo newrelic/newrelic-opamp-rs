@@ -2,14 +2,14 @@ use std::sync::PoisonError;
 
 use thiserror::Error;
 
-use crate::opamp::proto::{AgentDescription, AgentHealth};
+use crate::opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus};
 
 #[derive(Debug, Error)]
 pub enum SyncedStateError {
     #[error("agent description must contain attributes")]
     AgentDescriptionNoAttributes,
 
-    #[error("poison error, a thread paniced while holding a lock")]
+    #[error("poison error, a thread panicked while holding a lock")]
     PoisonError,
 }
 
@@ -28,4 +28,12 @@ pub trait SyncedState {
     fn set_health(&self, health: AgentHealth) -> Result<(), SyncedStateError>;
 
     fn health(&self) -> Result<AgentHealth, SyncedStateError>;
+
+    fn set_remote_config_status(&self, status: RemoteConfigStatus) -> Result<(), SyncedStateError>;
+
+    fn remote_config_status(&self) -> Result<RemoteConfigStatus, SyncedStateError>;
+
+    fn set_package_statuses(&self, status: PackageStatuses) -> Result<(), SyncedStateError>;
+
+    fn package_statuses(&self) -> Result<PackageStatuses, SyncedStateError>;
 }

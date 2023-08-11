@@ -19,6 +19,7 @@ trait Syncer {
     // fn done(&self) <-chan struct{} // FIXME this is from Go
 }
 
+#[allow(dead_code)] // FIXME: remove when actually using!
 pub struct Package {
     package_type: PackageType,
     hash: Vec<u8>,

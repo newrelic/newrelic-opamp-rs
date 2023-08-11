@@ -1,7 +1,21 @@
-use crate::opamp::proto::{OpAmpConnectionSettings, ServerErrorResponse, ServerToAgentCommand};
+use std::collections::HashMap;
+
+use crate::opamp::proto::{
+    AgentIdentification, AgentRemoteConfig, EffectiveConfig, OpAmpConnectionSettings,
+    OtherConnectionSettings, ServerErrorResponse, ServerToAgentCommand,
+    TelemetryConnectionSettings,
+};
 
 /// MessageData represents a message received from the server and handled by Callbacks.
-pub struct MessageData {}
+#[derive(Debug, Default)]
+pub struct MessageData {
+    pub remote_config: Option<AgentRemoteConfig>,
+    pub own_metrics: Option<TelemetryConnectionSettings>,
+    pub own_traces: Option<TelemetryConnectionSettings>,
+    pub own_logs: Option<TelemetryConnectionSettings>,
+    pub other_connection_settings: Option<HashMap<String, OtherConnectionSettings>>,
+    pub agent_identification: Option<AgentIdentification>,
+}
 
 pub trait Callbacks {
     type Error: std::error::Error + Send + Sync;
@@ -61,6 +75,11 @@ pub trait Callbacks {
 
     /// on_command is called when the Server requests that the connected Agent perform a command.
     fn on_command(&self, command: &ServerToAgentCommand) -> Result<(), Self::Error>;
+
+    /// get_effective_config returns the current effective config. Only one
+    // get_effective_config  call can be active at any time. Until get_effective_config
+    // returns it will not be called again.
+    fn get_effective_config(&self) -> Result<EffectiveConfig, Self::Error>;
 }
 
 pub(crate) mod test {
@@ -69,9 +88,9 @@ pub(crate) mod test {
     use mockall::mock;
     use thiserror::Error;
 
-
     #[derive(Error, Debug)]
-    pub(crate) enum CallbacksMockError {}
+    #[error("callback error mock")]
+    pub(crate) struct CallbacksMockError;
 
     mock! {
       pub(crate) CallbacksMockall {}
@@ -86,6 +105,7 @@ pub(crate) mod test {
             fn on_opamp_connection_settings(&self,settings: &OpAmpConnectionSettings,) -> Result<(), <Self as Callbacks>::Error>;
             fn on_opamp_connection_settings_accepted(&self, settings: &OpAmpConnectionSettings);
             fn on_command(&self, command: &ServerToAgentCommand) -> Result<(), <Self as Callbacks>::Error>;
+            fn get_effective_config(&self) -> Result<EffectiveConfig, <Self as Callbacks>::Error>;
       }
     }
 }

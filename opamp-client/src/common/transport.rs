@@ -1,6 +1,9 @@
 use std::sync::PoisonError;
 
-use crate::{opamp::proto::AgentToServer, operation::syncedstate::SyncedState};
+use crate::{
+    opamp::proto::{AgentCapabilities, AgentToServer},
+    operation::syncedstate::SyncedState,
+};
 use async_trait::async_trait;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
@@ -26,7 +29,7 @@ pub enum TransportError {
     InvalidUlid(ulid::DecodeError),
     #[error("`{0}`")]
     SendError(#[from] SendError<()>),
-    #[error("poison error, a thread paniced while holding a lock")]
+    #[error("poison error, a thread panicked while holding a lock")]
     PoisonError,
 }
 
@@ -62,5 +65,9 @@ pub trait TransportController {
 pub trait TransportRunner {
     type State: SyncedState;
     // run internal networking transport until canceled.
-    async fn run(&mut self, state: Self::State) -> Result<(), TransportError>;
+    async fn run(
+        &mut self,
+        state: Self::State,
+        capabilities: AgentCapabilities,
+    ) -> Result<(), TransportError>;
 }

@@ -30,7 +30,7 @@ struct Data {
     agent_description: AgentDescription,
     health: AgentHealth,
     remote_config_status: RemoteConfigStatus,
-    package_status: PackageStatuses,
+    package_statuses: PackageStatuses,
 }
 
 impl SyncedState for Arc<ClientSyncedState> {
@@ -39,8 +39,8 @@ impl SyncedState for Arc<ClientSyncedState> {
     }
 
     fn set_agent_description(&self, description: AgentDescription) -> Result<(), SyncedStateError> {
-        if description.identifying_attributes.len() == 0
-            && description.non_identifying_attributes.len() == 0
+        if description.identifying_attributes.is_empty()
+            && description.non_identifying_attributes.is_empty()
         {
             return Err(SyncedStateError::AgentDescriptionNoAttributes);
         }
@@ -57,5 +57,23 @@ impl SyncedState for Arc<ClientSyncedState> {
 
     fn health(&self) -> Result<AgentHealth, SyncedStateError> {
         Ok(self.data.read()?.health.clone())
+    }
+
+    fn set_remote_config_status(&self, status: RemoteConfigStatus) -> Result<(), SyncedStateError> {
+        self.data.write()?.remote_config_status = status;
+        Ok(())
+    }
+
+    fn remote_config_status(&self) -> Result<RemoteConfigStatus, SyncedStateError> {
+        Ok(self.data.read()?.remote_config_status.clone())
+    }
+
+    fn set_package_statuses(&self, status: PackageStatuses) -> Result<(), SyncedStateError> {
+        self.data.write()?.package_statuses = status;
+        Ok(())
+    }
+
+    fn package_statuses(&self) -> Result<PackageStatuses, SyncedStateError> {
+        Ok(self.data.read()?.package_statuses.clone())
     }
 }

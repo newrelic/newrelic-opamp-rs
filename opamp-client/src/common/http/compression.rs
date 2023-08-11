@@ -104,10 +104,7 @@ mod test {
 
     #[test]
     fn message_payload() {
-        let mut sample_message = AgentToServer::default();
-
-        // generate a big random effective configuration
-        sample_message.effective_config = Some(EffectiveConfig {
+        let effective_config = Some(EffectiveConfig {
             config_map: Some(AgentConfigMap {
                 config_map: HashMap::from([(
                     "/test".to_string(),
@@ -121,6 +118,10 @@ mod test {
                 )]),
             }),
         });
+        let sample_message = AgentToServer {
+            effective_config,
+            ..AgentToServer::default()
+        };
 
         let gzip_data = encode_message(&Compressor::Gzip, sample_message.clone()).unwrap();
         let plain_data = encode_message(&Compressor::Plain, sample_message.clone()).unwrap();

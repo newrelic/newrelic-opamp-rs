@@ -37,7 +37,8 @@ impl TransportController for HttpController {
     where
         F: Fn(&mut AgentToServer),
     {
-        Ok(self.next_message.lock()?.update(modifier))
+        self.next_message.lock()?.update(modifier);
+        Ok(())
     }
 
     async fn schedule_send(&mut self) -> Result<(), TransportError> {
