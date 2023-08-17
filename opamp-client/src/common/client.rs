@@ -7,6 +7,7 @@ use crate::{
     opamp::proto::{AgentCapabilities, AgentDescription, AgentHealth},
     operation::{
         agent::Agent,
+        capabilities::Capabilities,
         settings::StartSettings,
         syncedstate::{SyncedState, SyncedStateError},
     },
@@ -60,7 +61,7 @@ where
     client_synced_state: S,
 
     // Agent's capabilities defined at Start() time.
-    capabilities: AgentCapabilities,
+    capabilities: Capabilities,
 
     // The transport-specific sender.
     sender: C,
@@ -174,7 +175,10 @@ where
     // update_effective_config fetches the current local effective config using
     // get_effective_config callback and sends it to the Server using provided Sender.
     pub(crate) async fn update_effective_config(&mut self) -> Result<(), CommonClientError> {
-        if self.capabilities as u64 & AgentCapabilities::ReportsRemoteConfig as u64 == 0 {
+        if !self
+            .capabilities
+            .has_capability(AgentCapabilities::ReportsRemoteConfig)
+        {
             return Err(CommonClientError::UnsetRemoteCapabilities);
         }
 
@@ -206,6 +210,7 @@ mod test {
     use super::*;
 
     use crate::{
+        capabilities,
         common::clientstate::ClientSyncedState,
         opamp::proto::{AgentToServer, KeyValue},
         operation::agent::test::AgentMock,
@@ -250,7 +255,7 @@ mod test {
         async fn run(
             &mut self,
             _state: Self::State,
-            _capabilities: AgentCapabilities,
+            _capabilities: Capabilities,
         ) -> Result<(), TransportError> {
             loop {
                 select! {
@@ -280,7 +285,7 @@ mod test {
             Arc::new(ClientSyncedState::default()),
             StartSettings {
                 instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
-                capabilities: AgentCapabilities::ReportsStatus,
+                capabilities: capabilities!(AgentCapabilities::ReportsStatus),
             },
             controller,
             runner,
@@ -308,7 +313,7 @@ mod test {
             shared_state.clone(),
             StartSettings {
                 instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
-                capabilities: AgentCapabilities::ReportsStatus,
+                capabilities: capabilities!(AgentCapabilities::ReportsStatus),
             },
             controller,
             runner,
@@ -355,7 +360,7 @@ mod test {
             shared_state.clone(),
             StartSettings {
                 instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
-                capabilities: AgentCapabilities::ReportsStatus,
+                capabilities: capabilities!(AgentCapabilities::ReportsStatus),
             },
             controller,
             runner,
@@ -368,7 +373,7 @@ mod test {
         assert_eq!(counter.load(std::sync::atomic::Ordering::Relaxed), 0);
 
         // set needed capabilities
-        client.capabilities = AgentCapabilities::ReportsRemoteConfig;
+        client.capabilities = capabilities!(AgentCapabilities::ReportsRemoteConfig);
 
         assert!(client.update_effective_config().await.is_ok());
         assert_eq!(counter.load(std::sync::atomic::Ordering::Relaxed), 1);

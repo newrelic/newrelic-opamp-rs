@@ -262,7 +262,7 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
     async fn receive(
         &self,
         state: Arc<ClientSyncedState>,
-        capabilities: AgentCapabilities,
+        capabilities: Capabilities,
         msg: ServerToAgent,
     ) -> Option<ScheduleMessage> {
         if msg
@@ -332,7 +332,7 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
     }
 }
 
-fn message_data(msg: &ServerToAgent, capabilities: AgentCapabilities) -> MessageData {
+fn message_data(msg: &ServerToAgent, capabilities: Capabilities) -> MessageData {
     let remote_config = msg
         .remote_config
         .clone()
@@ -371,7 +371,7 @@ fn message_data(msg: &ServerToAgent, capabilities: AgentCapabilities) -> Message
 
 fn report_capability(
     opt_name: &str,
-    capabilities: AgentCapabilities,
+    capabilities: Capabilities,
     capability: AgentCapabilities,
 ) -> bool {
     let has_cap = capabilities.has_capability(capability);
@@ -392,7 +392,7 @@ type ConnectionSettings = (
 );
 fn get_telemetry_connection_settings(
     settings: Option<ConnectionSettingsOffers>,
-    capabilities: AgentCapabilities,
+    capabilities: Capabilities,
 ) -> ConnectionSettings {
     if let Some(s) = settings {
         (
@@ -425,7 +425,7 @@ where
     async fn run(
         &mut self,
         _state: Self::State,
-        capabilities: AgentCapabilities,
+        capabilities: Capabilities,
     ) -> Result<(), TransportError> {
         while (self.next_send().await).is_some() {
             let msg = self.next_message.lock().unwrap().pop();
@@ -463,6 +463,7 @@ pub(crate) mod test {
     use reqwest::{RequestBuilder, Response};
     use tokio::{spawn, sync::mpsc::channel};
 
+    use crate::capabilities;
     use crate::common::{clientstate::ClientSyncedState, transport::TransportRunner};
     use crate::opamp::proto::{
         AgentConfigMap, AgentDescription, AgentHealth, AgentIdentification, AgentRemoteConfig,
@@ -524,7 +525,7 @@ pub(crate) mod test {
 
         let handle = spawn(async move {
             let state = Arc::new(ClientSyncedState::default());
-            let capabilities = AgentCapabilities::default();
+            let capabilities = capabilities!();
             runner.run(state, capabilities).await.unwrap();
             // drop runner to decrease arc references
             drop(runner);
@@ -572,7 +573,7 @@ pub(crate) mod test {
         // run the http transport
         let handle = spawn(async move {
             let state = Arc::new(ClientSyncedState::default());
-            let capabilities = AgentCapabilities::AcceptsRestartCommand;
+            let capabilities = capabilities!(AgentCapabilities::AcceptsRestartCommand);
             runner.run(state, capabilities).await.unwrap();
             // drop runner to decrease arc references
             drop(runner);
@@ -626,7 +627,7 @@ pub(crate) mod test {
         // run the http transport
         let handle = spawn(async move {
             let state = Arc::new(ClientSyncedState::default());
-            let capabilities = AgentCapabilities::AcceptsOpAmpConnectionSettings;
+            let capabilities = capabilities!(AgentCapabilities::AcceptsOpAmpConnectionSettings);
             runner.run(state, capabilities).await.unwrap();
             // drop runner to decrease arc references
             drop(runner);
@@ -679,7 +680,7 @@ pub(crate) mod test {
         // run the http transport
         let handle = spawn(async move {
             let state = Arc::new(ClientSyncedState::default());
-            let capabilities = AgentCapabilities::AcceptsOpAmpConnectionSettings;
+            let capabilities = capabilities!(AgentCapabilities::AcceptsOpAmpConnectionSettings);
             runner.run(state, capabilities).await.unwrap();
             // drop runner to decrease arc references
             drop(runner);
@@ -802,7 +803,7 @@ pub(crate) mod test {
         // run the http transport
         let handle = spawn(async move {
             let state = Arc::new(ClientSyncedState::default());
-            let capabilities = AgentCapabilities::default();
+            let capabilities = capabilities!();
             runner.run(state, capabilities).await.unwrap();
             assert_eq!(
                 runner.next_message.lock().unwrap().pop().instance_uid,
@@ -824,7 +825,7 @@ pub(crate) mod test {
     fn test_message_data() {
         let msg = ServerToAgent::default();
 
-        let capabilities = AgentCapabilities::default();
+        let capabilities = Capabilities::default();
 
         let message_data = message_data(&msg, capabilities);
 
@@ -850,7 +851,7 @@ pub(crate) mod test {
             ..Default::default()
         };
 
-        let capabilities = AgentCapabilities::AcceptsRemoteConfig;
+        let capabilities = capabilities!(AgentCapabilities::AcceptsRemoteConfig);
 
         let message_data = message_data(&msg, capabilities);
 
@@ -873,7 +874,7 @@ pub(crate) mod test {
             ..Default::default()
         };
 
-        let capabilities = AgentCapabilities::default();
+        let capabilities = capabilities!();
 
         let message_data = message_data(&msg, capabilities);
 
@@ -901,7 +902,7 @@ pub(crate) mod test {
             ..Default::default()
         };
 
-        let capabilities = AgentCapabilities::default();
+        let capabilities = capabilities!();
 
         let message_data = message_data(&msg, capabilities);
 
@@ -916,7 +917,7 @@ pub(crate) mod test {
     #[test]
     fn test_get_telemetry_connection_settings_metrics() {
         // Test with reporting metrics
-        let capabilities = ReportsOwnMetrics;
+        let capabilities = capabilities!(ReportsOwnMetrics);
         let settings = Some(ConnectionSettingsOffers {
             own_metrics: Some(TelemetryConnectionSettings::default()),
             own_traces: Some(TelemetryConnectionSettings::default()),
@@ -939,7 +940,7 @@ pub(crate) mod test {
     #[test]
     fn test_get_telemetry_connection_settings_traces() {
         // Test with reporting traces
-        let capabilities = ReportsOwnTraces;
+        let capabilities = capabilities!(ReportsOwnTraces);
         let settings = Some(ConnectionSettingsOffers {
             own_metrics: Some(TelemetryConnectionSettings::default()),
             own_traces: Some(TelemetryConnectionSettings::default()),
@@ -962,7 +963,7 @@ pub(crate) mod test {
     #[test]
     fn test_get_telemetry_connection_settings_logs() {
         // Test with reporting logs
-        let capabilities = ReportsOwnLogs;
+        let capabilities = capabilities!(ReportsOwnLogs);
         let settings = Some(ConnectionSettingsOffers {
             own_metrics: Some(TelemetryConnectionSettings::default()),
             own_traces: Some(TelemetryConnectionSettings::default()),
@@ -990,7 +991,7 @@ pub(crate) mod test {
                 .iter()
                 .cloned()
                 .collect();
-        let capabilities = AcceptsOtherConnectionSettings;
+        let capabilities = capabilities!(AcceptsOtherConnectionSettings);
         let settings = Some(ConnectionSettingsOffers {
             own_metrics: Some(TelemetryConnectionSettings::default()),
             own_traces: Some(TelemetryConnectionSettings::default()),
@@ -1008,7 +1009,7 @@ pub(crate) mod test {
     #[test]
     fn test_get_telemetry_connection_settings_no_capabilities() {
         // Test with no capabilities
-        let capabilities = AgentCapabilities::default();
+        let capabilities = capabilities!();
         let settings = Some(ConnectionSettingsOffers {
             own_metrics: Some(TelemetryConnectionSettings::default()),
             own_traces: Some(TelemetryConnectionSettings::default()),
@@ -1023,9 +1024,31 @@ pub(crate) mod test {
         );
 
         // Test with no settings
-        let capabilities = AgentCapabilities::default();
+        let capabilities = capabilities!();
         let settings = None;
         let expected = (None, None, None, None);
+        assert_eq!(
+            get_telemetry_connection_settings(settings, capabilities),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_get_telemetry_connection_settings_several_capabilities() {
+        let capabilities = capabilities!(ReportsOwnMetrics, ReportsOwnTraces, ReportsOwnLogs);
+        let settings = Some(ConnectionSettingsOffers {
+            own_metrics: Some(TelemetryConnectionSettings::default()),
+            own_traces: Some(TelemetryConnectionSettings::default()),
+            own_logs: Some(TelemetryConnectionSettings::default()),
+            other_connections: HashMap::default(),
+            ..Default::default()
+        });
+        let expected = (
+            Some(TelemetryConnectionSettings::default()),
+            Some(TelemetryConnectionSettings::default()),
+            Some(TelemetryConnectionSettings::default()),
+            None,
+        );
         assert_eq!(
             get_telemetry_connection_settings(settings, capabilities),
             expected

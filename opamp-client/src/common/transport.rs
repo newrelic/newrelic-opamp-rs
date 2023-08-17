@@ -1,8 +1,8 @@
 use std::sync::PoisonError;
 
 use crate::{
-    opamp::proto::{AgentCapabilities, AgentToServer},
-    operation::syncedstate::SyncedState,
+    opamp::proto::AgentToServer,
+    operation::{capabilities::Capabilities, syncedstate::SyncedState},
 };
 use async_trait::async_trait;
 use thiserror::Error;
@@ -68,6 +68,6 @@ pub trait TransportRunner {
     async fn run(
         &mut self,
         state: Self::State,
-        capabilities: AgentCapabilities,
+        capabilities: Capabilities,
     ) -> Result<(), TransportError>;
 }
