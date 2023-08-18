@@ -18,6 +18,8 @@ pub enum CompressorError {
     UnsupportedEncoding(String),
 }
 
+// TryFrom returns a compressor type given an slice of bytes
+// Only gzip format is supported
 impl TryFrom<&[u8]> for Compressor {
     type Error = CompressorError;
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
@@ -42,6 +44,8 @@ pub enum DecoderError {
     IO(#[from] io::Error),
 }
 
+// encode_message encodes the provided message as a Protobuffer and compresses the result
+// with the provided algorithm
 pub(super) fn encode_message<M>(comp: &Compressor, msg: M) -> Result<Vec<u8>, EncoderError>
 where
     M: Message,
@@ -57,6 +61,7 @@ where
     }
 }
 
+// decode_message extracts and decodes the Protobuffer message with the provided algorithm
 pub(super) fn decode_message<M>(comp: &Compressor, msg: &[u8]) -> Result<M, DecoderError>
 where
     M: Message + Default,
@@ -104,7 +109,10 @@ mod test {
 
     #[test]
     fn message_payload() {
-        let effective_config = Some(EffectiveConfig {
+        let mut sample_message = AgentToServer::default();
+
+        // generate a big random effective configuration
+        sample_message.effective_config = Some(EffectiveConfig {
             config_map: Some(AgentConfigMap {
                 config_map: HashMap::from([(
                     "/test".to_string(),
@@ -118,10 +126,6 @@ mod test {
                 )]),
             }),
         });
-        let sample_message = AgentToServer {
-            effective_config,
-            ..AgentToServer::default()
-        };
 
         let gzip_data = encode_message(&Compressor::Gzip, sample_message.clone()).unwrap();
         let plain_data = encode_message(&Compressor::Plain, sample_message.clone()).unwrap();

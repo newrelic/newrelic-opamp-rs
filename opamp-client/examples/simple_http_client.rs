@@ -1,6 +1,5 @@
 use std::{thread::sleep, time::Duration};
 
-use opamp_client::operation::capabilities::Capabilities;
 use opamp_client::{
     capabilities,
     httpclient::HttpClient,
