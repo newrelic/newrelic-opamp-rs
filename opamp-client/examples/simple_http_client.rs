@@ -75,12 +75,6 @@ async fn main() {
         headers,
         StartSettings {
             instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
-            // Old type `AgentCapabilities` for this field is a sum type/enum
-            // i.e. only accepts a single variant each time, not a superposition of many!
-            // If we are to overlap several capabilities in a single value with repr(i32),
-            // same as our the enum `AgentCapabilities`, we can use an i32 directly,
-            // with a newtype wrapper `Capabilities` to make it more type-safe (https://doc.rust-lang.org/rust-by-example/generics/new_types.html).
-            // And a variadic macro to round things up!
             capabilities: capabilities!(AgentCapabilities::ReportsStatus),
         },
         CallbacksMock {},
