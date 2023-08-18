@@ -4,8 +4,8 @@ use crate::opamp::proto::AgentCapabilities;
 pub struct Capabilities(i32);
 
 impl Capabilities {
-    pub fn new(value: i32) -> Self {
-        Self(value)
+    pub fn new(caps: Vec<AgentCapabilities>) -> Self {
+        Self(caps.into_iter().fold(0i32, |c1, c2| c1 | c2 as i32))
     }
     pub fn has_capability(self, capability: AgentCapabilities) -> bool {
         self.0 & capability as i32 != 0
@@ -14,9 +14,10 @@ impl Capabilities {
 
 #[macro_export]
 macro_rules! capabilities {
-    ($($cap:expr),*) => {
-        Capabilities::new(0 $(| $cap as i32)*)
-    };
+    ($($cap:expr),*) => {{
+        let caps: Vec<AgentCapabilities> = vec![AgentCapabilities::Unspecified $(, $cap)*];
+        Capabilities::new(caps)
+    }};
 }
 
 #[cfg(test)]
