@@ -15,6 +15,7 @@ impl Capabilities {
 #[macro_export]
 macro_rules! capabilities {
     ($($cap:expr),*) => {{
+        use $crate::operation::capabilities::Capabilities;
         let caps: Vec<AgentCapabilities> = vec![AgentCapabilities::Unspecified $(, $cap)*];
         Capabilities::new(caps)
     }};
