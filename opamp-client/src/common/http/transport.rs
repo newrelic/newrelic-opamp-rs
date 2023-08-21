@@ -271,6 +271,165 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
             recv_result = self.pending_messages.recv() => recv_result
         }
     }
+
+    async fn receive(
+        &self,
+        state: Arc<ClientSyncedState>,
+        capabilities: Capabilities,
+        msg: ServerToAgent,
+    ) -> Option<ScheduleMessage> {
+        if msg
+            .command
+            .as_ref()
+            .filter(|_| report_capability("Command", capabilities, AcceptsRestartCommand))
+            .map(|c| {
+                self.callbacks
+                    .on_command(c)
+                    .map_err(|e| error!("on_command callback returned an error: {e}"))
+            })
+            .is_some()
+        {
+            return None;
+        }
+
+        let msg_data = message_data(&msg, capabilities);
+
+        if let Some(id) = &msg_data.agent_identification {
+            self.next_message
+                .lock()
+                .unwrap()
+                .update(move |msg: &mut AgentToServer| {
+                    msg.instance_uid = id.new_instance_uid.clone();
+                });
+        }
+
+        self.callbacks.on_message(msg_data);
+
+        if let Some(o) = msg
+            .connection_settings
+            .and_then(|s| s.opamp)
+            .filter(|_| report_capability("opamp", capabilities, AcceptsOpAmpConnectionSettings))
+        {
+            self.callbacks
+                .on_opamp_connection_settings(&o)
+                .is_ok()
+                .then(|| self.callbacks.on_opamp_connection_settings_accepted(&o));
+        }
+
+        if let Some(e) = msg.error_response {
+            error!("Received an error from server: {e:?}");
+        }
+
+        self.rcv_flags(state, msg.flags).await
+    }
+
+    async fn rcv_flags(
+        &self,
+        state: Arc<ClientSyncedState>,
+        flags: u64,
+    ) -> Option<ScheduleMessage> {
+        let can_report_full_state = flags & ServerToAgentFlags::ReportFullState as u64 != 0;
+        can_report_full_state.then(|| {
+            self.next_message
+                .lock()
+                .unwrap()
+                .update(|msg: &mut AgentToServer| {
+                    msg.agent_description = state.agent_description().ok();
+                    msg.health = state.health().ok();
+                    msg.remote_config_status = state.remote_config_status().ok();
+                    msg.package_statuses = state.package_statuses().ok();
+                    msg.effective_config = self
+                        .callbacks
+                        .get_effective_config()
+                        .map_err(|e| error!("Cannot get effective config: {e}"))
+                        .ok();
+                });
+            ScheduleMessage
+        })
+    }
+}
+
+fn message_data(msg: &ServerToAgent, capabilities: Capabilities) -> MessageData {
+    let remote_config = msg
+        .remote_config
+        .clone()
+        .filter(|_| report_capability("remote_config", capabilities, AcceptsRemoteConfig));
+
+    let (own_metrics, own_traces, own_logs, other_connection_settings) =
+        get_telemetry_connection_settings(msg.connection_settings.clone(), capabilities);
+
+    // TODO: package_syncer feature
+    // let packages_available;
+    // let package_syncer;
+    // if let Some(packages_available) = msg.packages_available.filter(|_| report_capability("PackagesAvailable", capabilities, AgentCapabilities::AcceptsPackages)) {
+    //     let packages_available = packages_available;
+    //     let package_syncer = PackageSyncer::new(packages_available, self.sender.clone());
+    // }
+
+    let agent_identification = msg.agent_identification.clone().filter(|id| {
+        let is_empty_string = id.new_instance_uid.is_empty();
+        if is_empty_string {
+            warn!("Empty instance UID is not allowed. Ignoring agent identification.");
+        }
+        !is_empty_string
+    });
+
+    MessageData {
+        remote_config,
+        own_metrics,
+        own_traces,
+        own_logs,
+        other_connection_settings,
+        agent_identification,
+        // packages_available,
+        // package_syncer,
+    }
+}
+
+fn report_capability(
+    opt_name: &str,
+    capabilities: Capabilities,
+    capability: AgentCapabilities,
+) -> bool {
+    let has_cap = capabilities.has_capability(capability);
+    if !has_cap {
+        debug!(
+            "Ignoring {opt_name}, agent does not have {} capability",
+            capability.as_str_name()
+        );
+    }
+    has_cap
+}
+
+type ConnectionSettings = (
+    Option<TelemetryConnectionSettings>,
+    Option<TelemetryConnectionSettings>,
+    Option<TelemetryConnectionSettings>,
+    Option<HashMap<String, OtherConnectionSettings>>,
+);
+fn get_telemetry_connection_settings(
+    settings: Option<ConnectionSettingsOffers>,
+    capabilities: Capabilities,
+) -> ConnectionSettings {
+    if let Some(s) = settings {
+        (
+            s.own_metrics
+                .filter(|_| report_capability("own_metrics", capabilities, ReportsOwnMetrics)),
+            s.own_traces
+                .filter(|_| report_capability("own_traces", capabilities, ReportsOwnTraces)),
+            s.own_logs
+                .filter(|_| report_capability("own_logs", capabilities, ReportsOwnLogs)),
+            Some(s.other_connections).filter(|_| {
+                report_capability(
+                    "other_connections",
+                    capabilities,
+                    AcceptsOtherConnectionSettings,
+                )
+            }),
+        )
+    } else {
+        (None, None, None, None)
+    }
 }
 
 #[async_trait]
