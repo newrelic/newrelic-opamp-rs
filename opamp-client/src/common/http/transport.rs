@@ -265,10 +265,8 @@ impl<C: Callbacks, T: Transport> HttpTransport<C, T> {
     // or a pushed notification in the internal pending_messages channel.
     async fn next_send(&mut self) -> Option<()> {
         select! {
-            _ = self.polling.tick() => {
-                Some(())
-            }
-            recv_result = self.pending_messages.recv() => recv_result
+            _ = self.polling.tick() => Some(()),
+            recv_result = self.pending_messages.recv() => { self.polling.reset(); recv_result }
         }
     }
 
