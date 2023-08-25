@@ -31,6 +31,8 @@ pub enum TransportError {
     SendError(#[from] SendError<()>),
     #[error("poison error, a thread panicked while holding a lock")]
     PoisonError,
+    #[error("`{0}`")]
+    RequestError(#[from] reqwest::Error),
 }
 
 impl<T> From<PoisonError<T>> for TransportError {

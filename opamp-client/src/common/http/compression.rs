@@ -1,7 +1,8 @@
+use std::io::{self, Read, Write};
+use std::str;
+
 use libflate::gzip::{Decoder, Encoder};
 use prost::{DecodeError, Message};
-use std::io::{self, Read, Write};
-
 use thiserror::Error;
 
 // Compressor represents compression algorithm
@@ -25,7 +26,10 @@ impl TryFrom<&[u8]> for Compressor {
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         match value {
             b"gzip" => Ok(Compressor::Gzip),
-            val => Err(CompressorError::UnsupportedEncoding(format!("{:?}", val))),
+            val => match str::from_utf8(val) {
+                Ok(s) => Err(CompressorError::UnsupportedEncoding(s.to_string())),
+                Err(_) => Err(CompressorError::UnsupportedEncoding(format!("{:?}", val))),
+            },
         }
     }
 }
@@ -83,8 +87,9 @@ mod test {
 
     use rand::distributions::{Alphanumeric, DistString};
 
-    use super::*;
     use crate::opamp::proto::{AgentConfigFile, AgentConfigMap, AgentToServer, EffectiveConfig};
+
+    use super::*;
 
     #[test]
     fn empty_message() {

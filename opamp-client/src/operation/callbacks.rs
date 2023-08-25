@@ -108,4 +108,17 @@ pub(crate) mod test {
             fn get_effective_config(&self) -> Result<EffectiveConfig, <Self as Callbacks>::Error>;
       }
     }
+
+    impl MockCallbacksMockall {
+        pub fn should_on_connect(&mut self) {
+            self.expect_on_connect().once().return_const(());
+        }
+
+        pub fn should_on_message(&mut self, _: MessageData) {
+            self.expect_on_message()
+                .once()
+                // .with(eq(msg)) // TODO
+                .return_const(());
+        }
+    }
 }
