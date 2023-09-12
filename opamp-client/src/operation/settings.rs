@@ -1,7 +1,7 @@
 use super::capabilities::Capabilities;
 
 // StartSettings defines the parameters for starting the OpAMP Client.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct StartSettings {
     // Agent information.
     pub instance_id: String,
