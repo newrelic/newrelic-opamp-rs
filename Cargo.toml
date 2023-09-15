@@ -5,6 +5,7 @@ members = [
     "opamp-client",
     # "opamp-server",
 ]
+exclude = ["proto"]
 
 [workspace.package]
 license-file = "LICENSE"
