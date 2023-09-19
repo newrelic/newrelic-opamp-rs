@@ -95,6 +95,10 @@ where
             runner: Some(runner),
         };
         client.sender.set_instance_uid(start_settings.instance_id)?;
+        client.sender.update(|msg| {
+            let desc: AgentDescription = start_settings.agent_description.clone().into();
+            msg.agent_description = Some(desc)
+        })?;
         Ok(client)
     }
 
@@ -286,6 +290,7 @@ mod test {
             StartSettings {
                 instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
                 capabilities: capabilities!(AgentCapabilities::ReportsStatus),
+                ..Default::default()
             },
             controller,
             runner,
@@ -314,6 +319,7 @@ mod test {
             StartSettings {
                 instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
                 capabilities: capabilities!(AgentCapabilities::ReportsStatus),
+                ..Default::default()
             },
             controller,
             runner,
@@ -361,6 +367,7 @@ mod test {
             StartSettings {
                 instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
                 capabilities: capabilities!(AgentCapabilities::ReportsStatus),
+                ..Default::default()
             },
             controller,
             runner,

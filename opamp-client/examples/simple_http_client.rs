@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{collections::HashMap, thread::sleep, time::Duration};
 
 use opamp_client::{
     capabilities,
@@ -10,7 +10,7 @@ use opamp_client::{
     operation::{
         agent::Agent,
         callbacks::{Callbacks, MessageData},
-        settings::StartSettings,
+        settings::{AgentDescription, StartSettings},
     },
     OpAMPClient, OpAMPClientHandle,
 };
@@ -75,6 +75,18 @@ async fn main() {
         StartSettings {
             instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
             capabilities: capabilities!(AgentCapabilities::ReportsStatus),
+            agent_description: AgentDescription {
+                identifying_attributes: HashMap::from([
+                    ("service.name".to_string(), "com.newrelic.meta_agent".into()),
+                    ("service.namespace".to_string(), "newrelic".into()),
+                    ("service.version".to_string(), "0.2.0".into()),
+                ]),
+                non_identifying_attributes: HashMap::from([
+                    ("key".to_string(), "val".into()),
+                    ("int".to_string(), 5.into()),
+                    ("bool".to_string(), true.into()),
+                ]),
+            },
         },
         CallbacksMock {},
     )
