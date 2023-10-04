@@ -1,9 +1,25 @@
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
-use crate::{
-    opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus},
-    operation::syncedstate::{SyncedState, SyncedStateError},
-};
+use crate::opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus};
+
+use std::sync::PoisonError;
+
+use thiserror::Error;
+
+#[derive(Debug, Error, PartialEq)]
+pub enum SyncedStateError {
+    #[error("agent description must contain attributes")]
+    AgentDescriptionNoAttributes,
+
+    #[error("poison error, a thread panicked while holding a lock")]
+    PoisonError,
+}
+
+impl<T> From<PoisonError<T>> for SyncedStateError {
+    fn from(_value: PoisonError<T>) -> Self {
+        SyncedStateError::PoisonError
+    }
+}
 
 // ClientSyncedState stores the state of the Agent messages that the OpAMP Client needs to
 // have access to synchronize to the Server. 4 messages can be stored in this store:
@@ -33,12 +49,15 @@ struct Data {
     package_statuses: PackageStatuses,
 }
 
-impl SyncedState for Arc<ClientSyncedState> {
-    fn agent_description(&self) -> Result<AgentDescription, SyncedStateError> {
+impl ClientSyncedState {
+    pub(crate) fn agent_description(&self) -> Result<AgentDescription, SyncedStateError> {
         Ok(self.data.read()?.agent_description.clone())
     }
 
-    fn set_agent_description(&self, description: AgentDescription) -> Result<(), SyncedStateError> {
+    pub(crate) fn set_agent_description(
+        &self,
+        description: AgentDescription,
+    ) -> Result<(), SyncedStateError> {
         if description.identifying_attributes.is_empty()
             && description.non_identifying_attributes.is_empty()
         {
@@ -50,30 +69,38 @@ impl SyncedState for Arc<ClientSyncedState> {
         Ok(())
     }
 
-    fn set_health(&self, health: AgentHealth) -> Result<(), SyncedStateError> {
+    pub(crate) fn set_health(&self, health: AgentHealth) -> Result<(), SyncedStateError> {
         self.data.write()?.health = health;
         Ok(())
     }
 
-    fn health(&self) -> Result<AgentHealth, SyncedStateError> {
+    pub(crate) fn health(&self) -> Result<AgentHealth, SyncedStateError> {
         Ok(self.data.read()?.health.clone())
     }
 
-    fn set_remote_config_status(&self, status: RemoteConfigStatus) -> Result<(), SyncedStateError> {
+    #[allow(dead_code)]
+    pub(crate) fn set_remote_config_status(
+        &self,
+        status: RemoteConfigStatus,
+    ) -> Result<(), SyncedStateError> {
         self.data.write()?.remote_config_status = status;
         Ok(())
     }
 
-    fn remote_config_status(&self) -> Result<RemoteConfigStatus, SyncedStateError> {
+    pub(crate) fn remote_config_status(&self) -> Result<RemoteConfigStatus, SyncedStateError> {
         Ok(self.data.read()?.remote_config_status.clone())
     }
 
-    fn set_package_statuses(&self, status: PackageStatuses) -> Result<(), SyncedStateError> {
+    #[allow(dead_code)]
+    pub(crate) fn set_package_statuses(
+        &self,
+        status: PackageStatuses,
+    ) -> Result<(), SyncedStateError> {
         self.data.write()?.package_statuses = status;
         Ok(())
     }
 
-    fn package_statuses(&self) -> Result<PackageStatuses, SyncedStateError> {
+    pub(crate) fn package_statuses(&self) -> Result<PackageStatuses, SyncedStateError> {
         Ok(self.data.read()?.package_statuses.clone())
     }
 }

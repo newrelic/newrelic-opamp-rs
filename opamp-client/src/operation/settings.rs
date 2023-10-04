@@ -1,3 +1,5 @@
+//! Common parameters for starting an OpAMP client for a specific agent.
+
 use std::collections::HashMap;
 
 use crate::opamp::proto::{
@@ -7,16 +9,25 @@ use crate::opamp::proto::{
 use super::capabilities::Capabilities;
 
 #[derive(Debug, PartialEq, Clone, Default)]
+/// Internal representation of the OpAMP AgentDescription: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message
 pub struct AgentDescription {
+    /// Attributes that identify the Agent. See: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescriptionidentifying_attributes
     pub identifying_attributes: HashMap<String, DescriptionValueType>,
+
+    /// Attributes that do not necessarily identify the Agent but help describe where it runs. See: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescriptionnon_identifying_attributes
     pub non_identifying_attributes: HashMap<String, DescriptionValueType>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
+/// Values type mapping for the AgentDescription attributes
 pub enum DescriptionValueType {
+    /// String wrapper
     String(String),
+    /// i64 wrapper
     Int(i64),
+    /// bool wrapper
     Bool(bool),
+    /// f64 wrapper
     Float(f64),
     // Array(Vec<DescType>),
     // Map(HashMap<String, DescType>),
@@ -97,16 +108,17 @@ fn populate_agent_description(attrs: HashMap<String, DescriptionValueType>) -> V
     result
 }
 
-// StartSettings defines the parameters for starting the OpAMP Client.
+/// StartSettings defines the parameters for starting the OpAMP Client.
 #[derive(Debug, PartialEq, Default)]
 pub struct StartSettings {
-    // Agent information.
+    /// Agent information.
     pub instance_id: String,
 
-    // Defines the capabilities of the Agent. AgentCapabilities_ReportsStatus bit does not need to
-    // be set in this field, it will be set automatically since it is required by OpAMP protocol.
+    /// Defines the capabilities of the Agent. AgentCapabilities_ReportsStatus bit does not need to
+    /// be set in this field, it will be set automatically since it is required by OpAMP protocol.
     pub capabilities: Capabilities,
 
+    /// Agent's description: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message
     pub agent_description: AgentDescription,
 }
 

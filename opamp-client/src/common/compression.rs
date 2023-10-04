@@ -5,15 +5,15 @@ use libflate::gzip::{Decoder, Encoder};
 use prost::{DecodeError, Message};
 use thiserror::Error;
 
-// Compressor represents compression algorithm
-pub(super) enum Compressor {
-    // Plain does not apply any compression algorithm to the encoded data.
+/// Compressor represents compression algorithm
+pub(crate) enum Compressor {
+    /// Plain does not apply any compression algorithm to the encoded data.
     Plain,
-    // Gzip compresses the data with the gzip algorithm after encoding it.
+    /// Gzip compresses the data with the gzip algorithm after encoding it.
     Gzip,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum CompressorError {
     #[error("encoding format not supported: `{0}`")]
     UnsupportedEncoding(String),
@@ -48,9 +48,9 @@ pub enum DecoderError {
     IO(#[from] io::Error),
 }
 
-// encode_message encodes the provided message as a Protobuffer and compresses the result
-// with the provided algorithm
-pub(super) fn encode_message<M>(comp: &Compressor, msg: M) -> Result<Vec<u8>, EncoderError>
+/// encode_message encodes the provided message as a Protobuffer and compresses the result
+/// with the provided algorithm
+pub(crate) fn encode_message<M>(comp: &Compressor, msg: M) -> Result<Vec<u8>, EncoderError>
 where
     M: Message,
 {
@@ -65,8 +65,8 @@ where
     }
 }
 
-// decode_message extracts and decodes the Protobuffer message with the provided algorithm
-pub(super) fn decode_message<M>(comp: &Compressor, msg: &[u8]) -> Result<M, DecoderError>
+/// decode_message extracts and decodes the Protobuffer message with the provided algorithm
+pub(crate) fn decode_message<M>(comp: &Compressor, msg: &[u8]) -> Result<M, DecoderError>
 where
     M: Message + Default,
 {

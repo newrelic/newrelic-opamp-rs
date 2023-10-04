@@ -2,36 +2,21 @@ use std::{collections::HashMap, thread::sleep, time::Duration};
 
 use opamp_client::{
     capabilities,
-    httpclient::HttpClient,
+    http::HttpConfig,
     opamp::proto::{
         AgentCapabilities, AgentHealth, EffectiveConfig, OpAmpConnectionSettings,
         ServerErrorResponse, ServerToAgentCommand,
     },
     operation::{
-        agent::Agent,
         callbacks::{Callbacks, MessageData},
         settings::{AgentDescription, StartSettings},
     },
-    OpAMPClient, OpAMPClientHandle,
+    Client, NotStartedClient, StartedClient,
 };
 use tracing::info;
 
+use opamp_client::http::HttpClientReqwest;
 use thiserror::Error;
-#[derive(Error, Debug)]
-pub enum AgentError {
-    #[error("`{0}`")]
-    Testing(String),
-}
-struct AgentMock;
-
-impl Agent for AgentMock {
-    type Error = AgentError;
-    fn get_effective_config(
-        &self,
-    ) -> Result<opamp_client::opamp::proto::EffectiveConfig, Self::Error> {
-        Ok(opamp_client::opamp::proto::EffectiveConfig { config_map: None })
-    }
-}
 
 struct CallbacksMock;
 
@@ -65,13 +50,29 @@ impl Callbacks for CallbacksMock {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
-    let headers = [("super-key", "super-password")];
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(tracing::metadata::LevelFilter::INFO.into())
+                .with_env_var("LOG_LEVEL")
+                .from_env_lossy(),
+        )
+        .init();
 
-    let client = HttpClient::new(
-        AgentMock {},
-        "https://127.0.0.1/v1/opamp",
-        headers,
+    let http_config = HttpConfig::new("https://127.0.0.1/v1/opamp")
+        .unwrap()
+        .with_headers(HashMap::from([(
+            "super-key".to_string(),
+            "wooooooooooooooooooooow".to_string(),
+        )]))
+        .unwrap()
+        .with_gzip_compression(false);
+
+    let http_client_reqwest = HttpClientReqwest::new(http_config).unwrap();
+
+    let not_started_client = opamp_client::http::NotStartedHttpClient::new(
+        CallbacksMock,
         StartSettings {
             instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
             capabilities: capabilities!(AgentCapabilities::ReportsStatus),
@@ -88,14 +89,14 @@ async fn main() {
                 ]),
             },
         },
-        CallbacksMock {},
+        http_client_reqwest,
     )
     .unwrap();
 
-    let mut client = client.start().await.unwrap();
+    let client = not_started_client.start().await.unwrap();
 
     client
-        .set_health(&AgentHealth {
+        .set_health(AgentHealth {
             healthy: true,
             start_time_unix_nano: 1689942447,
             last_error: "".to_string(),
@@ -104,6 +105,15 @@ async fn main() {
         .unwrap();
 
     sleep(Duration::from_secs(30));
+
+    client
+        .set_health(AgentHealth {
+            healthy: false,
+            start_time_unix_nano: 1689942447,
+            last_error: "wow! what an error".to_string(),
+        })
+        .await
+        .unwrap();
 
     client.stop().await.unwrap()
 }
