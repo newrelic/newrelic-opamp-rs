@@ -37,6 +37,9 @@ pub enum HttpClientError {
     /// HTTP client with an invalid url.
     #[error("`{0}`")]
     InvalidUrl(#[from] ParseError),
+    /// Unsuccessful HTTP response.
+    #[error("Status code: `{0}` Canonical reason: `{1}`")]
+    UnsuccessfulResponse(u16, String),
 }
 
 /// An asynchronous trait that defines the internal methods for HTTP clients.

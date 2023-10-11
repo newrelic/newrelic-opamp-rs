@@ -71,7 +71,7 @@ where
             .map_err(|_| ClientError::PoisonError)?
             .pop();
         // TODO: propagate unwrawp
-        let server_to_agent = self.sender.send(msg).await?.unwrap();
+        let server_to_agent = self.sender.send(msg).await?;
 
         let result = crate::common::message_processor::process_message(
             server_to_agent,
