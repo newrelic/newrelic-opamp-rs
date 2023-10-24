@@ -2,6 +2,7 @@ use std::{collections::HashMap, thread::sleep, time::Duration};
 
 use opamp_client::{
     capabilities,
+    error::ConnectionError,
     http::HttpConfig,
     opamp::proto::{
         AgentCapabilities, AgentHealth, EffectiveConfig, OpAmpConnectionSettings,
@@ -33,7 +34,7 @@ impl Callbacks for CallbacksMock {
     fn on_command(&self, _command: &ServerToAgentCommand) -> Result<(), Self::Error> {
         Ok(())
     }
-    fn on_connect_failed(&self, _err: Self::Error) {}
+    fn on_connect_failed(&self, _err: ConnectionError) {}
     fn on_opamp_connection_settings(
         &self,
         _settings: &OpAmpConnectionSettings,

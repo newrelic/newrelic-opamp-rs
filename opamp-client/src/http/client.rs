@@ -1,5 +1,6 @@
 use std::sync::{Arc, RwLock};
 
+use crate::http::http_client::HttpClient;
 use crate::{
     common::{
         clientstate::ClientSyncedState, message_processor::ProcessResult, nextmessage::NextMessage,
@@ -9,6 +10,11 @@ use crate::{
     operation::{callbacks::Callbacks, capabilities::Capabilities, settings::StartSettings},
     Client,
 };
+use async_trait::async_trait;
+
+use tracing::debug;
+
+use super::sender::HttpSender;
 
 // An implementation of an OpAMP Client using HTTP transport with HttpClient.
 pub struct OpAMPHttpClient<C, L>
@@ -70,8 +76,11 @@ where
             .write()
             .map_err(|_| ClientError::PoisonError)?
             .pop();
-        // TODO: propagate unwrawp
-        let server_to_agent = self.sender.send(msg).await?;
+        // TODO: propagate unwrap
+        let server_to_agent = self.sender.send(msg).await.map_err(|e| {
+            self.callbacks.on_connect_failed(e.into());
+            ClientError::ConnectFailedCallback
+        })?;
 
         let result = crate::common::message_processor::process_message(
             server_to_agent,
@@ -90,11 +99,6 @@ where
     }
 }
 
-use crate::http::http_client::HttpClient;
-use async_trait::async_trait;
-use tracing::debug;
-
-use super::sender::HttpSender;
 #[async_trait]
 impl<C, L> Client for OpAMPHttpClient<C, L>
 where
@@ -165,5 +169,44 @@ where
         debug!("sending AgentToServer with fetched effective config");
 
         self.send_process().await
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use http::StatusCode;
+
+    use crate::{
+        error::ClientError,
+        http::{
+            client::OpAMPHttpClient,
+            http_client::test::{
+                reqwest_response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
+            },
+        },
+        opamp::proto::ServerToAgent,
+        operation::{callbacks::test::MockCallbacksMockall, settings::StartSettings},
+    };
+
+    #[tokio::test]
+    async fn unsuccessful_http_response() {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.should_post(reqwest_response_from_server_to_agent(
+            &ServerToAgent::default(),
+            ResponseParts {
+                status: StatusCode::FORBIDDEN,
+                ..Default::default()
+            },
+        ));
+        let mut mock_callbacks = MockCallbacksMockall::new();
+        mock_callbacks.should_on_connect_failed();
+
+        let client =
+            OpAMPHttpClient::new(mock_callbacks, StartSettings::default(), mock_client).unwrap();
+
+        assert!(matches!(
+            client.send_process().await.unwrap_err(),
+            ClientError::ConnectFailedCallback
+        ));
     }
 }

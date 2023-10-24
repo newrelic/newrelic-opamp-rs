@@ -3,10 +3,13 @@
 
 use std::collections::HashMap;
 
-use crate::opamp::proto::{
-    AgentIdentification, AgentRemoteConfig, EffectiveConfig, OpAmpConnectionSettings,
-    OtherConnectionSettings, ServerErrorResponse, ServerToAgentCommand,
-    TelemetryConnectionSettings,
+use crate::{
+    error::ConnectionError,
+    opamp::proto::{
+        AgentIdentification, AgentRemoteConfig, EffectiveConfig, OpAmpConnectionSettings,
+        OtherConnectionSettings, ServerErrorResponse, ServerToAgentCommand,
+        TelemetryConnectionSettings,
+    },
 };
 
 /// MessageData represents a message received from the server and handled by Callbacks.
@@ -46,7 +49,7 @@ pub trait Callbacks {
     fn on_connect(&self);
 
     /// on_connect_failed is called when the connection to the Server cannot be established.
-    fn on_connect_failed(&self, err: Self::Error);
+    fn on_connect_failed(&self, err: ConnectionError);
 
     /// on_error is called when the Server reports an error in response to some previously
     /// sent request. Useful for logging purposes. The Agent should not attempt to process
@@ -101,6 +104,7 @@ pub trait Callbacks {
     fn get_effective_config(&self) -> Result<EffectiveConfig, Self::Error>;
 }
 
+#[cfg(test)]
 pub(crate) mod test {
     use super::*;
 
@@ -118,7 +122,7 @@ pub(crate) mod test {
             type Error = CallbacksMockError;
 
             fn on_connect(&self);
-            fn on_connect_failed(&self, err: <Self as Callbacks>::Error);
+            fn on_connect_failed(&self, err: ConnectionError);
             fn on_error(&self, err: ServerErrorResponse);
             fn on_message(&self, msg: MessageData);
             fn on_opamp_connection_settings(&self,settings: &OpAmpConnectionSettings,) -> Result<(), <Self as Callbacks>::Error>;
@@ -134,7 +138,13 @@ pub(crate) mod test {
             self.expect_on_connect().once().return_const(());
         }
 
-        #[allow(dead_code)]
+        pub fn should_on_connect_failed(&mut self) {
+            self.expect_on_connect_failed()
+                .once()
+                // .with(predicate::eq(err))
+                .return_const(());
+        }
+
         pub fn should_on_message(&mut self, data: MessageData) {
             self.expect_on_message()
                 .once()
@@ -142,7 +152,6 @@ pub(crate) mod test {
                 .return_const(());
         }
 
-        #[allow(dead_code)]
         pub fn should_on_command(&mut self, cmd: &ServerToAgentCommand) {
             self.expect_on_command()
                 .once()
@@ -153,7 +162,6 @@ pub(crate) mod test {
                 .returning(|_| Ok(()));
         }
 
-        #[allow(dead_code)]
         pub fn should_not_on_command(&mut self) {
             self.expect_on_command().never();
         }
@@ -183,14 +191,12 @@ pub(crate) mod test {
                 .return_const(());
         }
 
-        #[allow(dead_code)]
         pub fn should_get_effective_config(&mut self) {
             self.expect_get_effective_config()
                 .once()
                 .returning(|| Ok(EffectiveConfig::default()));
         }
 
-        #[allow(dead_code)]
         pub fn should_not_get_effective_config(&mut self) {
             self.expect_get_effective_config().never();
         }

@@ -39,6 +39,18 @@ pub enum ClientError {
     /// Indicates that the remote configuration capabilities are not set.
     #[error("report remote configuration capabilities is not set")]
     UnsetRemoteCapabilities,
+
+    /// Error to use when the `on_connect_failed` callback has been called with this error type, which would consume its value.
+    #[error("Client error. Handling via `on_connect_failed`.")]
+    ConnectFailedCallback,
+}
+
+/// Represents errors that can occur on network operations
+#[derive(Error, Debug)]
+pub enum ConnectionError {
+    /// Error when connecting via an HTTP client.
+    #[error(transparent)]
+    HTTPClientError(#[from] HttpClientError),
 }
 
 /// Represents errors that can occur in the OpAMP not started client.
