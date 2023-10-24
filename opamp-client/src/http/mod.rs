@@ -5,7 +5,7 @@ pub mod managed_client;
 pub(super) mod sender;
 
 mod http_client;
-mod ticker;
+pub mod ticker;
 
 // export public structs
 pub use crate::http::{

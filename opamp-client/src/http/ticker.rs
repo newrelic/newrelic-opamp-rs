@@ -1,52 +1,102 @@
-use std::time::Duration;
+//! Interface and implementation of an asynchronous ticker that can be reset and stopped.
+
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use thiserror::Error;
-use tokio::{select, sync::mpsc::Receiver, time::interval};
+use tokio::{
+    select,
+    sync::{
+        mpsc::{channel, error::SendError, Receiver, Sender},
+        Mutex,
+    },
+    time::interval,
+};
 
-// Error enum for Ticker errors.
+/// The size of the channel buffer.
+static CHANNEL_BUFFER: usize = 1;
+
+/// The error enum for Ticker errors.
 #[derive(Debug, Error)]
 pub enum TickerError {
+    /// Error variant indicating that the ticker is cancelled.
     #[error("ticker cancelled")]
     Cancelled,
+
+    /// Error variant for SendError with associated TickerEvent.
+    #[error("`{0}`")]
+    SendError(#[from] SendError<TickerEvent>),
 }
 
-// Ticker trait defining the async function `next`.
+/// The Ticker trait defining the asynchronous functions `next`, `reset`, and `stop`.
 #[async_trait]
 pub trait Ticker {
-    /// Returns the unit value if a tick was fired. Expects a channel as a parameter to reset
-    /// the ticker on every message. Returns an error if the channel is closed.
-    async fn next(&self, reset: &mut Receiver<()>) -> Result<(), TickerError>;
+    /// Returns the unit value if a tick was fired. Returns an error if the channel is closed.
+    async fn next(&self) -> Result<(), TickerError>;
+
+    /// Reset the ticker. Returns an error if unable to reset.
+    async fn reset(&self) -> Result<(), TickerError>;
+
+    /// Stop the ticker. Returns an error if unable to stop.
+    async fn stop(&self) -> Result<(), TickerError>;
 }
 
-// Implementation of a tokio-based Ticker.
+/// The events that control the behavior of the ticker.
+pub enum TickerEvent {
+    /// Event to reset the ticker.
+    Reset,
+
+    /// Event to stop the ticker.
+    Stop,
+}
+
+/// Tokio-based Ticker implementation.
 pub struct TokioTicker {
+    /// The duration between ticks.
     duration: Duration,
+
+    /// The receiver for receiving reset and stop events.
+    reset_receiver: Arc<Mutex<Receiver<TickerEvent>>>,
+
+    /// The sender for sending reset and stop events.
+    reset_sender: Sender<TickerEvent>,
 }
 
 impl TokioTicker {
-    // Creates a new TokioTicker with the given duration.
+    /// Construct a new TokioTicker with the specified duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `duration` - The duration between ticks.
     pub(super) fn new(duration: Duration) -> Self {
-        Self { duration }
+        let (reset_sender, reset_receiver) = channel(CHANNEL_BUFFER);
+        Self {
+            duration,
+            reset_receiver: Arc::new(Mutex::new(reset_receiver)),
+            reset_sender,
+        }
     }
 }
 
 #[async_trait]
 impl Ticker for TokioTicker {
-    // Main async function of the TokioTicker that waits for ticks and channel messages which will
-    // reset the ticker. If the channel is closed, it will return TickerError::Cancelled.
-    async fn next(&self, reset: &mut Receiver<()>) -> Result<(), TickerError> {
+    /// Wait for ticks and channel messages that will reset the ticker.
+    /// If the channel is closed, it will return TickerError::Cancelled.
+    async fn next(&self) -> Result<(), TickerError> {
         let mut ticker = interval(self.duration);
-        // TOKIO: first ticker interval is fired instantaneously.
+
+        // First ticker interval is fired instantaneously.
         ticker.tick().await;
+
+        let mut reset_receiver = self.reset_receiver.lock().await;
         select! {
-            // biased to prevent the select! from randomly branch check first. Reset channel should
-            // be checked first.
             biased;
 
-            reset_result = reset.recv() => match reset_result {
-                Some(_) => ticker.reset(),
-                // reset channel dropped, should not poll again
+            reset_result = reset_receiver.recv() => match reset_result {
+                Some(event) => match event {
+                    TickerEvent::Reset => ticker.reset(),
+                    TickerEvent::Stop => return Err(TickerError::Cancelled),
+                },
                 None => return Err(TickerError::Cancelled),
             },
             _ = ticker.tick() => {
@@ -55,13 +105,24 @@ impl Ticker for TokioTicker {
         }
         Ok(())
     }
+
+    /// Reset the ticker.
+    async fn reset(&self) -> Result<(), TickerError> {
+        self.reset_sender.send(TickerEvent::Reset).await?;
+        Ok(())
+    }
+
+    /// Stop the ticker.
+    async fn stop(&self) -> Result<(), TickerError> {
+        self.reset_sender.send(TickerEvent::Stop).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 pub(super) mod test {
     use super::*;
     use mockall::mock;
-    use tokio::sync::mpsc::channel;
 
     // Ticker mock for testing purposes.
     mock! {
@@ -70,26 +131,21 @@ pub(super) mod test {
 
         #[async_trait]
         impl Ticker for TickerMockAll {
-            async fn next(&self, reset: &mut Receiver<()>) -> Result<(), TickerError>;
+            async fn next(&self) -> Result<(), TickerError>;
+            async fn reset(&self) -> Result<(), TickerError>;
+            async fn stop(&self) -> Result<(), TickerError>;
         }
     }
 
     #[tokio::test]
     async fn tokio_ticker_stop() {
         let ticker = TokioTicker::new(Duration::from_millis(1));
-        let (reset_sender, mut reset_receiver) = channel(1);
 
         // wait of first ticker fire
-        assert!(
-            ticker.next(&mut reset_receiver).await.is_ok(),
-            "ticker could not be fired"
-        );
+        assert!(ticker.next().await.is_ok(), "ticker could not be fired");
 
         // cancel the ticker
-        drop(reset_sender);
-        assert!(
-            ticker.next(&mut reset_receiver).await.is_err(),
-            "ticker was not cancelled"
-        )
+        ticker.stop().await.unwrap();
+        assert!(ticker.next().await.is_err(), "ticker was not cancelled")
     }
 }

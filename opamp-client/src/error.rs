@@ -12,6 +12,7 @@ use tokio::{sync::mpsc::error::SendError, task::JoinError};
 use crate::common::clientstate::SyncedStateError;
 use crate::common::message_processor::ProcessError;
 
+use crate::http::ticker::TickerError;
 use crate::http::HttpClientError;
 use tracing::error;
 
@@ -39,10 +40,12 @@ pub enum ClientError {
     /// Indicates that the remote configuration capabilities are not set.
     #[error("report remote configuration capabilities is not set")]
     UnsetRemoteCapabilities,
-
     /// Error to use when the `on_connect_failed` callback has been called with this error type, which would consume its value.
     #[error("Client error. Handling via `on_connect_failed`.")]
     ConnectFailedCallback,
+    /// Represents an internal ticker error.
+    #[error("`{0}`")]
+    TickerError(#[from] TickerError),
 }
 
 /// Represents errors that can occur on network operations
@@ -73,6 +76,9 @@ pub enum StartedClientError {
     /// Represents a client error in the OpAMP started client.
     #[error("`{0}`")]
     ClientError(#[from] ClientError),
+    /// Represents an internal ticker error.
+    #[error("`{0}`")]
+    TickerError(#[from] TickerError),
 }
 
 /// A type alias for results from OpAMP sender operations.

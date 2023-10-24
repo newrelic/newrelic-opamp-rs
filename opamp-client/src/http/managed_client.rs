@@ -8,11 +8,7 @@ use crate::{
     Client, NotStartedClient, StartedClient,
 };
 
-use tokio::{
-    spawn,
-    sync::mpsc::{channel, Sender},
-    task::JoinHandle,
-};
+use tokio::{spawn, task::JoinHandle};
 use tracing::{debug, error};
 
 use super::{
@@ -21,7 +17,6 @@ use super::{
 };
 
 static POLLING_INTERVAL: Duration = Duration::from_secs(5);
-static CHANNEL_BUFFER: usize = 1;
 
 /// NotStartedHttpClient implements the NotStartedClient trait for HTTP.
 pub struct NotStartedHttpClient<C, L, T = TokioTicker>
@@ -37,7 +32,7 @@ where
 
 /// An HttpClient that frequently polls for OpAMP remote updates in a background thread
 /// using HTTP transport for connections.
-pub struct StartedHttpClient<C, L>
+pub struct StartedHttpClient<C, L, T = TokioTicker>
 where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
@@ -45,9 +40,8 @@ where
     // handle for the spawned polling task
     handle: JoinHandle<ClientResult<()>>,
 
-    // restart_ticker is a channel used to notify the start routine that a new message has
-    // been send, polling ticker should be restarted
-    restart_ticker: Sender<()>,
+    // restart_ticker is Ticker used to restart and stop the start routine
+    ticker: Arc<T>,
     // Http opamp_client: TODO -> Mutex? One message at a time?
     opamp_client: Arc<OpAMPHttpClient<C, L>>,
 }
@@ -84,7 +78,7 @@ where
     L: HttpClient + Send + Sync + 'static,
     T: Ticker + Send + Sync + 'static,
 {
-    type StartedClient = StartedHttpClient<C, L>;
+    type StartedClient = StartedHttpClient<C, L, T>;
 
     // Starts the NotStartedHttpClient and transforms it into an StartedHttpClient.
     async fn start(self) -> NotStartedClientResult<Self::StartedClient> {
@@ -92,12 +86,12 @@ where
         debug!("sending first AgentToServer message");
         self.opamp_client.poll().await?;
 
-        let (sender, mut receiver) = channel(CHANNEL_BUFFER);
+        let ticker = Arc::new(self.ticker);
+        let ticker_clone = ticker.clone();
         let handle = spawn({
             let opamp_client = self.opamp_client.clone();
-            let ticker = self.ticker;
             async move {
-                while ticker.next(&mut receiver).await.is_ok() {
+                while ticker.next().await.is_ok() {
                     debug!("sending polling request for a ServerToAgent message");
                     let _ = opamp_client
                         .poll()
@@ -110,51 +104,53 @@ where
 
         Ok(StartedHttpClient {
             handle,
-            restart_ticker: sender,
+            ticker: ticker_clone,
             opamp_client: self.opamp_client,
         })
     }
 }
 
 #[async_trait]
-impl<C, L> StartedClient for StartedHttpClient<C, L>
+impl<C, L, T> StartedClient for StartedHttpClient<C, L, T>
 where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
+    T: Ticker + Send + Sync,
 {
     // Stops the StartedHttpClient, terminates the running background thread, and cleans up resources.
     async fn stop(self) -> StartedClientResult<()> {
         // explicitly drop the sender to cancel the started thread
-        drop(self.restart_ticker);
+        self.ticker.stop().await?;
         self.handle.await??;
         Ok(())
     }
 }
 
 #[async_trait]
-impl<C, L> Client for StartedHttpClient<C, L>
+impl<C, L, T> Client for StartedHttpClient<C, L, T>
 where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
+    T: Ticker + Send + Sync,
 {
     async fn set_agent_description(
         &self,
         description: crate::opamp::proto::AgentDescription,
     ) -> ClientResult<()> {
-        self.restart_ticker.send(()).await?;
+        self.ticker.reset().await?;
         self.opamp_client.set_agent_description(description).await
     }
 
     /// set_health sets the health status of the Agent.
     async fn set_health(&self, health: crate::opamp::proto::AgentHealth) -> ClientResult<()> {
-        self.restart_ticker.send(()).await?;
+        self.ticker.reset().await?;
         self.opamp_client.set_health(health).await
     }
 
     // update_effective_config fetches the current local effective config using
     // get_effective_config callback and sends it to the Server.
     async fn update_effective_config(&self) -> ClientResult<()> {
-        self.restart_ticker.send(()).await?;
+        self.ticker.reset().await?;
         self.opamp_client.update_effective_config().await
     }
 }
@@ -193,6 +189,10 @@ mod test {
             ))
         });
 
+        // let mut ticker = MockTickerMockAll::new();
+        // ticker.expect_reset().times(2).returning(|| Ok(())); // set_health
+        // ticker.expect_stop().times(1).returning(|| Ok(()));
+
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
             .expect_on_message()
@@ -227,7 +227,7 @@ mod test {
     async fn poll_and_set_health() {
         // should be called five times (1 init + 3 polling + 1 set_health)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(5).returning(|_| {
+        mock_client.expect_post().times(6).returning(|_| {
             Ok(reqwest_response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -236,15 +236,18 @@ mod test {
 
         // ticker that will be cancelled after three calls
         let mut ticker = MockTickerMockAll::new();
-        ticker.expect_next().times(3).returning(|_| Ok(()));
+        ticker.expect_next().times(3).returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|_| Err(TickerError::Cancelled));
+            .returning(|| Err(TickerError::Cancelled));
+
+        ticker.expect_reset().times(2).returning(|| Ok(())); // set_health
+        ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
             .expect_on_message()
-            .times(1 + 3 + 1) // 1 init, 3 polls, 1 set_health
+            .times(1 + 3 + 2) // 1 init, 3 polls, 2 set_health
             .return_const(());
 
         let not_started = NotStartedHttpClient {
@@ -270,6 +273,10 @@ mod test {
             .set_health(crate::opamp::proto::AgentHealth::default())
             .await
             .is_ok());
+        assert!(client
+            .set_health(crate::opamp::proto::AgentHealth::default())
+            .await
+            .is_ok());
         assert!(client.stop().await.is_ok())
     }
 
@@ -286,10 +293,13 @@ mod test {
 
         // ticker that will be cancelled after one call
         let mut ticker = MockTickerMockAll::new();
-        ticker.expect_next().once().returning(|_| Ok(()));
+        ticker.expect_next().once().returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|_| Err(TickerError::Cancelled));
+            .returning(|| Err(TickerError::Cancelled));
+
+        ticker.expect_reset().times(1).returning(|| Ok(())); // update_effective_config
+        ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
@@ -336,10 +346,13 @@ mod test {
 
         // ticker that will be cancelled after one call
         let mut ticker = MockTickerMockAll::new();
-        ticker.expect_next().once().returning(|_| Ok(()));
+        ticker.expect_next().once().returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|_| Err(TickerError::Cancelled));
+            .returning(|| Err(TickerError::Cancelled));
+
+        ticker.expect_reset().times(1).returning(|| Ok(())); // set_agent_description
+        ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
@@ -395,10 +408,13 @@ mod test {
 
         // ticker that will be cancelled after one call
         let mut ticker = MockTickerMockAll::new();
-        ticker.expect_next().once().returning(|_| Ok(()));
+        ticker.expect_next().once().returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|_| Err(TickerError::Cancelled));
+            .returning(|| Err(TickerError::Cancelled));
+
+        ticker.expect_reset().times(1).returning(|| Ok(())); // set_agent_description
+        ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
