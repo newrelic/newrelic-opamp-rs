@@ -150,7 +150,7 @@ where
             .capabilities
             .has_capability(AgentCapabilities::ReportsEffectiveConfig)
         {
-            return Err(ClientError::UnsetRemoteCapabilities);
+            return Err(ClientError::UnsetEffectConfigCapability);
         }
 
         let config = self
@@ -169,6 +169,36 @@ where
         debug!("sending AgentToServer with fetched effective config");
 
         self.send_process().await
+    }
+
+    // set_remote_config_status sends the status of the remote config
+    // that was previously received from the Server
+    async fn set_remote_config_status(
+        &self,
+        status: crate::opamp::proto::RemoteConfigStatus,
+    ) -> ClientResult<()> {
+        if !self
+            .capabilities
+            .has_capability(AgentCapabilities::ReportsRemoteConfig)
+        {
+            return Err(ClientError::UnsetRemoteConfigStatusCapability);
+        }
+
+        let synced_remote_config_status = self.synced_state.remote_config_status()?;
+        if synced_remote_config_status.eq(&status) {
+            return Ok(());
+        }
+        self.synced_state.set_remote_config_status(status.clone())?;
+
+        self.message
+            .write()
+            .map_err(|_| ClientError::PoisonError)?
+            .update(|msg| {
+                msg.remote_config_status = Some(status);
+            });
+
+        debug!("sending AgentToServer with remote");
+        return self.send_process().await;
     }
 }
 

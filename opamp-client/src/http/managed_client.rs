@@ -69,6 +69,7 @@ where
 }
 
 use crate::http::http_client::HttpClient;
+use crate::opamp::proto::RemoteConfigStatus;
 use async_trait::async_trait;
 
 #[async_trait]
@@ -152,6 +153,13 @@ where
     async fn update_effective_config(&self) -> ClientResult<()> {
         self.ticker.reset().await?;
         self.opamp_client.update_effective_config().await
+    }
+
+    // update_effective_config fetches the current local effective config using
+    // get_effective_config callback and sends it to the Server.
+    async fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()> {
+        self.ticker.reset().await?;
+        self.opamp_client.set_remote_config_status(status).await
     }
 }
 
@@ -454,5 +462,78 @@ mod test {
             err => panic!("Wrong error variant was returned. Expected `ConnectionError::SyncedStateError`, found {}", err),
         }
         assert!(client.stop().await.is_ok())
+    }
+
+    #[tokio::test]
+    async fn poll_and_set_remote_config_status_three_calls_two_same_status() {
+        // should be called three times (1 init + 2 statuses, last status is repeated)
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().times(3).returning(|_| {
+            Ok(reqwest_response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+
+        // ticker that will be cancelled after one call
+        let mut ticker = MockTickerMockAll::new();
+        ticker.expect_next().returning(|| Ok(()));
+        ticker
+            .expect_next()
+            .returning(|| Err(TickerError::Cancelled));
+
+        ticker.expect_reset().times(3).returning(|| Ok(())); // set_agent_description
+
+        let mut mocked_callbacks = MockCallbacksMockall::new();
+        mocked_callbacks
+            .expect_on_message()
+            .times(3) // 1 init, 1 poll
+            .return_const(());
+
+        mocked_callbacks.should_not_get_effective_config();
+
+        let not_started = NotStartedHttpClient {
+            ticker,
+            opamp_client: Arc::new(
+                OpAMPHttpClient::new(
+                    mocked_callbacks,
+                    StartSettings {
+                        instance_id: "NOT_AN_UID".to_string(),
+                        capabilities: capabilities!(
+                            crate::opamp::proto::AgentCapabilities::ReportsRemoteConfig
+                        ),
+                        ..Default::default()
+                    },
+                    mock_client,
+                )
+                .unwrap(),
+            ),
+        };
+
+        let remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 1,
+            error_message: "".to_string(),
+        };
+        let client = not_started.start().await.unwrap();
+        let res = client.set_remote_config_status(remote_config_status).await;
+
+        assert!(res.is_ok());
+
+        let remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 2,
+            error_message: "".to_string(),
+        };
+        let res = client.set_remote_config_status(remote_config_status).await;
+        assert!(res.is_ok());
+
+        let remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 2,
+            error_message: "".to_string(),
+        };
+        let res = client.set_remote_config_status(remote_config_status).await;
+        assert!(res.is_ok());
     }
 }

@@ -23,6 +23,7 @@ pub mod error;
 #[cfg(feature = "async-http")]
 pub mod http;
 
+use crate::opamp::proto::RemoteConfigStatus;
 use async_trait::async_trait;
 use error::{ClientResult, NotStartedClientResult, StartedClientResult};
 use opamp::proto::{AgentDescription, AgentHealth};
@@ -42,11 +43,8 @@ pub trait Client: Send + Sync {
     /// get_effective_config callback and sends it to the Server.
     async fn update_effective_config(&self) -> ClientResult<()>;
 
-    // /// set_remote_config_status sets the current RemoteConfigStatus.
-    // async fn set_remote_config_status(
-    //     &mut self,
-    //     status: &RemoteConfigStatus,
-    // ) -> Result<(), Self::Error>;
+    /// set_remote_config_status sets the current RemoteConfigStatus.
+    async fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()>;
 
     // /// set_package_statuses sets the current PackageStatuses.
     // async fn set_package_statuses(&mut self, statuses: PackageStatuses) -> Result<(), Self::Error>;
