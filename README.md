@@ -1,8 +1,17 @@
 <a href="https://opensource.newrelic.com/oss-category/#community-project"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/dark/Community_Project.png"><source media="(prefers-color-scheme: light)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Project.png"><img alt="New Relic Open Source community project banner." src="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Project.png"></picture></a>
 
-# [Name of Project] [build badges go here when available]
+# [OpAMP protocol implementation in Rust]
 
->[Brief description - what is the project and value does it provide? How often should users expect to get releases? How is versioning set up? Where does this project want to go?]
+[Open Agent Management Protocol (OpAMP)](https://github.com/open-telemetry/opamp-spec)
+is a network protocol for remote management of large fleets of data collection Agents.
+
+OpAMP allows Agents to report their status to and receive configuration from a
+Server and to receive agent package updates from the server.
+The protocol is vendor-agnostic, so the Server can remotely monitor and
+manage a fleet of different Agents that implement OpAMP, including a fleet of
+mixed agents from different vendors.
+
+This repository is work-in-progress of an OpAMP implementation in Rust.
 
 ## Installation
 

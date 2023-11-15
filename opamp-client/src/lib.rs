@@ -15,6 +15,7 @@ pub mod opamp {
         //! The proto module contains the protobuffers structures defined by the
         //! [Opamp specification](https://github.com/open-telemetry/opamp-spec/blob/main/specification.md)
         include!(concat!("../../proto", "/opamp.proto.rs"));
+        include!(concat!("../../proto", "/debug.rs"));
     }
 }
 

@@ -12,7 +12,7 @@ use crate::{
 };
 use async_trait::async_trait;
 
-use tracing::debug;
+use tracing::{debug, trace};
 
 use super::sender::HttpSender;
 
@@ -76,11 +76,12 @@ where
             .write()
             .map_err(|_| ClientError::PoisonError)?
             .pop();
-        // TODO: propagate unwrap
         let server_to_agent = self.sender.send(msg).await.map_err(|e| {
             self.callbacks.on_connect_failed(e.into());
             ClientError::ConnectFailedCallback
         })?;
+
+        trace!("Received payload: {}", server_to_agent);
 
         let result = crate::common::message_processor::process_message(
             server_to_agent,
