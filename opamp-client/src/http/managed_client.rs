@@ -19,15 +19,14 @@ use super::{
 static POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
 /// NotStartedHttpClient implements the NotStartedClient trait for HTTP.
-pub struct NotStartedHttpClient<C, L, T = TokioTicker>
+pub struct NotStartedHttpClient<L, T = TokioTicker>
 where
     T: Ticker + Send + Sync,
-    C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
 {
     ticker: T,
     // opamp_client: TODO -> Mutex? One message at a time?
-    opamp_client: Arc<OpAMPHttpClient<C, L>>,
+    http_client: L,
 }
 
 /// An HttpClient that frequently polls for OpAMP remote updates in a background thread
@@ -46,25 +45,16 @@ where
     opamp_client: Arc<OpAMPHttpClient<C, L>>,
 }
 
-impl<C, L> NotStartedHttpClient<C, L>
+impl<L> NotStartedHttpClient<L>
 where
-    C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
 {
     /// Creates a new instance of NotStartedHttpClient with provided parameters.
-    pub fn new(
-        callbacks: C,
-        start_settings: StartSettings,
-        http_client: L,
-    ) -> NotStartedClientResult<Self> {
-        Ok(NotStartedHttpClient {
+    pub fn new(http_client: L) -> Self {
+        NotStartedHttpClient {
             ticker: TokioTicker::new(POLLING_INTERVAL),
-            opamp_client: Arc::new(OpAMPHttpClient::new(
-                callbacks,
-                start_settings,
-                http_client,
-            )?),
-        })
+            http_client,
+        }
     }
 }
 
@@ -73,24 +63,33 @@ use crate::opamp::proto::RemoteConfigStatus;
 use async_trait::async_trait;
 
 #[async_trait]
-impl<C, L, T> NotStartedClient for NotStartedHttpClient<C, L, T>
+impl<L, T> NotStartedClient for NotStartedHttpClient<L, T>
 where
-    C: Callbacks + Send + Sync + 'static,
     L: HttpClient + Send + Sync + 'static,
     T: Ticker + Send + Sync + 'static,
 {
-    type StartedClient = StartedHttpClient<C, L, T>;
+    type StartedClient<C: Callbacks + Send + Sync + 'static> = StartedHttpClient<C, L, T>;
 
     // Starts the NotStartedHttpClient and transforms it into an StartedHttpClient.
-    async fn start(self) -> NotStartedClientResult<Self::StartedClient> {
+    async fn start<C: Callbacks + Send + Sync + 'static>(
+        self,
+        callbacks: C,
+        start_settings: StartSettings,
+    ) -> NotStartedClientResult<Self::StartedClient<C>> {
         // use poll method to send an initial message
         debug!("sending first AgentToServer message");
-        self.opamp_client.poll().await?;
+        let opamp_client = Arc::new(OpAMPHttpClient::new(
+            callbacks,
+            start_settings,
+            self.http_client,
+        )?);
+
+        opamp_client.poll().await?;
 
         let ticker = Arc::new(self.ticker);
         let ticker_clone = ticker.clone();
         let handle = spawn({
-            let opamp_client = self.opamp_client.clone();
+            let opamp_client = opamp_client.clone();
             async move {
                 while ticker.next().await.is_ok() {
                     debug!("sending polling request for a ServerToAgent message");
@@ -106,13 +105,13 @@ where
         Ok(StartedHttpClient {
             handle,
             ticker: ticker_clone,
-            opamp_client: self.opamp_client,
+            opamp_client,
         })
     }
 }
 
 #[async_trait]
-impl<C, L, T> StartedClient for StartedHttpClient<C, L, T>
+impl<C, L, T> StartedClient<C> for StartedHttpClient<C, L, T>
 where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
@@ -207,18 +206,18 @@ mod test {
             .times(1) // 1 init
             .return_const(());
 
-        let not_started = NotStartedHttpClient::new(
-            mocked_callbacks,
-            StartSettings {
-                instance_id: "NOT_AN_UID".to_string(),
-                capabilities: Capabilities::default(),
-                ..Default::default()
-            },
-            mock_client,
-        )
-        .unwrap();
+        let not_started = NotStartedHttpClient::new(mock_client);
 
-        let start_result = not_started.start().await;
+        let start_result = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".to_string(),
+                    capabilities: Capabilities::default(),
+                    ..Default::default()
+                },
+            )
+            .await;
 
         assert!(
             start_result.is_ok(),
@@ -260,23 +259,22 @@ mod test {
 
         let not_started = NotStartedHttpClient {
             ticker,
-            opamp_client: Arc::new(
-                OpAMPHttpClient::new(
-                    mocked_callbacks,
-                    StartSettings {
-                        instance_id: "NOT_AN_UID".to_string(),
-                        capabilities: capabilities!(
-                            crate::opamp::proto::AgentCapabilities::AcceptsRestartCommand
-                        ),
-                        ..Default::default()
-                    },
-                    mock_client,
-                )
-                .unwrap(),
-            ),
+            http_client: mock_client,
         };
 
-        let client = not_started.start().await.unwrap();
+        let client = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".to_string(),
+                    capabilities: capabilities!(
+                        crate::opamp::proto::AgentCapabilities::AcceptsRestartCommand
+                    ),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
         assert!(client
             .set_health(crate::opamp::proto::AgentHealth::default())
             .await
@@ -319,23 +317,23 @@ mod test {
 
         let not_started = NotStartedHttpClient {
             ticker,
-            opamp_client: Arc::new(
-                OpAMPHttpClient::new(
-                    mocked_callbacks,
-                    StartSettings {
-                        instance_id: "NOT_AN_UID".to_string(),
-                        capabilities: capabilities!(
-                            crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
-                        ),
-                        ..Default::default()
-                    },
-                    mock_client,
-                )
-                .unwrap(),
-            ),
+            http_client: mock_client,
         };
 
-        let client = not_started.start().await.unwrap();
+        let client = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".to_string(),
+                    capabilities: capabilities!(
+                        crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
+                    ),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
         let res = client.update_effective_config().await;
         assert!(res.is_ok());
         assert!(client.stop().await.is_ok())
@@ -370,23 +368,23 @@ mod test {
 
         let not_started = NotStartedHttpClient {
             ticker,
-            opamp_client: Arc::new(
-                OpAMPHttpClient::new(
-                    mocked_callbacks,
-                    StartSettings {
-                        instance_id: "NOT_AN_UID".to_string(),
-                        capabilities: capabilities!(
-                            crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
-                        ),
-                        ..Default::default()
-                    },
-                    mock_client,
-                )
-                .unwrap(),
-            ),
+            http_client: mock_client,
         };
 
-        let client = not_started.start().await.unwrap();
+        let client = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".to_string(),
+                    capabilities: capabilities!(
+                        crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
+                    ),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
         let random_value = KeyValue {
             key: "thing".to_string(),
             value: Some(AnyValue {
@@ -434,23 +432,23 @@ mod test {
 
         let not_started = NotStartedHttpClient {
             ticker,
-            opamp_client: Arc::new(
-                OpAMPHttpClient::new(
-                    mocked_callbacks,
-                    StartSettings {
-                        instance_id: "NOT_AN_UID".to_string(),
-                        capabilities: capabilities!(
-                            crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
-                        ),
-                        ..Default::default()
-                    },
-                    mock_client,
-                )
-                .unwrap(),
-            ),
+            http_client: mock_client,
         };
 
-        let client = not_started.start().await.unwrap();
+        let client = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".to_string(),
+                    capabilities: capabilities!(
+                        crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
+                    ),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
         let res = client
             .set_agent_description(AgentDescription::default())
             .await;
@@ -494,28 +492,28 @@ mod test {
 
         let not_started = NotStartedHttpClient {
             ticker,
-            opamp_client: Arc::new(
-                OpAMPHttpClient::new(
-                    mocked_callbacks,
-                    StartSettings {
-                        instance_id: "NOT_AN_UID".to_string(),
-                        capabilities: capabilities!(
-                            crate::opamp::proto::AgentCapabilities::ReportsRemoteConfig
-                        ),
-                        ..Default::default()
-                    },
-                    mock_client,
-                )
-                .unwrap(),
-            ),
+            http_client: mock_client,
         };
+
+        let client = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".to_string(),
+                    capabilities: capabilities!(
+                        crate::opamp::proto::AgentCapabilities::ReportsRemoteConfig
+                    ),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         let remote_config_status = RemoteConfigStatus {
             last_remote_config_hash: vec![],
             status: 1,
             error_message: "".to_string(),
         };
-        let client = not_started.start().await.unwrap();
         let res = client.set_remote_config_status(remote_config_status).await;
 
         assert!(res.is_ok());

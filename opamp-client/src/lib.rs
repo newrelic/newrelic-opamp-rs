@@ -28,6 +28,7 @@ use crate::opamp::proto::RemoteConfigStatus;
 use async_trait::async_trait;
 use error::{ClientResult, NotStartedClientResult, StartedClientResult};
 use opamp::proto::{AgentDescription, AgentHealth};
+use operation::{callbacks::Callbacks, settings::StartSettings};
 
 #[async_trait]
 /// Client defines the communication methods with the Opamp server.
@@ -55,7 +56,7 @@ pub trait Client: Send + Sync {
 #[async_trait]
 pub trait NotStartedClient {
     /// Associated type for this UnstartedClient which implements the StartedClient trait.
-    type StartedClient: StartedClient;
+    type StartedClient<C: Callbacks + Send + Sync + 'static>: StartedClient<C>;
 
     /// start the client and begin attempts to connect to the Server. Once a connection
     /// is established the client will attempt to maintain it by reconnecting if
@@ -76,12 +77,16 @@ pub trait NotStartedClient {
     ///
     ///  Starts should periodically poll status updates from the remote server and apply
     ///  the corresponding updates.
-    async fn start(self) -> NotStartedClientResult<Self::StartedClient>;
+    async fn start<C: Callbacks + Send + Sync + 'static>(
+        self,
+        callbacks: C,
+        start_settings: StartSettings,
+    ) -> NotStartedClientResult<Self::StartedClient<C>>;
 }
 
 /// A trait defining the `stop()` method for stopping a client in the OpAMP library. Implements the `Client` trait.
 #[async_trait]
-pub trait StartedClient: Client {
+pub trait StartedClient<C: Callbacks>: Client {
     /// After this call returns successfully it is guaranteed that no
     /// callbacks will be called. stop() will cancel context of any in-fly
     /// callbacks, but will wait until such in-fly callbacks are returned before

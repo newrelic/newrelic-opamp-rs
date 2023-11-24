@@ -72,29 +72,30 @@ async fn main() {
 
     let http_client_reqwest = HttpClientReqwest::new(http_config).unwrap();
 
-    let not_started_client = opamp_client::http::NotStartedHttpClient::new(
-        CallbacksMock,
-        StartSettings {
-            instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
-            capabilities: capabilities!(AgentCapabilities::ReportsStatus),
-            agent_description: AgentDescription {
-                identifying_attributes: HashMap::from([
-                    ("service.name".to_string(), "com.newrelic.meta_agent".into()),
-                    ("service.namespace".to_string(), "newrelic".into()),
-                    ("service.version".to_string(), "0.2.0".into()),
-                ]),
-                non_identifying_attributes: HashMap::from([
-                    ("key".to_string(), "val".into()),
-                    ("int".to_string(), 5.into()),
-                    ("bool".to_string(), true.into()),
-                ]),
-            },
-        },
-        http_client_reqwest,
-    )
-    .unwrap();
+    let not_started_client = opamp_client::http::NotStartedHttpClient::new(http_client_reqwest);
 
-    let client = not_started_client.start().await.unwrap();
+    let client = not_started_client
+        .start(
+            CallbacksMock,
+            StartSettings {
+                instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
+                capabilities: capabilities!(AgentCapabilities::ReportsStatus),
+                agent_description: AgentDescription {
+                    identifying_attributes: HashMap::from([
+                        ("service.name".to_string(), "com.newrelic.meta_agent".into()),
+                        ("service.namespace".to_string(), "newrelic".into()),
+                        ("service.version".to_string(), "0.2.0".into()),
+                    ]),
+                    non_identifying_attributes: HashMap::from([
+                        ("key".to_string(), "val".into()),
+                        ("int".to_string(), 5.into()),
+                        ("bool".to_string(), true.into()),
+                    ]),
+                },
+            },
+        )
+        .await
+        .unwrap();
 
     client
         .set_health(AgentHealth {
