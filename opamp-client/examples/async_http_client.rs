@@ -12,7 +12,7 @@ use opamp_client::{
         callbacks::{Callbacks, MessageData},
         settings::{AgentDescription, StartSettings},
     },
-    Client, NotStartedClient, StartedClient,
+    AsyncClient, AsyncNotStartedClient, AsyncStartedClient,
 };
 use tracing::info;
 
@@ -68,11 +68,13 @@ async fn main() {
             "wooooooooooooooooooooow".to_string(),
         )]))
         .unwrap()
-        .with_gzip_compression(false);
+        .with_gzip_compression(false)
+        .with_timeout(Duration::from_secs(5));
 
     let http_client_reqwest = HttpClientReqwest::new(http_config).unwrap();
 
-    let not_started_client = opamp_client::http::NotStartedHttpClient::new(http_client_reqwest);
+    let not_started_client =
+        opamp_client::http::AsyncNotStartedHttpClient::new(http_client_reqwest);
 
     let client = not_started_client
         .start(

@@ -6,6 +6,7 @@ license-file.workspace = true
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+httpmock = "0.7.0"
 
 [dependencies]
 async-trait = "0.1.71"
@@ -24,7 +25,12 @@ rand = "0.8.5"
 async-recursion = "1.0.4"
 tracing-test = {version = "0.2.4"}
 mockall = "0.11.4"
+ureq = {version = "2.9.1", features = ["http-interop"],  optional = true}
+crossbeam = {version = "0.8.3", features = ["crossbeam-channel"], optional = true}
 
 [features]
-default = ["async-http"]
-async-http = ["dep:reqwest", "dep:http", "dep:libflate"]
+default = ["async-http", "sync-http"]
+async = []
+async-http = ["async", "dep:reqwest", "dep:http", "dep:libflate"]
+sync = []
+sync-http = ["sync", "dep:http", "dep:ureq", "dep:crossbeam"]

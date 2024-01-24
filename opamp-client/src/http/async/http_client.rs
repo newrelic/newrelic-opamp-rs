@@ -3,19 +3,16 @@
 //! This module defines an HTTP client for a Rust application, its configuration, and common errors. GZIP compression is enabled by default.
 //!
 
+use super::super::HttpConfig;
 use crate::common::compression::{Compressor, CompressorError, DecoderError, EncoderError};
-use crate::error::OpampSenderResult;
 use async_trait::async_trait;
-use http::header::{InvalidHeaderName, InvalidHeaderValue};
-use http::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Response;
-use std::str::FromStr;
 use thiserror::Error;
-use url::{ParseError, Url};
+use url::Url;
 
 /// An enumeration of potential errors related to the HTTP client.
 #[derive(Error, Debug)]
-pub enum HttpClientError {
+pub enum AsyncHttpClientError {
     /// Represents Reqwest crate error.
     #[error("`{0}`")]
     ReqwestError(#[from] reqwest::Error),
@@ -28,15 +25,6 @@ pub enum HttpClientError {
     /// Represents a compression error.
     #[error("`{0}`")]
     CompressionError(#[from] CompressorError),
-    /// HTTP client with an invalid header value.
-    #[error("`{0}`")]
-    InvalidHeader(#[from] InvalidHeaderValue),
-    /// HTTP client with an invalid header name.
-    #[error("`{0}`")]
-    InvalidHeaderName(#[from] InvalidHeaderName),
-    /// HTTP client with an invalid url.
-    #[error("`{0}`")]
-    InvalidUrl(#[from] ParseError),
     /// Unsuccessful HTTP response.
     #[error("Status code: `{0}` Canonical reason: `{1}`")]
     UnsuccessfulResponse(u16, String),
@@ -44,9 +32,9 @@ pub enum HttpClientError {
 
 /// An asynchronous trait that defines the internal methods for HTTP clients.
 #[async_trait]
-pub trait HttpClient {
+pub trait AsyncHttpClient {
     /// An asynchronous function that defines the `post` method for HTTP client.
-    async fn post(&self, body: Vec<u8>) -> Result<Response, HttpClientError>;
+    async fn post(&self, body: Vec<u8>) -> Result<Response, AsyncHttpClientError>;
 }
 
 /// An implementation of the `HttpClient` trait using the reqwest library.
@@ -66,7 +54,7 @@ impl HttpClientReqwest {
     /// let config = HttpConfig::new("https://my-server.com/v1/opamp").unwrap();
     /// let client = HttpClientReqwest::new(config).unwrap();
     /// ```
-    pub fn new(config: HttpConfig) -> Result<Self, HttpClientError> {
+    pub fn new(config: HttpConfig) -> Result<Self, AsyncHttpClientError> {
         let url = config.url.clone();
         Ok(Self {
             client: reqwest::Client::try_from(config)?,
@@ -76,104 +64,20 @@ impl HttpClientReqwest {
 }
 
 #[async_trait]
-impl HttpClient for HttpClientReqwest {
-    async fn post(&self, body: Vec<u8>) -> Result<Response, HttpClientError> {
+impl AsyncHttpClient for HttpClientReqwest {
+    async fn post(&self, body: Vec<u8>) -> Result<Response, AsyncHttpClientError> {
         Ok(self.client.post(self.url.clone()).body(body).send().await?)
-    }
-}
-
-/// A struct representing the configuration for the internal HTTP client.
-///
-/// # Examples
-///
-/// Creating a new `HttpConfig` with a URL and default headers:
-///
-/// ```rust
-/// use opamp_client::http::HttpConfig;
-///
-/// let config = HttpConfig::new("https://my-server.com").unwrap();
-/// ```
-///
-/// Adding custom headers to the configuration:
-///
-/// ```rust
-/// use opamp_client::http::HttpConfig;
-///
-/// let config = HttpConfig::new("https://my-server.com").unwrap();
-/// let config = config.with_headers(vec![("Authorization", "Bearer <token>")]).unwrap();
-/// ```
-///
-/// Enabling GZIP compression in the configuration:
-///
-/// ```rust
-/// use opamp_client::http::HttpConfig;
-///
-/// let config = HttpConfig::new("https://my-server.com").unwrap();
-/// let config = config.with_gzip_compression(true);
-/// ```
-pub struct HttpConfig {
-    url: Url,
-    headers: HeaderMap,
-    compression: bool,
-}
-
-impl HttpConfig {
-    /// Construct a new `HttpConfig` with a given URL as a string.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if the provided URL is not valid.
-    pub fn new(url: &str) -> OpampSenderResult<Self> {
-        Ok(Self {
-            url: Url::from_str(url)?,
-            headers: opamp_headers(),
-            compression: false,
-        })
-    }
-
-    /// Optionally include custom headers into the HTTP requests.
-    ///
-    /// Custom headers can be added using an input iterator that provides key-value pairs.
-    ///
-    /// If the key already exists in the current header map, the new value will overwrite the old one.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if the provided key or value is not valid.
-    pub fn with_headers<I, K, V>(mut self, headers: I) -> OpampSenderResult<Self>
-    where
-        I: IntoIterator<Item = (K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        for (ref key, ref val) in headers {
-            // do nothing if value already in internal headers map
-            let _ = self
-                .headers
-                .insert(HeaderName::from_str(key.as_ref())?, val.as_ref().parse()?);
-        }
-        Ok(self)
-    }
-
-    /// Enable or disable gzip compression for the HTTP requests.
-    pub fn with_gzip_compression(mut self, compression: bool) -> Self {
-        if compression {
-            self.headers
-                .insert("Content-Encoding", HeaderValue::from_static("gzip"));
-            self.headers
-                .insert("Accept-Encoding", HeaderValue::from_static("gzip"));
-            self.compression = true;
-        }
-        self
     }
 }
 
 /// Implement TryFrom trait to create a reqwest::Client from HttpConfig
 impl TryFrom<HttpConfig> for reqwest::Client {
-    type Error = HttpClientError;
+    type Error = AsyncHttpClientError;
     fn try_from(value: HttpConfig) -> Result<Self, Self::Error> {
         Ok(reqwest::Client::builder()
             .default_headers(value.headers)
+            .connect_timeout(value.timeout)
+            .timeout(value.timeout)
             .build()?)
     }
 }
@@ -188,18 +92,6 @@ impl From<&HttpConfig> for Compressor {
     }
 }
 
-/// Returns a HeaderMap pre-populated with common HTTP headers used in an OpAMP connection
-fn opamp_headers() -> HeaderMap {
-    let mut headers = HeaderMap::new();
-
-    headers.insert(
-        "Content-Type",
-        HeaderValue::from_static("application/x-protobuf"),
-    );
-
-    headers
-}
-
 #[cfg(test)]
 pub(crate) mod test {
     use std::collections::HashMap;
@@ -211,23 +103,6 @@ pub(crate) mod test {
     use prost::Message;
 
     use super::*;
-    use crate::http::http_client::HttpConfig;
-
-    #[test]
-    fn client_gzip_headers() {
-        let http_config = HttpConfig::new("http://example.com")
-            .unwrap()
-            .with_gzip_compression(true);
-
-        assert_eq!(
-            http_config.headers.get("Content-Encoding"),
-            Some(&HeaderValue::from_static("gzip"))
-        );
-        assert_eq!(
-            http_config.headers.get("Accept-Encoding"),
-            Some(&HeaderValue::from_static("gzip"))
-        )
-    }
 
     /////////////////////////////////////////////
     // Test helpers & mocks
@@ -238,8 +113,8 @@ pub(crate) mod test {
       pub(crate) HttpClientMockall {}
 
         #[async_trait]
-        impl HttpClient for HttpClientMockall {
-            async fn post(&self, body: Vec<u8>) -> Result<Response, HttpClientError>;
+        impl AsyncHttpClient for HttpClientMockall {
+            async fn post(&self, body: Vec<u8>) -> Result<Response, AsyncHttpClientError>;
         }
     }
 
@@ -251,7 +126,7 @@ pub(crate) mod test {
         }
 
         #[allow(dead_code)]
-        pub(crate) fn should_not_post(&mut self, error: HttpClientError) {
+        pub(crate) fn should_not_post(&mut self, error: AsyncHttpClientError) {
             self.expect_post().once().return_once(move |_| Err(error));
         }
     }

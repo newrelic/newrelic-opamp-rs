@@ -48,7 +48,7 @@ pub(crate) enum ProcessResult {
 /// # Returns
 ///
 /// A `Result` containing a `ProcessResult` or a `ProcessError`.
-pub(crate) async fn process_message<C: Callbacks>(
+pub(crate) fn process_message<C: Callbacks>(
     msg: ServerToAgent,
     callbacks: &C,
     synced_state: &ClientSyncedState,
@@ -98,11 +98,11 @@ pub(crate) async fn process_message<C: Callbacks>(
         error!("Received an error from server: {e:?}");
     }
 
-    rcv_flags(synced_state, msg.flags, next_message, callbacks).await
+    rcv_flags(synced_state, msg.flags, next_message, callbacks)
 }
 
 // An async function handling received flags.
-async fn rcv_flags<C: Callbacks>(
+fn rcv_flags<C: Callbacks>(
     state: &ClientSyncedState,
     flags: u64,
     next_message: Arc<RwLock<NextMessage>>,
@@ -231,8 +231,8 @@ mod test {
     use crate::operation::callbacks::test::MockCallbacksMockall;
     use tracing_test::traced_test;
 
-    #[tokio::test]
-    async fn receive_command() {
+    #[test]
+    fn receive_command() {
         // The idea here is that we construct all arguments passed to `receive`, and then check for:
         // 1. The appropriate callbacks have been called
         // 2. The return value is what we expect
@@ -254,15 +254,14 @@ mod test {
             &synced_state,
             &capabilities,
             next_message,
-        )
-        .await;
+        );
 
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), ProcessResult::Synced);
     }
 
-    #[tokio::test]
-    async fn receive_command_but_not_capable() {
+    #[test]
+    fn receive_command_but_not_capable() {
         let server_to_agent = ServerToAgent {
             command: Some(ServerToAgentCommand::default()), // An arbitrary command
             ..ServerToAgent::default()
@@ -281,15 +280,14 @@ mod test {
             &synced_state,
             &capabilities,
             next_message,
-        )
-        .await;
+        );
 
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), ProcessResult::Synced);
     }
 
-    #[tokio::test]
-    async fn receive_agent_identification() {
+    #[test]
+    fn receive_agent_identification() {
         let server_to_agent = ServerToAgent {
             agent_identification: Some(AgentIdentification {
                 new_instance_uid: "some_agent_uid".to_string(),
@@ -312,8 +310,7 @@ mod test {
             &synced_state,
             &capabilities,
             next_message.clone(),
-        )
-        .await;
+        );
 
         let expected_message = next_message.write().unwrap().pop();
         assert_eq!(expected_message.instance_uid, "some_agent_uid".to_string());
@@ -322,10 +319,10 @@ mod test {
         assert_eq!(res.unwrap(), ProcessResult::Synced);
     }
 
-    #[tokio::test]
+    #[test]
     /// Expected to not call message update if instance_uid is not present in ServerToAgent message
     ///
-    async fn receive_no_agent_identification() {
+    fn receive_no_agent_identification() {
         const AGENT_UID: &str = "some_uid";
         let server_to_agent = ServerToAgent::default();
         let mut callbacks = MockCallbacksMockall::new();
@@ -347,8 +344,7 @@ mod test {
             &synced_state,
             &capabilities,
             next_message.clone(),
-        )
-        .await;
+        );
 
         let expected_message = next_message.write().unwrap().pop();
         assert_eq!(expected_message.instance_uid, AGENT_UID.to_string());
@@ -357,9 +353,9 @@ mod test {
         assert_eq!(res.unwrap(), ProcessResult::Synced);
     }
 
-    #[tokio::test]
+    #[test]
     #[traced_test]
-    async fn receive_emits_error() {
+    fn receive_emits_error() {
         const ERROR_RESPONSE: &str = "RANDOM ERROR";
         let err_response = ServerErrorResponse {
             error_message: ERROR_RESPONSE.to_string(),
@@ -385,8 +381,7 @@ mod test {
             &synced_state,
             &capabilities,
             next_message.clone(),
-        )
-        .await;
+        );
 
         assert!(logs_contain(&format!(
             "Received an error from server: {:?}",
@@ -628,8 +623,8 @@ mod test {
         );
     }
 
-    #[tokio::test]
-    async fn test_rcv_flags_needs_resend() {
+    #[test]
+    fn test_rcv_flags_needs_resend() {
         let mut callbacks_mock = MockCallbacksMockall::new();
         let state = ClientSyncedState::default();
 
@@ -681,7 +676,7 @@ mod test {
         callbacks_mock.should_get_effective_config();
 
         let result: Result<ProcessResult, ProcessError> =
-            rcv_flags(&state, flags, next_message.clone(), &callbacks_mock).await;
+            rcv_flags(&state, flags, next_message.clone(), &callbacks_mock);
 
         let mut lock = next_message.write().unwrap();
         let message = (*lock).pop();
@@ -702,8 +697,8 @@ mod test {
         assert_eq!(result, Ok(ProcessResult::NeedsResend));
     }
 
-    #[tokio::test]
-    async fn test_rcv_flags_synced() {
+    #[test]
+    fn test_rcv_flags_synced() {
         let mut callbacks_mock = MockCallbacksMockall::new();
         let state = ClientSyncedState::default();
         let next_message: Arc<RwLock<NextMessage>> = Arc::new(RwLock::new(NextMessage::default()));
@@ -712,7 +707,7 @@ mod test {
 
         let unset_flag = 0;
         let result_synced: Result<ProcessResult, ProcessError> =
-            rcv_flags(&state, unset_flag, next_message.clone(), &callbacks_mock).await;
+            rcv_flags(&state, unset_flag, next_message.clone(), &callbacks_mock);
 
         assert_eq!(result_synced, Ok(ProcessResult::Synced));
     }

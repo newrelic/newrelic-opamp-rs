@@ -18,31 +18,31 @@ static CHANNEL_BUFFER: usize = 1;
 
 /// The error enum for Ticker errors.
 #[derive(Debug, Error)]
-pub enum TickerError {
+pub enum AsyncTickerError {
     /// Error variant indicating that the ticker is cancelled.
     #[error("ticker cancelled")]
     Cancelled,
 
     /// Error variant for SendError with associated TickerEvent.
     #[error("`{0}`")]
-    SendError(#[from] SendError<TickerEvent>),
+    SendError(#[from] SendError<AsyncTickerEvent>),
 }
 
-/// The Ticker trait defining the asynchronous functions `next`, `reset`, and `stop`.
+/// The AsyncTicker trait defining the asynchronous functions `next`, `reset`, and `stop`.
 #[async_trait]
-pub trait Ticker {
+pub trait AsyncTicker {
     /// Returns the unit value if a tick was fired. Returns an error if the channel is closed.
-    async fn next(&self) -> Result<(), TickerError>;
+    async fn next(&self) -> Result<(), AsyncTickerError>;
 
     /// Reset the ticker. Returns an error if unable to reset.
-    async fn reset(&self) -> Result<(), TickerError>;
+    async fn reset(&self) -> Result<(), AsyncTickerError>;
 
     /// Stop the ticker. Returns an error if unable to stop.
-    async fn stop(&self) -> Result<(), TickerError>;
+    async fn stop(&self) -> Result<(), AsyncTickerError>;
 }
 
 /// The events that control the behavior of the ticker.
-pub enum TickerEvent {
+pub enum AsyncTickerEvent {
     /// Event to reset the ticker.
     Reset,
 
@@ -50,16 +50,16 @@ pub enum TickerEvent {
     Stop,
 }
 
-/// Tokio-based Ticker implementation.
+/// Tokio-based AsyncTicker implementation.
 pub struct TokioTicker {
     /// The duration between ticks.
     duration: Duration,
 
     /// The receiver for receiving reset and stop events.
-    reset_receiver: Arc<Mutex<Receiver<TickerEvent>>>,
+    reset_receiver: Arc<Mutex<Receiver<AsyncTickerEvent>>>,
 
     /// The sender for sending reset and stop events.
-    reset_sender: Sender<TickerEvent>,
+    reset_sender: Sender<AsyncTickerEvent>,
 }
 
 impl TokioTicker {
@@ -79,10 +79,10 @@ impl TokioTicker {
 }
 
 #[async_trait]
-impl Ticker for TokioTicker {
+impl AsyncTicker for TokioTicker {
     /// Wait for ticks and channel messages that will reset the ticker.
-    /// If the channel is closed, it will return TickerError::Cancelled.
-    async fn next(&self) -> Result<(), TickerError> {
+    /// If the channel is closed, it will return AsyncTickerError::Cancelled.
+    async fn next(&self) -> Result<(), AsyncTickerError> {
         let mut ticker = interval(self.duration);
 
         // First ticker interval is fired instantaneously.
@@ -94,10 +94,10 @@ impl Ticker for TokioTicker {
 
             reset_result = reset_receiver.recv() => match reset_result {
                 Some(event) => match event {
-                    TickerEvent::Reset => ticker.reset(),
-                    TickerEvent::Stop => return Err(TickerError::Cancelled),
+                    AsyncTickerEvent::Reset => ticker.reset(),
+                    AsyncTickerEvent::Stop => return Err(AsyncTickerError::Cancelled),
                 },
-                None => return Err(TickerError::Cancelled),
+                None => return Err(AsyncTickerError::Cancelled),
             },
             _ = ticker.tick() => {
                 return Ok(());
@@ -107,14 +107,14 @@ impl Ticker for TokioTicker {
     }
 
     /// Reset the ticker.
-    async fn reset(&self) -> Result<(), TickerError> {
-        self.reset_sender.send(TickerEvent::Reset).await?;
+    async fn reset(&self) -> Result<(), AsyncTickerError> {
+        self.reset_sender.send(AsyncTickerEvent::Reset).await?;
         Ok(())
     }
 
     /// Stop the ticker.
-    async fn stop(&self) -> Result<(), TickerError> {
-        self.reset_sender.send(TickerEvent::Stop).await?;
+    async fn stop(&self) -> Result<(), AsyncTickerError> {
+        self.reset_sender.send(AsyncTickerEvent::Stop).await?;
         Ok(())
     }
 }
@@ -130,10 +130,10 @@ pub(super) mod test {
 
 
         #[async_trait]
-        impl Ticker for TickerMockAll {
-            async fn next(&self) -> Result<(), TickerError>;
-            async fn reset(&self) -> Result<(), TickerError>;
-            async fn stop(&self) -> Result<(), TickerError>;
+        impl AsyncTicker for TickerMockAll {
+            async fn next(&self) -> Result<(), AsyncTickerError>;
+            async fn reset(&self) -> Result<(), AsyncTickerError>;
+            async fn stop(&self) -> Result<(), AsyncTickerError>;
         }
     }
 

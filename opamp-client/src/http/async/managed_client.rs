@@ -3,26 +3,26 @@
 use std::{sync::Arc, time::Duration};
 
 use crate::{
-    error::{ClientResult, NotStartedClientResult, StartedClientResult},
     operation::{callbacks::Callbacks, settings::StartSettings},
-    Client, NotStartedClient, StartedClient,
+    AsyncClient, AsyncNotStartedClient, AsyncStartedClient, AsyncStartedClientError,
+    {AsyncClientResult, AsyncStartedClientResult, NotStartedClientResult},
 };
 
 use tokio::{spawn, task::JoinHandle};
 use tracing::{debug, error};
 
 use super::{
-    client::OpAMPHttpClient,
-    ticker::{Ticker, TokioTicker},
+    client::OpAMPAsyncHttpClient,
+    ticker::{AsyncTicker, TokioTicker},
 };
 
 static POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
 /// NotStartedHttpClient implements the NotStartedClient trait for HTTP.
-pub struct NotStartedHttpClient<L, T = TokioTicker>
+pub struct AsyncNotStartedHttpClient<L, T = TokioTicker>
 where
-    T: Ticker + Send + Sync,
-    L: HttpClient + Send + Sync,
+    T: AsyncTicker + Send + Sync,
+    L: AsyncHttpClient + Send + Sync,
 {
     ticker: T,
     // opamp_client: TODO -> Mutex? One message at a time?
@@ -31,54 +31,54 @@ where
 
 /// An HttpClient that frequently polls for OpAMP remote updates in a background thread
 /// using HTTP transport for connections.
-pub struct StartedHttpClient<C, L, T = TokioTicker>
+pub struct AsyncStartedHttpClient<C, L, T = TokioTicker>
 where
     C: Callbacks + Send + Sync,
-    L: HttpClient + Send + Sync,
+    L: AsyncHttpClient + Send + Sync,
 {
     // handle for the spawned polling task
-    handle: JoinHandle<ClientResult<()>>,
+    handle: JoinHandle<AsyncClientResult<()>>,
 
     // restart_ticker is Ticker used to restart and stop the start routine
     ticker: Arc<T>,
     // Http opamp_client: TODO -> Mutex? One message at a time?
-    opamp_client: Arc<OpAMPHttpClient<C, L>>,
+    opamp_client: Arc<OpAMPAsyncHttpClient<C, L>>,
 }
 
-impl<L> NotStartedHttpClient<L>
+impl<L> AsyncNotStartedHttpClient<L>
 where
-    L: HttpClient + Send + Sync,
+    L: AsyncHttpClient + Send + Sync,
 {
     /// Creates a new instance of NotStartedHttpClient with provided parameters.
     pub fn new(http_client: L) -> Self {
-        NotStartedHttpClient {
+        AsyncNotStartedHttpClient {
             ticker: TokioTicker::new(POLLING_INTERVAL),
             http_client,
         }
     }
 }
 
-use crate::http::http_client::HttpClient;
+use super::http_client::AsyncHttpClient;
 use crate::opamp::proto::RemoteConfigStatus;
 use async_trait::async_trait;
 
 #[async_trait]
-impl<L, T> NotStartedClient for NotStartedHttpClient<L, T>
+impl<L, T> AsyncNotStartedClient for AsyncNotStartedHttpClient<L, T>
 where
-    L: HttpClient + Send + Sync + 'static,
-    T: Ticker + Send + Sync + 'static,
+    L: AsyncHttpClient + Send + Sync + 'static,
+    T: AsyncTicker + Send + Sync + 'static,
 {
-    type StartedClient<C: Callbacks + Send + Sync + 'static> = StartedHttpClient<C, L, T>;
+    type AsyncStartedClient<C: Callbacks + Send + Sync + 'static> = AsyncStartedHttpClient<C, L, T>;
 
     // Starts the NotStartedHttpClient and transforms it into an StartedHttpClient.
     async fn start<C: Callbacks + Send + Sync + 'static>(
         self,
         callbacks: C,
         start_settings: StartSettings,
-    ) -> NotStartedClientResult<Self::StartedClient<C>> {
+    ) -> NotStartedClientResult<Self::AsyncStartedClient<C>> {
         // use poll method to send an initial message
         debug!("sending first AgentToServer message");
-        let opamp_client = Arc::new(OpAMPHttpClient::new(
+        let opamp_client = Arc::new(OpAMPAsyncHttpClient::new(
             callbacks,
             start_settings,
             self.http_client,
@@ -102,7 +102,7 @@ where
             }
         });
 
-        Ok(StartedHttpClient {
+        Ok(AsyncStartedHttpClient {
             handle,
             ticker: ticker_clone,
             opamp_client,
@@ -111,52 +111,54 @@ where
 }
 
 #[async_trait]
-impl<C, L, T> StartedClient<C> for StartedHttpClient<C, L, T>
+impl<C, L, T> AsyncStartedClient<C> for AsyncStartedHttpClient<C, L, T>
 where
     C: Callbacks + Send + Sync,
-    L: HttpClient + Send + Sync,
-    T: Ticker + Send + Sync,
+    L: AsyncHttpClient + Send + Sync,
+    T: AsyncTicker + Send + Sync,
 {
     // Stops the StartedHttpClient, terminates the running background thread, and cleans up resources.
-    async fn stop(self) -> StartedClientResult<()> {
+    async fn stop(self) -> AsyncStartedClientResult<()> {
         // explicitly drop the sender to cancel the started thread
         self.ticker.stop().await?;
-        self.handle.await??;
+        self.handle
+            .await
+            .map_err(|_| AsyncStartedClientError::JoinError)??;
         Ok(())
     }
 }
 
 #[async_trait]
-impl<C, L, T> Client for StartedHttpClient<C, L, T>
+impl<C, L, T> AsyncClient for AsyncStartedHttpClient<C, L, T>
 where
     C: Callbacks + Send + Sync,
-    L: HttpClient + Send + Sync,
-    T: Ticker + Send + Sync,
+    L: AsyncHttpClient + Send + Sync,
+    T: AsyncTicker + Send + Sync,
 {
     async fn set_agent_description(
         &self,
         description: crate::opamp::proto::AgentDescription,
-    ) -> ClientResult<()> {
+    ) -> AsyncClientResult<()> {
         self.ticker.reset().await?;
         self.opamp_client.set_agent_description(description).await
     }
 
     /// set_health sets the health status of the Agent.
-    async fn set_health(&self, health: crate::opamp::proto::AgentHealth) -> ClientResult<()> {
+    async fn set_health(&self, health: crate::opamp::proto::AgentHealth) -> AsyncClientResult<()> {
         self.ticker.reset().await?;
         self.opamp_client.set_health(health).await
     }
 
     // update_effective_config fetches the current local effective config using
     // get_effective_config callback and sends it to the Server.
-    async fn update_effective_config(&self) -> ClientResult<()> {
+    async fn update_effective_config(&self) -> AsyncClientResult<()> {
         self.ticker.reset().await?;
         self.opamp_client.update_effective_config().await
     }
 
     // update_effective_config fetches the current local effective config using
     // get_effective_config callback and sends it to the Server.
-    async fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()> {
+    async fn set_remote_config_status(&self, status: RemoteConfigStatus) -> AsyncClientResult<()> {
         self.ticker.reset().await?;
         self.opamp_client.set_remote_config_status(status).await
     }
@@ -167,21 +169,21 @@ mod test {
 
     use core::panic;
 
-    use crate::capabilities;
-    use crate::common::clientstate::SyncedStateError;
-    use crate::error::ClientError;
-    use crate::http::http_client::test::{
+    use super::super::http_client::test::{
         reqwest_response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
     };
+    use crate::capabilities;
+    use crate::common::clientstate::SyncedStateError;
+    use crate::http::r#async::ticker::test::MockTickerMockAll;
     use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::{
         AgentCapabilities, AgentDescription, AnyValue, KeyValue, ServerToAgent,
     };
+    use crate::operation::callbacks::test::MockCallbacksMockall;
     use crate::operation::capabilities::Capabilities;
-    use crate::{
-        http::ticker::{test::MockTickerMockAll, TickerError},
-        operation::callbacks::test::MockCallbacksMockall,
-    };
+    use crate::AsyncClientError;
+
+    use super::super::*;
 
     use super::*;
 
@@ -206,7 +208,7 @@ mod test {
             .times(1) // 1 init
             .return_const(());
 
-        let not_started = NotStartedHttpClient::new(mock_client);
+        let not_started = AsyncNotStartedHttpClient::new(mock_client);
 
         let start_result = not_started
             .start(
@@ -246,7 +248,7 @@ mod test {
         ticker.expect_next().times(3).returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|| Err(TickerError::Cancelled));
+            .returning(|| Err(AsyncTickerError::Cancelled));
 
         ticker.expect_reset().times(2).returning(|| Ok(())); // set_health
         ticker.expect_stop().times(1).returning(|| Ok(()));
@@ -257,7 +259,7 @@ mod test {
             .times(1 + 3 + 2) // 1 init, 3 polls, 2 set_health
             .return_const(());
 
-        let not_started = NotStartedHttpClient {
+        let not_started = AsyncNotStartedHttpClient {
             ticker,
             http_client: mock_client,
         };
@@ -302,7 +304,7 @@ mod test {
         ticker.expect_next().once().returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|| Err(TickerError::Cancelled));
+            .returning(|| Err(AsyncTickerError::Cancelled));
 
         ticker.expect_reset().times(1).returning(|| Ok(())); // update_effective_config
         ticker.expect_stop().times(1).returning(|| Ok(()));
@@ -315,7 +317,7 @@ mod test {
 
         mocked_callbacks.should_get_effective_config();
 
-        let not_started = NotStartedHttpClient {
+        let not_started = AsyncNotStartedHttpClient {
             ticker,
             http_client: mock_client,
         };
@@ -355,7 +357,7 @@ mod test {
         ticker.expect_next().once().returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|| Err(TickerError::Cancelled));
+            .returning(|| Err(AsyncTickerError::Cancelled));
 
         ticker.expect_reset().times(1).returning(|| Ok(())); // set_agent_description
         ticker.expect_stop().times(1).returning(|| Ok(()));
@@ -366,7 +368,7 @@ mod test {
             .times(3) // 1 init, 1 poll, 1 set_agent_description
             .return_const(());
 
-        let not_started = NotStartedHttpClient {
+        let not_started = AsyncNotStartedHttpClient {
             ticker,
             http_client: mock_client,
         };
@@ -417,7 +419,7 @@ mod test {
         ticker.expect_next().once().returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|| Err(TickerError::Cancelled));
+            .returning(|| Err(AsyncTickerError::Cancelled));
 
         ticker.expect_reset().times(1).returning(|| Ok(())); // set_agent_description
         ticker.expect_stop().times(1).returning(|| Ok(()));
@@ -430,7 +432,7 @@ mod test {
 
         mocked_callbacks.should_not_get_effective_config();
 
-        let not_started = NotStartedHttpClient {
+        let not_started = AsyncNotStartedHttpClient {
             ticker,
             http_client: mock_client,
         };
@@ -456,7 +458,7 @@ mod test {
 
         let expected_err = SyncedStateError::AgentDescriptionNoAttributes;
         match res.unwrap_err() {
-            ClientError::SyncedStateError(e) => assert_eq!(expected_err, e),
+            AsyncClientError::SyncedStateError(e) => assert_eq!(expected_err, e),
             err => panic!("Wrong error variant was returned. Expected `ConnectionError::SyncedStateError`, found {}", err),
         }
         assert!(client.stop().await.is_ok())
@@ -478,7 +480,7 @@ mod test {
         ticker.expect_next().returning(|| Ok(()));
         ticker
             .expect_next()
-            .returning(|| Err(TickerError::Cancelled));
+            .returning(|| Err(AsyncTickerError::Cancelled));
 
         ticker.expect_reset().times(3).returning(|| Ok(())); // set_agent_description
 
@@ -490,7 +492,7 @@ mod test {
 
         mocked_callbacks.should_not_get_effective_config();
 
-        let not_started = NotStartedHttpClient {
+        let not_started = AsyncNotStartedHttpClient {
             ticker,
             http_client: mock_client,
         };
