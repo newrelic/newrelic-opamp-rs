@@ -7,30 +7,36 @@ license-file.workspace = true
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 httpmock = "0.7.0"
+mockall = "0.11.4"
 
 [dependencies]
 async-trait = "0.1.71"
 prost = "0.11.8"
 thiserror = "1.0.43"
-tokio = { version = "1.29.1", features =["macros", "time", "rt", "sync","rt-multi-thread"]}
-tokio-util = "0.7.8"
+tokio = { version = "1.29.1", features = [
+  "macros",
+  "time",
+  "rt",
+  "sync",
+  "rt-multi-thread",
+], optional = true }
+tokio-util = { version = "0.7.8", optional = true }
 ulid = "1.0.0"
 url = "2.4.0"
 # async-http feature dependencies
 reqwest = { version = "0.11.23", optional = true, features = ["gzip"]}
 http = {version = "0.2.9", optional = true}
-libflate = {version = "2", optional = true}
+libflate = "2"
 tracing = "0.1.37"
 rand = "0.8.5"
-async-recursion = "1.0.4"
+async-recursion = { version = "1.0.4", optional = true }
 tracing-test = {version = "0.2.4"}
-mockall = "0.11.4"
 ureq = {version = "2.9.1", features = ["http-interop"],  optional = true}
 crossbeam = {version = "0.8.3", features = ["crossbeam-channel"], optional = true}
 
 [features]
 default = ["async-http", "sync-http"]
 async = []
-async-http = ["async", "dep:reqwest", "dep:http", "dep:libflate"]
+async-http = ["async", "dep:reqwest", "dep:http", "dep:tokio", "dep:tokio-util", "dep:async-recursion"]
 sync = []
 sync-http = ["sync", "dep:http", "dep:ureq", "dep:crossbeam"]

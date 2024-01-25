@@ -47,7 +47,6 @@ pub enum StartedClientError {
     /// Represents a synchronized state error.
     #[error("`{0}`")]
     SyncClientError(#[from] ClientError),
-    #[cfg(feature = "async-http")]
     /// Represents an internal ticker error.
     #[error("`{0}`")]
     TickerError(#[from] TickerError),
