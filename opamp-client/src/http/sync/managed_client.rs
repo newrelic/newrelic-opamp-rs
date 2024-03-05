@@ -99,7 +99,7 @@ where
                         .poll()
                         .map_err(|err| tracing::error!("error while polling message: {}", err));
                 }
-                tracing::warn!("exiting http polling thread");
+                tracing::debug!("exiting http polling thread");
                 Ok(())
             }
         });

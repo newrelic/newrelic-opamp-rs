@@ -4,7 +4,7 @@ use std::{
 };
 
 use thiserror::Error;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 use crate::common::clientstate::ClientSyncedState;
 use crate::{
@@ -151,7 +151,7 @@ fn message_data(msg: &ServerToAgent, capabilities: &Capabilities) -> MessageData
     let agent_identification = msg.agent_identification.clone().filter(|id| {
         let is_empty_string = id.new_instance_uid.is_empty();
         if is_empty_string {
-            warn!("Empty instance UID is not allowed. Ignoring agent identification.");
+            debug!("Empty instance UID is not allowed. Ignoring agent identification.");
         }
         !is_empty_string
     });
