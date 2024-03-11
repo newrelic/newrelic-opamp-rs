@@ -144,7 +144,7 @@ where
     }
 
     /// set_health sets the health status of the Agent.
-    fn set_health(&self, health: crate::opamp::proto::AgentHealth) -> ClientResult<()> {
+    fn set_health(&self, health: crate::opamp::proto::ComponentHealth) -> ClientResult<()> {
         self.ticker.reset()?;
         self.opamp_client.set_health(health)
     }
@@ -270,10 +270,10 @@ mod test {
             )
             .unwrap();
         assert!(client
-            .set_health(crate::opamp::proto::AgentHealth::default())
+            .set_health(crate::opamp::proto::ComponentHealth::default())
             .is_ok());
         assert!(client
-            .set_health(crate::opamp::proto::AgentHealth::default())
+            .set_health(crate::opamp::proto::ComponentHealth::default())
             .is_ok());
         assert!(client.stop().is_ok())
     }

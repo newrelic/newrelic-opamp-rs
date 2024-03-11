@@ -1,6 +1,6 @@
 use std::sync::RwLock;
 
-use crate::opamp::proto::{AgentDescription, AgentHealth, PackageStatuses, RemoteConfigStatus};
+use crate::opamp::proto::{AgentDescription, ComponentHealth, PackageStatuses, RemoteConfigStatus};
 
 use std::sync::PoisonError;
 
@@ -23,7 +23,7 @@ impl<T> From<PoisonError<T>> for SyncedStateError {
 
 // ClientSyncedState stores the state of the Agent messages that the OpAMP Client needs to
 // have access to synchronize to the Server. 4 messages can be stored in this store:
-// AgentDescription, AgentHealth, RemoteConfigStatus and PackageStatuses.
+// AgentDescription, ComponentHealth, RemoteConfigStatus and PackageStatuses.
 //
 // See OpAMP spec for more details on how state synchronization works:
 // https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#Agent-to-Server-state-synchronization
@@ -44,7 +44,7 @@ pub struct ClientSyncedState {
 #[derive(Debug, Default)]
 struct Data {
     agent_description: AgentDescription,
-    health: AgentHealth,
+    health: ComponentHealth,
     remote_config_status: RemoteConfigStatus,
     package_statuses: PackageStatuses,
 }
@@ -69,12 +69,12 @@ impl ClientSyncedState {
         Ok(())
     }
 
-    pub(crate) fn set_health(&self, health: AgentHealth) -> Result<(), SyncedStateError> {
+    pub(crate) fn set_health(&self, health: ComponentHealth) -> Result<(), SyncedStateError> {
         self.data.write()?.health = health;
         Ok(())
     }
 
-    pub(crate) fn health(&self) -> Result<AgentHealth, SyncedStateError> {
+    pub(crate) fn health(&self) -> Result<ComponentHealth, SyncedStateError> {
         Ok(self.data.read()?.health.clone())
     }
 

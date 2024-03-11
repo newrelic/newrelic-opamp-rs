@@ -5,7 +5,7 @@ use opamp_client::{
     error::ConnectionError,
     http::HttpConfig,
     opamp::proto::{
-        AgentCapabilities, AgentHealth, EffectiveConfig, OpAmpConnectionSettings,
+        AgentCapabilities, ComponentHealth, EffectiveConfig, OpAmpConnectionSettings,
         ServerErrorResponse, ServerToAgentCommand,
     },
     operation::{
@@ -100,10 +100,11 @@ async fn main() {
         .unwrap();
 
     client
-        .set_health(AgentHealth {
+        .set_health(ComponentHealth {
             healthy: true,
             start_time_unix_nano: 1689942447,
             last_error: "".to_string(),
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -111,10 +112,11 @@ async fn main() {
     sleep(Duration::from_secs(30));
 
     client
-        .set_health(AgentHealth {
+        .set_health(ComponentHealth {
             healthy: false,
             start_time_unix_nano: 1689942447,
             last_error: "wow! what an error".to_string(),
+            ..Default::default()
         })
         .await
         .unwrap();

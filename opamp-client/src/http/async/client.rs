@@ -126,7 +126,10 @@ where
     }
 
     /// set_health sets the health status of the Agent.
-    async fn set_health(&self, health: crate::opamp::proto::AgentHealth) -> AsyncClientResult<()> {
+    async fn set_health(
+        &self,
+        health: crate::opamp::proto::ComponentHealth,
+    ) -> AsyncClientResult<()> {
         self.synced_state.set_health(health.clone())?;
 
         // update message

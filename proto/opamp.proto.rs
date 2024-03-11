@@ -90,10 +90,12 @@ pub struct AgentToServer {
     /// This field MUST be always set.
     #[prost(uint64, tag = "4")]
     pub capabilities: u64,
-    /// The current health of the Agent.
-    /// May be omitted if nothing changed since last AgentToServer message.
+    /// The current health of the Agent and sub-components. The top-level ComponentHealth represents
+    /// the health of the Agent overall. May be omitted if nothing changed since last AgentToServer
+    /// message.
+    /// Status: \[Beta\]
     #[prost(message, optional, tag = "5")]
-    pub health: ::core::option::Option<AgentHealth>,
+    pub health: ::core::option::Option<ComponentHealth>,
     /// The current effective configuration of the Agent. The effective configuration is
     /// the one that is currently used by the Agent. The effective configuration may be
     /// different from the remote configuration received from the Server earlier, e.g.
@@ -581,22 +583,38 @@ pub struct AgentDescription {
     #[prost(message, repeated, tag = "2")]
     pub non_identifying_attributes: ::prost::alloc::vec::Vec<KeyValue>,
 }
-/// The health of the Agent.
+/// The health of the Agent and sub-components
+/// Status: \[Beta\]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AgentHealth {
-    /// Set to true if the Agent is up and healthy.
+pub struct ComponentHealth {
+    /// Set to true if the component is up and healthy.
     #[prost(bool, tag = "1")]
     pub healthy: bool,
-    /// Timestamp since the Agent is up, i.e. when the agent was started.
+    /// Timestamp since the component is up, i.e. when the component was started.
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
-    /// If the agent is not running MUST be set to 0.
+    /// If the component is not running MUST be set to 0.
     #[prost(fixed64, tag = "2")]
     pub start_time_unix_nano: u64,
-    /// Human-readable error message if the Agent is in erroneous state. SHOULD be set
+    /// Human-readable error message if the component is in erroneous state. SHOULD be set
     /// when healthy==false.
     #[prost(string, tag = "3")]
     pub last_error: ::prost::alloc::string::String,
+    /// Component status represented as a string. The status values are defined by agent-specific
+    /// semantics and not at the protocol level.
+    #[prost(string, tag = "4")]
+    pub status: ::prost::alloc::string::String,
+    /// The time when the component status was observed. Value is UNIX Epoch time in
+    /// nanoseconds since 00:00:00 UTC on 1 January 1970.
+    #[prost(fixed64, tag = "5")]
+    pub status_time_unix_nano: u64,
+    /// A map to store more granular, sub-component health. It can nest as deeply as needed to
+    /// describe the underlying system.
+    #[prost(map = "string, message", tag = "6")]
+    pub component_health_map: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ComponentHealth,
+    >,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

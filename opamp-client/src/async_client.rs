@@ -1,7 +1,7 @@
 //! OpAMP client async trait.
 
 use crate::opamp::proto::RemoteConfigStatus;
-use crate::opamp::proto::{AgentDescription, AgentHealth};
+use crate::opamp::proto::{AgentDescription, ComponentHealth};
 use crate::operation::{callbacks::Callbacks, settings::StartSettings};
 use crate::{AsyncClientResult, AsyncStartedClientResult, NotStartedClientResult};
 use async_trait::async_trait;
@@ -14,8 +14,8 @@ pub trait AsyncClient: Send + Sync {
     /// in the next status report sent to the Server.
     async fn set_agent_description(&self, description: AgentDescription) -> AsyncClientResult<()>;
 
-    /// set_health sets the health status of the Agent. The AgentHealth will be included
-    async fn set_health(&self, health: AgentHealth) -> AsyncClientResult<()>;
+    /// set_health sets the health status of the Agent. The ComponentHealth will be included
+    async fn set_health(&self, health: ComponentHealth) -> AsyncClientResult<()>;
 
     /// update_effective_config fetches the current local effective config using
     /// get_effective_config callback and sends it to the Server.

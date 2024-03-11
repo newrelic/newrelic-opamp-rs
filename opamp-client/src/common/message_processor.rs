@@ -224,8 +224,8 @@ mod test {
     use crate::capabilities;
     use crate::common::clientstate::ClientSyncedState;
     use crate::opamp::proto::{
-        any_value::Value, AgentConfigMap, AgentDescription, AgentHealth, AgentIdentification,
-        AgentRemoteConfig, AnyValue, KeyValue, PackageStatuses, RemoteConfigStatus,
+        any_value::Value, AgentConfigMap, AgentDescription, AgentIdentification, AgentRemoteConfig,
+        AnyValue, ComponentHealth, KeyValue, PackageStatuses, RemoteConfigStatus,
         ServerErrorResponse, ServerToAgent, ServerToAgentCommand,
     };
     use crate::operation::callbacks::test::MockCallbacksMockall;
@@ -642,10 +642,11 @@ mod test {
             .set_agent_description(expected_agent_description.clone())
             .unwrap();
 
-        let expected_health = AgentHealth {
+        let expected_health = ComponentHealth {
             healthy: true,
             start_time_unix_nano: 1,
             last_error: "".to_string(),
+            ..Default::default()
         };
 
         state.set_health(expected_health.clone()).unwrap();

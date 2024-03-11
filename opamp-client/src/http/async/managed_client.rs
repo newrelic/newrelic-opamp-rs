@@ -144,7 +144,10 @@ where
     }
 
     /// set_health sets the health status of the Agent.
-    async fn set_health(&self, health: crate::opamp::proto::AgentHealth) -> AsyncClientResult<()> {
+    async fn set_health(
+        &self,
+        health: crate::opamp::proto::ComponentHealth,
+    ) -> AsyncClientResult<()> {
         self.ticker.reset().await?;
         self.opamp_client.set_health(health).await
     }
@@ -278,11 +281,11 @@ mod test {
             .await
             .unwrap();
         assert!(client
-            .set_health(crate::opamp::proto::AgentHealth::default())
+            .set_health(crate::opamp::proto::ComponentHealth::default())
             .await
             .is_ok());
         assert!(client
-            .set_health(crate::opamp::proto::AgentHealth::default())
+            .set_health(crate::opamp::proto::ComponentHealth::default())
             .await
             .is_ok());
         assert!(client.stop().await.is_ok())
