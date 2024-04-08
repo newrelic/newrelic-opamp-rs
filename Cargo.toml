@@ -1,10 +1,8 @@
 [workspace]
 resolver = "2"
 
-members = [
-    "opamp-client",
-    # "opamp-server",
-]
+members = ["opamp-client"]
+
 exclude = ["proto"]
 
 [workspace.package]
