@@ -76,7 +76,7 @@ pub(crate) fn process_message<C: Callbacks>(
             .write()
             .map_err(|_| ProcessError::PoisonError)?
             .update(move |msg: &mut AgentToServer| {
-                msg.instance_uid = id.new_instance_uid.clone();
+                msg.instance_uid.clone_from(&id.new_instance_uid);
             });
     }
 

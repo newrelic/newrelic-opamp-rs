@@ -190,17 +190,22 @@ where
         if synced_remote_config_status.eq(&status) {
             return Ok(());
         }
-        self.synced_state.set_remote_config_status(status.clone())?;
 
         self.message
             .write()
             .map_err(|_| AsyncClientError::PoisonError)?
             .update(|msg| {
-                msg.remote_config_status = Some(status);
+                msg.remote_config_status = Some(status.clone());
             });
 
         debug!("sending AgentToServer with remote");
-        return self.send_process().await;
+        let result = self.send_process().await;
+
+        if result.is_ok() {
+            self.synced_state.set_remote_config_status(status)?;
+        }
+
+        result
     }
 }
 
@@ -208,12 +213,20 @@ where
 mod test {
     use super::*;
     use http::StatusCode;
+    use std::collections::HashMap;
 
     use super::super::http_client::test::{
         reqwest_response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
     };
 
+    use crate::opamp::proto::any_value::Value;
+    use crate::opamp::proto::AgentDescription;
+    use crate::opamp::proto::{
+        AgentConfigFile, AgentConfigMap, AnyValue, ComponentHealth, EffectiveConfig, KeyValue,
+        RemoteConfigStatus,
+    };
     use crate::{
+        capabilities,
         opamp::proto::ServerToAgent,
         operation::{callbacks::test::MockCallbacksMockall, settings::StartSettings},
         AsyncClientError,
@@ -240,5 +253,149 @@ mod test {
             client.send_process().await.unwrap_err(),
             AsyncClientError::ConnectFailedCallback
         ));
+    }
+
+    #[tokio::test]
+    async fn reset_message_fields_after_send() {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().times(4).returning(|_| {
+            Ok(reqwest_response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+        let mut mock_callbacks = MockCallbacksMockall::new();
+        mock_callbacks.expect_on_message().times(4).return_const(());
+        mock_callbacks
+            .expect_get_effective_config()
+            .once()
+            .returning(|| {
+                Ok(EffectiveConfig {
+                    config_map: Some(AgentConfigMap {
+                        config_map: HashMap::from([(
+                            "/test".to_string(),
+                            AgentConfigFile::default(),
+                        )]),
+                    }),
+                })
+            });
+
+        let settings = StartSettings {
+            instance_id: "NOT_AN_UID".to_string(),
+            capabilities: capabilities!(
+                AgentCapabilities::ReportsEffectiveConfig,
+                AgentCapabilities::ReportsHealth,
+                AgentCapabilities::ReportsRemoteConfig
+            ),
+            ..Default::default()
+        };
+
+        let client = OpAMPAsyncHttpClient::new(mock_callbacks, settings, mock_client).unwrap();
+
+        let random_value = KeyValue {
+            key: "thing".to_string(),
+            value: Some(AnyValue {
+                value: Some(Value::StringValue("thing_value".to_string())),
+            }),
+        };
+
+        let result = client
+            .set_agent_description(AgentDescription {
+                identifying_attributes: vec![random_value.clone()],
+                non_identifying_attributes: vec![random_value],
+            })
+            .await;
+        assert!(result.is_ok());
+
+        let result = client.update_effective_config().await;
+        assert!(result.is_ok());
+
+        let result = client
+            .set_health(ComponentHealth {
+                healthy: false,
+                start_time_unix_nano: 1689942447,
+                last_error: "wow! what an error".to_string(),
+                ..Default::default()
+            })
+            .await;
+        assert!(result.is_ok());
+
+        let result = client
+            .set_remote_config_status(RemoteConfigStatus {
+                last_remote_config_hash: vec![],
+                status: 2,
+                error_message: "".to_string(),
+            })
+            .await;
+        assert!(result.is_ok());
+
+        // this pop should return a current message with the attributes reset
+        let message = client.message.write().unwrap().pop();
+
+        assert_eq!(
+            message.agent_description,
+            AgentToServer::default().agent_description
+        );
+        assert_eq!(message.health, AgentToServer::default().health);
+        assert_eq!(
+            message.remote_config_status,
+            AgentToServer::default().remote_config_status
+        );
+        assert_eq!(
+            message.effective_config,
+            AgentToServer::default().effective_config
+        );
+
+        assert_ne!(
+            client.synced_state.agent_description(),
+            ClientSyncedState::default().agent_description()
+        );
+        assert_ne!(
+            client.synced_state.health(),
+            ClientSyncedState::default().health()
+        );
+        assert_ne!(
+            client.synced_state.remote_config_status(),
+            ClientSyncedState::default().remote_config_status()
+        );
+    }
+
+    #[tokio::test]
+    async fn remote_config_status_not_sync_state_update_on_error() {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.should_post(reqwest_response_from_server_to_agent(
+            &ServerToAgent::default(),
+            ResponseParts {
+                status: StatusCode::FORBIDDEN,
+                ..Default::default()
+            },
+        ));
+        let mut mock_callbacks = MockCallbacksMockall::new();
+        mock_callbacks.should_on_connect_failed();
+
+        let settings = StartSettings {
+            instance_id: "NOT_AN_UID".to_string(),
+            capabilities: capabilities!(AgentCapabilities::ReportsRemoteConfig),
+            ..Default::default()
+        };
+
+        let client = OpAMPAsyncHttpClient::new(mock_callbacks, settings, mock_client).unwrap();
+
+        let remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 2,
+            error_message: "".to_string(),
+        };
+        let result = client.set_remote_config_status(remote_config_status).await;
+
+        assert!(matches!(
+            result.unwrap_err(),
+            AsyncClientError::ConnectFailedCallback
+        ));
+
+        assert_eq!(
+            client.synced_state.remote_config_status(),
+            ClientSyncedState::default().remote_config_status()
+        );
     }
 }

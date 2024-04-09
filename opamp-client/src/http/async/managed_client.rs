@@ -485,12 +485,85 @@ mod test {
             .expect_next()
             .returning(|| Err(AsyncTickerError::Cancelled));
 
-        ticker.expect_reset().times(3).returning(|| Ok(())); // set_agent_description
+        ticker.expect_reset().times(3).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
             .expect_on_message()
-            .times(3) // 1 init, 1 poll
+            .times(3)
+            .return_const(());
+
+        mocked_callbacks.should_not_get_effective_config();
+
+        let not_started = AsyncNotStartedHttpClient {
+            ticker,
+            http_client: mock_client,
+        };
+
+        let client = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".to_string(),
+                    capabilities: capabilities!(
+                        crate::opamp::proto::AgentCapabilities::ReportsRemoteConfig
+                    ),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+
+        let remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 1,
+            error_message: "".to_string(),
+        };
+        let res = client.set_remote_config_status(remote_config_status).await;
+
+        assert!(res.is_ok());
+
+        let remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 2,
+            error_message: "".to_string(),
+        };
+        let res = client.set_remote_config_status(remote_config_status).await;
+        assert!(res.is_ok());
+
+        let remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 2,
+            error_message: "".to_string(),
+        };
+        let res = client.set_remote_config_status(remote_config_status).await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn poll_and_set_remote_config_status_error() {
+        // should be called three times (1 init + 2 statuses, last status is repeated)
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().times(3).returning(|_| {
+            Ok(reqwest_response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+
+        // ticker that will be cancelled after one call
+        let mut ticker = MockTickerMockAll::new();
+        ticker.expect_next().returning(|| Ok(()));
+        ticker
+            .expect_next()
+            .returning(|| Err(AsyncTickerError::Cancelled));
+
+        ticker.expect_reset().times(3).returning(|| Ok(()));
+
+        let mut mocked_callbacks = MockCallbacksMockall::new();
+        mocked_callbacks
+            .expect_on_message()
+            .times(3)
             .return_const(());
 
         mocked_callbacks.should_not_get_effective_config();

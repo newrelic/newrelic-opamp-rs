@@ -8,6 +8,8 @@ pub mod operation;
 
 // OpAMP protobuffers module files will be excluded from documentation.
 #[doc(hidden)]
+#[allow(unknown_lints)]
+#[allow(clippy::mixed_attributes_style)]
 pub mod opamp {
     //! The opamp module contains all those entities defined by the
     //! [Opamp specification](https://github.com/open-telemetry/opamp-spec/blob/main/specification.md)
