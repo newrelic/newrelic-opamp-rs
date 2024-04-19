@@ -80,6 +80,9 @@ where
             AsyncClientError::ConnectFailedCallback
         })?;
 
+        // We consider it connected if we receive 2XX status from the Server.
+        self.callbacks.on_connect();
+
         trace!("Received payload: {}", server_to_agent);
 
         let result = crate::common::message_processor::process_message(
@@ -265,6 +268,7 @@ mod test {
             ))
         });
         let mut mock_callbacks = MockCallbacksMockall::new();
+        mock_callbacks.expect_on_connect().times(4).return_const(());
         mock_callbacks.expect_on_message().times(4).return_const(());
         mock_callbacks
             .expect_get_effective_config()

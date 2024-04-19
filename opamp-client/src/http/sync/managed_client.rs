@@ -198,6 +198,7 @@ mod test {
         });
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
+        mocked_callbacks.should_on_connect();
         mocked_callbacks
             .expect_on_message()
             .times(1) // 1 init
@@ -247,6 +248,10 @@ mod test {
         ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
+        mocked_callbacks
+            .expect_on_connect()
+            .times(1 + 3 + 2)
+            .return_const(()); // 1 init, 3 polls, 2 set_health
         mocked_callbacks
             .expect_on_message()
             .times(1 + 3 + 2) // 1 init, 3 polls, 2 set_health
@@ -304,6 +309,10 @@ mod test {
             .expect_on_message()
             .times(3) // 1 init, 1 poll, 1 update_effective_config
             .return_const(());
+        mocked_callbacks
+            .expect_on_connect()
+            .times(3) // 1 init, 1 poll, 1 update_effective_config
+            .return_const(());
 
         mocked_callbacks.should_get_effective_config();
 
@@ -352,6 +361,10 @@ mod test {
         ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
+        mocked_callbacks
+            .expect_on_connect()
+            .times(3) // 1 init, 1 poll, 1 set_agent_description
+            .return_const(());
         mocked_callbacks
             .expect_on_message()
             .times(3) // 1 init, 1 poll, 1 set_agent_description
@@ -412,6 +425,10 @@ mod test {
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
+            .expect_on_connect()
+            .times(2) // 1 init, 1 poll
+            .return_const(());
+        mocked_callbacks
             .expect_on_message()
             .times(2) // 1 init, 1 poll
             .return_const(());
@@ -467,6 +484,10 @@ mod test {
         ticker.expect_reset().times(3).returning(|| Ok(())); // set_agent_description
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
+        mocked_callbacks
+            .expect_on_connect()
+            .times(3) // 1 init, 1 poll
+            .return_const(());
         mocked_callbacks
             .expect_on_message()
             .times(3) // 1 init, 1 poll
