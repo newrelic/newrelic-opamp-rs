@@ -19,7 +19,7 @@ jobs:
         run: |
           VERSION_IN_CARGO=$(sed -n 's/^version = "\(.*\)"/\1/p' opamp-client/Cargo.toml)
           if [ "${VERSION_IN_CARGO}" != "${{ github.ref_name }}" ]; then
-            echo "Package version specified in Cargo.toml (${VERSION_IN_CARGO}) differs from tag (${{ github.event.release.tag_name }}), exiting"
+            echo "Package version specified in Cargo.toml (${VERSION_IN_CARGO}) differs from tag (${{ github.ref_name }}), exiting"
             exit 1
           fi
 
