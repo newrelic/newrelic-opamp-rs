@@ -84,10 +84,11 @@ impl HttpClient for HttpClientUreq {
             }
         }
 
-        build_response(
-            req.send(Cursor::new(body))
-                .map_err(|e| HttpClientError::UreqError(e.to_string()))?,
-        )
+        match req.send(Cursor::new(body)) {
+            Ok(response) | Err(ureq::Error::Status(_, response)) => build_response(response),
+
+            Err(ureq::Error::Transport(e)) => Err(HttpClientError::UreqError(e.to_string())),
+        }
     }
 }
 
@@ -116,10 +117,46 @@ pub(crate) mod test {
     use std::collections::HashMap;
 
     use http::{response::Builder, StatusCode};
+    use httpmock::{Method::POST, MockServer};
     use mockall::mock;
     use prost::Message;
 
     use super::*;
+
+    /////////////////////////////////////////////
+    // Test
+    /////////////////////////////////////////////
+
+    #[test]
+    fn test_fail_post_status_respose_error() {
+        let server = MockServer::start();
+        let path = "/v1/opamp";
+        let expected_status_code = 401;
+        let _ = server.mock(|when, then| {
+            when.method(POST).path(path);
+            then.status(expected_status_code);
+        });
+
+        let config = HttpConfig::new(&server.url(path)).unwrap();
+
+        let http_client = HttpClientUreq::new(config).unwrap();
+
+        let response = http_client
+            .post("test".into())
+            .expect("expect a response when fail reason contains response");
+        assert_eq!(response.status(), expected_status_code);
+    }
+
+    #[test]
+    fn test_fail_post_transport_error() {
+        let config =
+            HttpConfig::new("http://127.0.0.1:59352/no-http-server-should-listen-here").unwrap();
+        let http_client = HttpClientUreq::new(config).unwrap();
+        match http_client.post("test".into()) {
+            Err(HttpClientError::UreqError(_)) => (),
+            _ => panic!("Transport error from Ureq expected"),
+        }
+    }
 
     /////////////////////////////////////////////
     // Test helpers & mocks
