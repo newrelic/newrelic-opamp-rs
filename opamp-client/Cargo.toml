@@ -24,22 +24,30 @@ tokio-util = { version = "0.7.8", optional = true }
 ulid = "1.0.0"
 url = "2.4.0"
 # async-http feature dependencies
-reqwest = { version = "0.11.23", default-features = false, optional = true, features = [
+reqwest = { version = "0.12.4", default-features = false, optional = true, features = [
   "gzip",
   "rustls-tls",
 ] }
-http = {version = "0.2.9", optional = true}
 libflate = "2"
 tracing = "0.1.37"
 rand = "0.8.5"
 async-recursion = { version = "1.0.4", optional = true }
-tracing-test = {version = "0.2.4"}
-ureq = {version = "2.9.1", features = ["http-interop"],  optional = true}
-crossbeam = {version = "0.8.3", features = ["crossbeam-channel"], optional = true}
+tracing-test = { version = "0.2.4" }
+ureq = { version = "2.9.1", features = ["http-interop"], optional = true }
+crossbeam = { version = "0.8.3", features = [
+  "crossbeam-channel",
+], optional = true }
+http = "1.1.0"
 
 [features]
 default = ["async-http", "sync-http"]
 async = []
-async-http = ["async", "dep:reqwest", "dep:http", "dep:tokio", "dep:tokio-util", "dep:async-recursion"]
+async-http = [
+  "async",
+  "dep:reqwest",
+  "dep:tokio",
+  "dep:tokio-util",
+  "dep:async-recursion",
+]
 sync = []
-sync-http = ["sync", "dep:http", "dep:ureq", "dep:crossbeam"]
+sync-http = ["sync", "dep:ureq", "dep:crossbeam"]
