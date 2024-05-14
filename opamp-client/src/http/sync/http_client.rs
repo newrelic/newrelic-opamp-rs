@@ -11,9 +11,9 @@ use crate::http::HttpConfig;
 /// An enumeration of potential errors related to the HTTP client.
 #[derive(thiserror::Error, Debug)]
 pub enum HttpClientError {
-    /// Represents ureq crate error.
+    /// Represents an http transport crate error.
     #[error("`{0}`")]
-    UreqError(String),
+    TransportError(String),
     /// Unsuccessful HTTP response.
     #[error("Status code: `{0}` Canonical reason: `{1}`")]
     UnsuccessfulResponse(u16, String),
@@ -87,7 +87,7 @@ impl HttpClient for HttpClientUreq {
         match req.send(Cursor::new(body)) {
             Ok(response) | Err(ureq::Error::Status(_, response)) => build_response(response),
 
-            Err(ureq::Error::Transport(e)) => Err(HttpClientError::UreqError(e.to_string())),
+            Err(ureq::Error::Transport(e)) => Err(HttpClientError::TransportError(e.to_string())),
         }
     }
 }
@@ -153,7 +153,7 @@ pub(crate) mod test {
             HttpConfig::new("http://127.0.0.1:59352/no-http-server-should-listen-here").unwrap();
         let http_client = HttpClientUreq::new(config).unwrap();
         match http_client.post("test".into()) {
-            Err(HttpClientError::UreqError(_)) => (),
+            Err(HttpClientError::TransportError(_)) => (),
             _ => panic!("Transport error from Ureq expected"),
         }
     }
