@@ -221,7 +221,7 @@ mod test {
             .start(
                 mocked_callbacks,
                 StartSettings {
-                    instance_id: "NOT_AN_UID".to_string(),
+                    instance_id: "NOT_AN_UID".into(),
                     capabilities: Capabilities::default(),
                     ..Default::default()
                 },
@@ -279,7 +279,7 @@ mod test {
             .start(
                 mocked_callbacks,
                 StartSettings {
-                    instance_id: "NOT_AN_UID".to_string(),
+                    instance_id: "NOT_AN_UID".into(),
                     capabilities: capabilities!(
                         crate::opamp::proto::AgentCapabilities::AcceptsRestartCommand
                     ),
@@ -342,7 +342,7 @@ mod test {
             .start(
                 mocked_callbacks,
                 StartSettings {
-                    instance_id: "NOT_AN_UID".to_string(),
+                    instance_id: "NOT_AN_UID".into(),
                     capabilities: capabilities!(
                         crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
                     ),
@@ -397,7 +397,7 @@ mod test {
             .start(
                 mocked_callbacks,
                 StartSettings {
-                    instance_id: "NOT_AN_UID".to_string(),
+                    instance_id: "NOT_AN_UID".into(),
                     capabilities: capabilities!(
                         crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
                     ),
@@ -466,7 +466,7 @@ mod test {
             .start(
                 mocked_callbacks,
                 StartSettings {
-                    instance_id: "NOT_AN_UID".to_string(),
+                    instance_id: "NOT_AN_UID".into(),
                     capabilities: capabilities!(
                         crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
                     ),
@@ -530,7 +530,7 @@ mod test {
             .start(
                 mocked_callbacks,
                 StartSettings {
-                    instance_id: "NOT_AN_UID".to_string(),
+                    instance_id: "NOT_AN_UID".into(),
                     capabilities: capabilities!(
                         crate::opamp::proto::AgentCapabilities::ReportsRemoteConfig
                     ),
@@ -607,7 +607,7 @@ mod test {
             .start(
                 mocked_callbacks,
                 StartSettings {
-                    instance_id: "NOT_AN_UID".to_string(),
+                    instance_id: "NOT_AN_UID".into(),
                     capabilities: capabilities!(
                         crate::opamp::proto::AgentCapabilities::ReportsRemoteConfig
                     ),

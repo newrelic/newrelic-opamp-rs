@@ -112,7 +112,7 @@ fn populate_agent_description(attrs: HashMap<String, DescriptionValueType>) -> V
 #[derive(Debug, PartialEq, Default)]
 pub struct StartSettings {
     /// Agent information.
-    pub instance_id: String,
+    pub instance_id: Vec<u8>,
 
     /// Defines the capabilities of the Agent. AgentCapabilities_ReportsStatus bit does not need to
     /// be set in this field, it will be set automatically since it is required by OpAMP protocol.

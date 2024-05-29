@@ -69,9 +69,9 @@ pub struct KeyValue {
 pub struct AgentToServer {
     /// Globally unique identifier of the running instance of the Agent. SHOULD remain
     /// unchanged for the lifetime of the Agent process.
-    /// Recommended format: <https://github.com/ulid/spec>
-    #[prost(string, tag = "1")]
-    pub instance_uid: ::prost::alloc::string::String,
+    /// MUST be 16 bytes long and SHOULD be generated using the UUID v7 spec.
+    #[prost(bytes = "vec", tag = "1")]
+    pub instance_uid: ::prost::alloc::vec::Vec<u8>,
     /// The sequence number is incremented by 1 for every AgentToServer sent
     /// by the Agent. This allows the Server to detect that it missed a message when
     /// it notices that the sequence_num is not exactly by 1 greater than the previously
@@ -128,6 +128,14 @@ pub struct AgentToServer {
     /// Status: \[Development\]
     #[prost(message, optional, tag = "11")]
     pub connection_settings_request: ::core::option::Option<ConnectionSettingsRequest>,
+    /// A message indicating custom capabilities supported by the Agent.
+    /// Status: \[Development\]
+    #[prost(message, optional, tag = "12")]
+    pub custom_capabilities: ::core::option::Option<CustomCapabilities>,
+    /// A custom message sent from an Agent to the Server.
+    /// Status: \[Development\]
+    #[prost(message, optional, tag = "13")]
+    pub custom_message: ::core::option::Option<CustomMessage>,
 }
 /// AgentDisconnect is the last message sent from the Agent to the Server. The Server
 /// SHOULD forget the association of the Agent instance with the message stream.
@@ -179,8 +187,8 @@ pub struct CertificateRequest {
 pub struct ServerToAgent {
     /// Agent instance uid. MUST match the instance_uid field in AgentToServer message.
     /// Used for multiplexing messages from/to multiple agents using one message stream.
-    #[prost(string, tag = "1")]
-    pub instance_uid: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "1")]
+    pub instance_uid: ::prost::alloc::vec::Vec<u8>,
     /// error_response is set if the Server wants to indicate that something went wrong
     /// during processing of an AgentToServer message. If error_response is set then
     /// all other fields below must be unset and vice versa, if any of the fields below is
@@ -222,6 +230,14 @@ pub struct ServerToAgent {
     /// Status: \[Beta\]
     #[prost(message, optional, tag = "9")]
     pub command: ::core::option::Option<ServerToAgentCommand>,
+    /// A message indicating custom capabilities supported by the Server.
+    /// Status: \[Development\]
+    #[prost(message, optional, tag = "10")]
+    pub custom_capabilities: ::core::option::Option<CustomCapabilities>,
+    /// A custom message sent from the Server to an Agent.
+    /// Status: \[Development\]
+    #[prost(message, optional, tag = "11")]
+    pub custom_message: ::core::option::Option<CustomMessage>,
 }
 /// The OpAMPConnectionSettings message is a collection of fields which comprise an
 /// offer from the Server to the Agent to use the specified settings for OpAMP
@@ -729,8 +745,9 @@ pub struct PackageStatus {
 pub struct AgentIdentification {
     /// When new_instance_uid is set, Agent MUST update instance_uid
     /// to the value provided and use it for all further communication.
-    #[prost(string, tag = "1")]
-    pub new_instance_uid: ::prost::alloc::string::String,
+    /// MUST be 16 bytes long and SHOULD be generated using the UUID v7 spec.
+    #[prost(bytes = "vec", tag = "1")]
+    pub new_instance_uid: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -778,6 +795,36 @@ pub struct AgentConfigFile {
     /// example "text/yaml".
     #[prost(string, tag = "2")]
     pub content_type: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CustomCapabilities {
+    /// A list of custom capabilities that are supported. Each capability is a reverse FQDN
+    /// with optional version information that uniquely identifies the custom capability
+    /// and should match a capability specified in a supported CustomMessage.
+    /// Status: \[Development\]
+    #[prost(string, repeated, tag = "1")]
+    pub capabilities: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CustomMessage {
+    /// A reverse FQDN that uniquely identifies the capability and matches one of the
+    /// capabilities in the CustomCapabilities message.
+    /// Status: \[Development\]
+    #[prost(string, tag = "1")]
+    pub capability: ::prost::alloc::string::String,
+    /// Type of message within the capability. The capability defines the types of custom
+    /// messages that are used to implement the capability. The type must only be unique
+    /// within the capability.
+    /// Status: \[Development\]
+    #[prost(string, tag = "2")]
+    pub r#type: ::prost::alloc::string::String,
+    /// Binary data of the message. The capability must specify the format of the contents
+    /// of the data for each custom message type it defines.
+    /// Status: \[Development\]
+    #[prost(bytes = "vec", tag = "3")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

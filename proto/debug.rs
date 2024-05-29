@@ -33,10 +33,11 @@ where
 impl Display for crate::opamp::proto::ServerToAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let remote_config = self.remote_config.to_string();
+        let instance_uid: String = String::from_utf8_lossy(&self.instance_uid).to_string();
         write!(
             f,
             "ServerToAgent {{ instance_uid: \"{}\", error_response: {:?}, remote_config: {} }}",
-            self.instance_uid, self.error_response, remote_config
+            instance_uid, self.error_response, remote_config
         )
     }
 }
@@ -84,7 +85,7 @@ mod test {
     fn assert_display() {
         let expected_string = r#"ServerToAgent { instance_uid: "01HF9B5C334ZJW3GA0HPGHDTDV", error_response: None, remote_config: AgentRemoteConfig { config: AgentConfigMap { config_map: "test-fleet-list-erich": AgentConfigFile { body: "hocus pocus", content_type: "text/yaml" } }, config_hash: "5298c05a10e7ca5c91edab6453bb60e8f2848491c15af0f2b2fe8710ad63c34f" } }"#;
         let sample_message = ServerToAgent {
-            instance_uid: "01HF9B5C334ZJW3GA0HPGHDTDV".to_string(),
+            instance_uid: "01HF9B5C334ZJW3GA0HPGHDTDV".into(),
             remote_config: Some(AgentRemoteConfig {
                 config: Some(AgentConfigMap {
                     config_map: std::collections::HashMap::from([(

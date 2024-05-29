@@ -279,7 +279,7 @@ mod test {
             });
 
         let settings = StartSettings {
-            instance_id: "NOT_AN_UID".to_string(),
+            instance_id: "NOT_AN_UID".into(),
             capabilities: capabilities!(
                 AgentCapabilities::ReportsEffectiveConfig,
                 AgentCapabilities::ReportsHealth,
@@ -366,7 +366,7 @@ mod test {
         mock_callbacks.should_on_connect_failed();
 
         let settings = StartSettings {
-            instance_id: "NOT_AN_UID".to_string(),
+            instance_id: "NOT_AN_UID".into(),
             capabilities: capabilities!(AgentCapabilities::ReportsRemoteConfig),
             ..Default::default()
         };

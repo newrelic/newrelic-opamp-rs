@@ -288,9 +288,11 @@ mod test {
 
     #[test]
     fn receive_agent_identification() {
+        let actual_message: Vec<u8> = "some_agent_uid".into();
+
         let server_to_agent = ServerToAgent {
             agent_identification: Some(AgentIdentification {
-                new_instance_uid: "some_agent_uid".to_string(),
+                new_instance_uid: actual_message.to_owned(),
             }),
             ..ServerToAgent::default()
         };
@@ -313,7 +315,7 @@ mod test {
         );
 
         let expected_message = next_message.write().unwrap().pop();
-        assert_eq!(expected_message.instance_uid, "some_agent_uid".to_string());
+        assert_eq!(expected_message.instance_uid, actual_message);
 
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), ProcessResult::Synced);
@@ -323,13 +325,14 @@ mod test {
     /// Expected to not call message update if instance_uid is not present in ServerToAgent message
     ///
     fn receive_no_agent_identification() {
-        const AGENT_UID: &str = "some_uid";
+        let agent_uid: Vec<u8> = "some_uid".into();
+
         let server_to_agent = ServerToAgent::default();
         let mut callbacks = MockCallbacksMockall::new();
         let synced_state = ClientSyncedState::default();
         let capabilities = capabilities!();
         let next_message = Arc::new(RwLock::new(NextMessage::new(AgentToServer {
-            instance_uid: AGENT_UID.to_string(),
+            instance_uid: agent_uid.to_owned(),
             ..AgentToServer::default()
         })));
 
@@ -347,7 +350,7 @@ mod test {
         );
 
         let expected_message = next_message.write().unwrap().pop();
-        assert_eq!(expected_message.instance_uid, AGENT_UID.to_string());
+        assert_eq!(expected_message.instance_uid, agent_uid);
 
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), ProcessResult::Synced);
@@ -434,7 +437,7 @@ mod test {
     #[test]
     fn test_message_data_with_agent_identification() {
         let agent_identification = AgentIdentification {
-            new_instance_uid: "test-instance-uid".to_string(),
+            new_instance_uid: "test-instance-uid".into(),
         };
 
         let msg = ServerToAgent {
@@ -454,7 +457,7 @@ mod test {
         assert_eq!(
             message_data.agent_identification,
             Some(AgentIdentification {
-                new_instance_uid: "test-instance-uid".to_string()
+                new_instance_uid: "test-instance-uid".into()
             })
         );
     }
@@ -462,7 +465,7 @@ mod test {
     #[test]
     fn test_message_data_with_agent_identification_and_empty_instance_uid() {
         let agent_identification = AgentIdentification {
-            new_instance_uid: "".to_string(),
+            new_instance_uid: "".into(),
         };
 
         let msg = ServerToAgent {

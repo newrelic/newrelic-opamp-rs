@@ -77,7 +77,7 @@ fn main() {
         .start(
             CallbacksMock,
             StartSettings {
-                instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".to_string(),
+                instance_id: "3Q38XWW0Q98GMAD3NHWZM2PZWZ".into(),
                 capabilities: capabilities!(AgentCapabilities::ReportsStatus),
                 agent_description: AgentDescription {
                     identifying_attributes: HashMap::from([

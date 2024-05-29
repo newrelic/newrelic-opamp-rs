@@ -142,8 +142,7 @@ custom_attributes:
 "#;
 
         let server_to_agent = ServerToAgent {
-            instance_uid: "N0L1C3NS3INV3NT3D".to_string(),
-            error_response: None,
+            instance_uid: "N0L1C3NS3INV3NT3D".into(),
             remote_config: Some(AgentRemoteConfig {
                 config: Some(AgentConfigMap {
                     config_map: std::collections::HashMap::from([(
@@ -157,12 +156,7 @@ custom_attributes:
                 config_hash: "@d7ae6e67b68b05f444464ca5652fddd891824c5e336c4dc5dda6ed7f6b8be2998"
                     .into(),
             }),
-            connection_settings: None,
-            packages_available: None,
-            flags: 0,
-            capabilities: 0,
-            agent_identification: None,
-            command: None,
+            ..Default::default()
         };
         server_to_agent.encode(&mut buf).unwrap();
 
