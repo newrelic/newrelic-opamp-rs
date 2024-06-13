@@ -31,7 +31,8 @@ pub enum DescriptionValueType {
     Float(f64),
     // Array(Vec<DescType>),
     // Map(HashMap<String, DescType>),
-    // Bytes(Vec<u8>),
+    /// Vec<u8> wrapper
+    Bytes(Vec<u8>),
 }
 
 impl From<DescriptionValueType> for Option<AnyValue> {
@@ -48,6 +49,9 @@ impl From<DescriptionValueType> for Option<AnyValue> {
             }),
             DescriptionValueType::Float(f) => Some(AnyValue {
                 value: Some(Value::DoubleValue(f)),
+            }),
+            DescriptionValueType::Bytes(b) => Some(AnyValue {
+                value: Some(Value::BytesValue(b)),
             }),
         }
     }
@@ -80,6 +84,12 @@ impl From<bool> for DescriptionValueType {
 impl From<f64> for DescriptionValueType {
     fn from(f: f64) -> Self {
         DescriptionValueType::Float(f)
+    }
+}
+
+impl From<Vec<u8>> for DescriptionValueType {
+    fn from(b: Vec<u8>) -> Self {
+        DescriptionValueType::Bytes(b)
     }
 }
 
@@ -129,13 +139,19 @@ mod test {
     };
     use std::collections::HashMap;
 
-    use crate::opamp::proto::any_value::Value::{BoolValue, DoubleValue, IntValue, StringValue};
+    use crate::opamp::proto::any_value::Value::{
+        BoolValue, BytesValue, DoubleValue, IntValue, StringValue,
+    };
     use crate::opamp::proto::{
         any_value::Value, AgentDescription as ProtobufAgentDescription, AnyValue, KeyValue,
     };
 
     #[test]
     fn agent_description_supports_multiple_types() {
+        let bytes: Vec<u8> = vec![
+            1, 143, 243, 141, 1, 179, 119, 150, 178, 200, 28, 128, 105, 188, 106, 223,
+        ];
+
         let agent_description = AgentDescription {
             identifying_attributes: HashMap::from([
                 (
@@ -145,12 +161,20 @@ mod test {
                 ("int".to_string(), DescriptionValueType::Int(45)),
                 ("bool".to_string(), DescriptionValueType::Bool(true)),
                 ("float".to_string(), DescriptionValueType::Float(5.6)),
+                (
+                    "bytes".to_string(),
+                    DescriptionValueType::Bytes(bytes.clone()),
+                ),
             ]),
             non_identifying_attributes: HashMap::from([
                 ("string".into(), "another string".into()),
                 ("another int".to_string(), 145.into()),
                 ("another bool".to_string(), false.into()),
                 ("another float".to_string(), 15.6.into()),
+                (
+                    "bytes".to_string(),
+                    DescriptionValueType::Bytes(bytes.clone()),
+                ),
             ]),
         };
 
@@ -193,6 +217,14 @@ mod test {
 
         assert_eq!(
             agent_description
+                .identifying_attributes
+                .get("bytes")
+                .unwrap(),
+            &DescriptionValueType::Bytes(bytes.clone())
+        );
+
+        assert_eq!(
+            agent_description
                 .non_identifying_attributes
                 .get("another bool")
                 .unwrap(),
@@ -214,10 +246,22 @@ mod test {
                 .unwrap(),
             &DescriptionValueType::Float(15.6)
         );
+
+        assert_eq!(
+            agent_description
+                .non_identifying_attributes
+                .get("bytes")
+                .unwrap(),
+            &DescriptionValueType::Bytes(bytes)
+        );
     }
 
     #[test]
     fn test_populate_agent_description() {
+        let bytes: Vec<u8> = vec![
+            1, 143, 243, 141, 1, 179, 119, 150, 178, 200, 28, 128, 105, 188, 106, 223,
+        ];
+
         struct TestCase {
             name: String,
             expected: Vec<KeyValue>,
@@ -262,6 +306,12 @@ mod test {
                             value: Some(Value::BoolValue(true)),
                         }),
                     },
+                    KeyValue {
+                        key: "bytes val".to_string(),
+                        value: Some(AnyValue {
+                            value: Some(Value::BytesValue(bytes.clone())),
+                        }),
+                    },
                 ],
                 agent_description_items: HashMap::from([
                     (
@@ -294,18 +344,24 @@ mod test {
 
     #[test]
     fn test_agent_description_to_protobuf_conversion() {
+        let bytes_identifying: Vec<u8> = vec![
+            1, 143, 243, 141, 1, 179, 119, 150, 178, 200, 28, 128, 105, 188, 106, 223,
+        ];
+        let bytes_non_identifying: Vec<u8> = vec![1, 2, 3, 4];
         let agent_description = AgentDescription {
             identifying_attributes: HashMap::from([
                 ("string".into(), "some string".to_string().into()),
                 ("int".into(), 45.into()),
                 ("bool".into(), true.into()),
                 ("float".into(), 5.6.into()),
+                ("bytes".into(), bytes_identifying.clone().into()),
             ]),
             non_identifying_attributes: HashMap::from([
                 ("another string".into(), "another string value".into()),
                 ("another int".into(), 145.into()),
                 ("another bool".into(), false.into()),
                 ("another float".into(), 15.6.into()),
+                ("bytes".into(), bytes_non_identifying.clone().into()),
             ]),
         };
 
@@ -335,6 +391,12 @@ mod test {
                         value: Some(DoubleValue(5.6)),
                     }),
                 },
+                KeyValue {
+                    key: "bytes".into(),
+                    value: Some(AnyValue {
+                        value: Some(BytesValue(bytes_identifying.clone())),
+                    }),
+                },
             ],
             non_identifying_attributes: vec![
                 KeyValue {
@@ -359,6 +421,12 @@ mod test {
                     key: "another float".into(),
                     value: Some(AnyValue {
                         value: Some(DoubleValue(15.6)),
+                    }),
+                },
+                KeyValue {
+                    key: "bytes".into(),
+                    value: Some(AnyValue {
+                        value: Some(BytesValue(bytes_non_identifying.clone())),
                     }),
                 },
             ],
