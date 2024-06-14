@@ -110,6 +110,12 @@ pub(super) mod test {
         }
     }
 
+    impl CrossBeamTicker {
+        pub fn duration(&self) -> Duration {
+            self.duration
+        }
+    }
+
     #[test]
     fn ticker_stop() {
         let ticker = CrossBeamTicker::new(Duration::from_millis(1));

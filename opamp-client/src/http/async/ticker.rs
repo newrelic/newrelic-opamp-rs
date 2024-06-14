@@ -137,6 +137,12 @@ pub(super) mod test {
         }
     }
 
+    impl TokioTicker {
+        pub fn duration(&self) -> Duration {
+            self.duration
+        }
+    }
+
     #[tokio::test]
     async fn tokio_ticker_stop() {
         let ticker = TokioTicker::new(Duration::from_millis(1));

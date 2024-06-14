@@ -5,6 +5,7 @@ use std::{
     thread::{spawn, JoinHandle},
     time::Duration,
 };
+use tracing::warn;
 
 use crate::{
     opamp::proto::RemoteConfigStatus, ClientError, StartedClient, StartedClientError,
@@ -21,7 +22,8 @@ use super::{
     ticker::{CrossBeamTicker, Ticker},
 };
 
-static POLLING_INTERVAL: Duration = Duration::from_secs(5);
+// Default and minimum interval for OpAMP
+static DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
 
 /// NotStartedHttpClient implements the NotStartedClient trait for HTTP.
 pub struct NotStartedHttpClient<L, T = CrossBeamTicker>
@@ -59,7 +61,28 @@ where
     pub fn new(http_client: L) -> Self {
         NotStartedHttpClient {
             http_client,
-            ticker: CrossBeamTicker::new(POLLING_INTERVAL),
+            ticker: CrossBeamTicker::new(DEFAULT_POLLING_INTERVAL),
+        }
+    }
+
+    /// Returns a new instance of the NotStartedHttpClient with the specified interval for polling
+    /// if the interval is smaller than default, a warning message will be printed and default
+    /// value will be used
+    pub fn with_interval(self, interval: Duration) -> NotStartedHttpClient<L, CrossBeamTicker> {
+        let interval = if interval.le(&DEFAULT_POLLING_INTERVAL) {
+            warn!(
+                interval = interval.as_secs(),
+                default_inverval = DEFAULT_POLLING_INTERVAL.as_secs(),
+                "polling interval smaller than minimum. Falling back to default interval."
+            );
+            DEFAULT_POLLING_INTERVAL
+        } else {
+            interval
+        };
+
+        NotStartedHttpClient {
+            ticker: CrossBeamTicker::new(interval),
+            ..self
         }
     }
 }
@@ -168,6 +191,7 @@ where
 mod test {
 
     use core::panic;
+    use std::ops::{Add, Sub};
 
     use super::super::http_client::test::{
         response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
@@ -537,5 +561,25 @@ mod test {
         };
         let res = client.set_remote_config_status(remote_config_status);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_polling_interval() {
+        // Default interval
+        let http_client = MockHttpClientMockall::new();
+        let opamp_client = NotStartedHttpClient::new(http_client);
+        assert_eq!(opamp_client.ticker.duration(), DEFAULT_POLLING_INTERVAL);
+
+        // Bigger interval than default should be allowed
+        let http_client = MockHttpClientMockall::new();
+        let new_interval = DEFAULT_POLLING_INTERVAL.add(Duration::from_secs(1));
+        let opamp_client = NotStartedHttpClient::new(http_client).with_interval(new_interval);
+        assert_eq!(opamp_client.ticker.duration(), new_interval);
+
+        // Smaller interval than default should not be allowed
+        let http_client = MockHttpClientMockall::new();
+        let new_interval = DEFAULT_POLLING_INTERVAL.sub(Duration::from_secs(1));
+        let opamp_client = NotStartedHttpClient::new(http_client).with_interval(new_interval);
+        assert_eq!(opamp_client.ticker.duration(), DEFAULT_POLLING_INTERVAL);
     }
 }
