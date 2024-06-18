@@ -6,7 +6,7 @@ use std::{
 use thiserror::Error;
 use tracing::{debug, error};
 
-use crate::common::clientstate::ClientSyncedState;
+use crate::common::clientstate::{ClientSyncedState, SyncedStateError};
 use crate::{
     opamp::proto::{
         AgentCapabilities::*, AgentToServer, ConnectionSettingsOffers, OtherConnectionSettings,
@@ -25,6 +25,10 @@ use crate::opamp::proto::AgentCapabilities;
 pub enum ProcessError {
     #[error("Error while acquiring read-write lock")]
     PoisonError,
+
+    /// Represents a synced state error.
+    #[error("synced state error: `{0}`")]
+    SyncedStateError(#[from] SyncedStateError),
 }
 
 #[derive(Debug, PartialEq)]
@@ -108,17 +112,21 @@ fn rcv_flags<C: Callbacks>(
     next_message: Arc<RwLock<NextMessage>>,
     callbacks: &C,
 ) -> Result<ProcessResult, ProcessError> {
-    // FIXME bubble up errors if we fail to set any of the fields below? (see the `ok()`)
     let can_report_full_state = flags & ServerToAgentFlags::ReportFullState as u64 != 0;
     if can_report_full_state {
+        let agent_description = state.agent_description()?;
+        let health = state.health()?;
+        let remote_config_status = state.remote_config_status()?;
+        let package_statuses = state.package_statuses()?;
+
         next_message
             .write()
             .map_err(|_| ProcessError::PoisonError)?
             .update(|msg: &mut AgentToServer| {
-                msg.agent_description = state.agent_description().ok();
-                msg.health = state.health().ok();
-                msg.remote_config_status = state.remote_config_status().ok();
-                msg.package_statuses = state.package_statuses().ok();
+                msg.agent_description = agent_description;
+                msg.health = health;
+                msg.remote_config_status = remote_config_status;
+                msg.package_statuses = package_statuses;
                 msg.effective_config = callbacks
                     .get_effective_config()
                     .map_err(|e| error!("Cannot get effective config: {e}"))

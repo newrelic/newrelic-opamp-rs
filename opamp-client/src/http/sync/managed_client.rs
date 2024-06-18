@@ -192,6 +192,7 @@ mod test {
 
     use core::panic;
     use std::ops::{Add, Sub};
+    use std::time::SystemTime;
 
     use super::super::http_client::test::{
         response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
@@ -252,9 +253,9 @@ mod test {
 
     #[test]
     fn poll_and_set_health() {
-        // should be called five times (1 init + 3 polling + 1 set_health)
+        // should be called 5 times (1 init + 4 polling + 4 set_health - 2 set_health skipped)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(6).returning(|_| {
+        mock_client.expect_post().times(7).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -263,22 +264,22 @@ mod test {
 
         // ticker that will be cancelled after three calls
         let mut ticker = MockTickerMockAll::new();
-        ticker.expect_next().times(3).returning(|| Ok(()));
+        ticker.expect_next().times(4).returning(|| Ok(()));
         ticker
             .expect_next()
             .returning(|| Err(TickerError::Cancelled));
 
-        ticker.expect_reset().times(2).returning(|| Ok(())); // set_health
+        ticker.expect_reset().times(4).returning(|| Ok(())); // set_health
         ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
         mocked_callbacks
             .expect_on_connect()
-            .times(1 + 3 + 2)
+            .times(1 + 4 + 2)
             .return_const(()); // 1 init, 3 polls, 2 set_health
         mocked_callbacks
             .expect_on_message()
-            .times(1 + 3 + 2) // 1 init, 3 polls, 2 set_health
+            .times(1 + 4 + 2) // 1 init, 3 polls, 2 set_health
             .return_const(());
 
         let not_started = NotStartedHttpClient {
@@ -292,18 +293,33 @@ mod test {
                 StartSettings {
                     instance_id: "NOT_AN_UID".into(),
                     capabilities: capabilities!(
-                        crate::opamp::proto::AgentCapabilities::AcceptsRestartCommand
+                        AgentCapabilities::AcceptsRestartCommand,
+                        AgentCapabilities::ReportsHealth
                     ),
                     ..Default::default()
                 },
             )
             .unwrap();
-        assert!(client
-            .set_health(crate::opamp::proto::ComponentHealth::default())
-            .is_ok());
-        assert!(client
-            .set_health(crate::opamp::proto::ComponentHealth::default())
-            .is_ok());
+
+        let status_time_unix_nano = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
+        let mut health = crate::opamp::proto::ComponentHealth {
+            status_time_unix_nano,
+            ..Default::default()
+        };
+
+        assert!(client.set_health(health.clone()).is_ok());
+        // Same status should skip post
+        assert!(client.set_health(health.clone()).is_ok());
+
+        health.healthy = true;
+
+        assert!(client.set_health(health.clone()).is_ok());
+        // Same status should skip post
+        assert!(client.set_health(health.clone()).is_ok());
+
         assert!(client.stop().is_ok())
     }
 
@@ -381,7 +397,7 @@ mod test {
             .expect_next()
             .returning(|| Err(TickerError::Cancelled));
 
-        ticker.expect_reset().times(1).returning(|| Ok(())); // set_agent_description
+        ticker.expect_reset().times(2).returning(|| Ok(())); // set_agent_description
         ticker.expect_stop().times(1).returning(|| Ok(()));
 
         let mut mocked_callbacks = MockCallbacksMockall::new();
@@ -418,6 +434,12 @@ mod test {
                 value: Some(Value::StringValue("thing_value".to_string())),
             }),
         };
+        let res = client.set_agent_description(AgentDescription {
+            identifying_attributes: vec![random_value.clone()],
+            non_identifying_attributes: vec![random_value.clone()],
+        });
+        assert!(res.is_ok());
+        // Second call doesn't post.
         let res = client.set_agent_description(AgentDescription {
             identifying_attributes: vec![random_value.clone()],
             non_identifying_attributes: vec![random_value],

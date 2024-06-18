@@ -28,6 +28,9 @@ where
 }
 
 /// OpAMPHttpClient synchronous HTTP implementation of the Client trait.
+// If there is an error sending, the syncState should still be updated, we want it to be consistent
+// with the agent status, and we leave the responsibility to the OpAMP server to call ReportFullState
+// if it detects a gap on sequence numbers.
 impl<C, L> OpAMPHttpClient<C, L>
 where
     C: Callbacks + Send + Sync,
@@ -107,10 +110,17 @@ where
     L: HttpClient + Send + Sync,
 {
     /// set_agent_description sets the agent description of the Agent.
+    // It uses compression and will only modify the message if there is a change.
     fn set_agent_description(
         &self,
         description: crate::opamp::proto::AgentDescription,
     ) -> ClientResult<()> {
+        if self
+            .synced_state
+            .agent_description_unchanged(&description)?
+        {
+            return Ok(());
+        }
         self.synced_state
             .set_agent_description(description.clone())?;
 
@@ -123,12 +133,22 @@ where
             });
 
         debug!("sending AgentToServer with provided description");
-
         self.send_process()
     }
 
     /// set_health sets the health status of the Agent.
+    // It uses compression and will only modify the message if there is a change.
     fn set_health(&self, health: crate::opamp::proto::ComponentHealth) -> ClientResult<()> {
+        if !self
+            .capabilities
+            .has_capability(AgentCapabilities::ReportsHealth)
+        {
+            return Err(ClientError::UnsetHealthCapability);
+        }
+
+        if self.synced_state.health_unchanged(&health)? {
+            return Ok(());
+        }
         self.synced_state.set_health(health.clone())?;
 
         // update message
@@ -140,7 +160,6 @@ where
             });
 
         debug!("sending AgentToServer with provided health");
-
         self.send_process()
     }
 
@@ -174,6 +193,7 @@ where
 
     // set_remote_config_status sends the status of the remote config
     // that was previously received from the Server
+    // It uses compression and will only modify the message if there is a change.
     fn set_remote_config_status(
         &self,
         status: crate::opamp::proto::RemoteConfigStatus,
@@ -185,26 +205,20 @@ where
             return Err(ClientError::UnsetRemoteConfigStatusCapability);
         }
 
-        let synced_remote_config_status = self.synced_state.remote_config_status()?;
-        if synced_remote_config_status.eq(&status) {
+        if self.synced_state.remote_config_status_unchanged(&status)? {
             return Ok(());
         }
+        self.synced_state.set_remote_config_status(status.clone())?;
 
         self.message
             .write()
             .map_err(|_| ClientError::PoisonError)?
             .update(|msg| {
-                msg.remote_config_status = Some(status.clone());
+                msg.remote_config_status = Some(status);
             });
 
         debug!("sending AgentToServer with remote");
-        let result = self.send_process();
-
-        if result.is_ok() {
-            self.synced_state.set_remote_config_status(status)?;
-        }
-
-        result
+        self.send_process()
     }
 }
 
@@ -352,8 +366,11 @@ mod test {
         );
     }
 
+    // If there is an error sending, the syncState should still be updated, we want it to be consistent
+    // with the agent status, and we leave the responsibility to the OpAMP server to call ReportFullState
+    // if it detects a gap on sequence numbers.
     #[test]
-    fn remote_config_status_not_sync_state_update_on_error() {
+    fn remote_config_status_should_still_sync_state_update_on_error() {
         let mut mock_client = MockHttpClientMockall::new();
         mock_client.should_post(response_from_server_to_agent(
             &ServerToAgent::default(),
@@ -378,7 +395,7 @@ mod test {
             status: 2,
             error_message: "".to_string(),
         };
-        let result = client.set_remote_config_status(remote_config_status);
+        let result = client.set_remote_config_status(remote_config_status.clone());
 
         assert!(matches!(
             result.unwrap_err(),
@@ -386,8 +403,8 @@ mod test {
         ));
 
         assert_eq!(
-            client.synced_state.remote_config_status(),
-            ClientSyncedState::default().remote_config_status()
+            client.synced_state.remote_config_status().unwrap().unwrap(),
+            remote_config_status
         );
     }
 }

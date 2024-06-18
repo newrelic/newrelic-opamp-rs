@@ -24,12 +24,15 @@ pub enum ClientError {
     /// Represents a synchronized state error.
     #[error("`{0}`")]
     SyncedStateError(#[from] SyncedStateError),
-    /// Indicates that the report configuration effective configuration capability is not set.
+    /// Indicates that the report effective configuration capability is not set.
     #[error("report effective configuration capability is not set")]
     UnsetEffectConfigCapability,
-    /// Indicates that the wet remote config status capabilities are not set.
+    /// Indicates that the report remote config status capability is not set.
     #[error("report remote configuration status capability is not set")]
     UnsetRemoteConfigStatusCapability,
+    /// Indicates that the report health capability are not set.
+    #[error("report health capability is not set")]
+    UnsetHealthCapability,
     /// Indicates an error while fetching effective configuration.
     #[error("error while fetching effective config")]
     EffectiveConfigError,

@@ -32,7 +32,7 @@ impl<T> From<PoisonError<T>> for SyncedStateError {
 // it is not stored in this struct since it can be large, and we do not want to always
 // keep it in memory. To avoid storing it in memory the EffectiveConfig is supposed to be
 // stored by the Agent implementation (e.g. it can be stored on disk) and is fetched
-// via GetEffectiveConfig callback when it is needed by OpAMP client and then it is
+// via GetEffectiveConfig callback when it is needed by OpAMP client, and then it is
 // discarded from memory. See implementation of UpdateEffectiveConfig().
 //
 // It is safe to call methods of this struct concurrently.
@@ -43,14 +43,14 @@ pub struct ClientSyncedState {
 
 #[derive(Debug, Default)]
 struct Data {
-    agent_description: AgentDescription,
-    health: ComponentHealth,
-    remote_config_status: RemoteConfigStatus,
-    package_statuses: PackageStatuses,
+    agent_description: Option<AgentDescription>,
+    health: Option<ComponentHealth>,
+    remote_config_status: Option<RemoteConfigStatus>,
+    package_statuses: Option<PackageStatuses>,
 }
 
 impl ClientSyncedState {
-    pub(crate) fn agent_description(&self) -> Result<AgentDescription, SyncedStateError> {
+    pub(crate) fn agent_description(&self) -> Result<Option<AgentDescription>, SyncedStateError> {
         Ok(self.data.read()?.agent_description.clone())
     }
 
@@ -64,18 +64,37 @@ impl ClientSyncedState {
             return Err(SyncedStateError::AgentDescriptionNoAttributes);
         }
 
-        self.data.write()?.agent_description = description;
-
+        self.data.write()?.agent_description = Some(description);
         Ok(())
+    }
+
+    pub(crate) fn agent_description_unchanged(
+        &self,
+        description: &AgentDescription,
+    ) -> Result<bool, SyncedStateError> {
+        if let Some(synced_description) = self.agent_description()? {
+            return Ok(synced_description.eq(description));
+        }
+        Ok(false)
     }
 
     pub(crate) fn set_health(&self, health: ComponentHealth) -> Result<(), SyncedStateError> {
-        self.data.write()?.health = health;
+        self.data.write()?.health = Some(health);
         Ok(())
     }
 
-    pub(crate) fn health(&self) -> Result<ComponentHealth, SyncedStateError> {
+    pub(crate) fn health(&self) -> Result<Option<ComponentHealth>, SyncedStateError> {
         Ok(self.data.read()?.health.clone())
+    }
+
+    pub(crate) fn health_unchanged(
+        &self,
+        health: &ComponentHealth,
+    ) -> Result<bool, SyncedStateError> {
+        if let Some(synced_health) = self.health()? {
+            return Ok(synced_health.eq(health));
+        }
+        Ok(false)
     }
 
     #[allow(dead_code)]
@@ -83,12 +102,24 @@ impl ClientSyncedState {
         &self,
         status: RemoteConfigStatus,
     ) -> Result<(), SyncedStateError> {
-        self.data.write()?.remote_config_status = status;
+        self.data.write()?.remote_config_status = Some(status);
         Ok(())
     }
 
-    pub(crate) fn remote_config_status(&self) -> Result<RemoteConfigStatus, SyncedStateError> {
+    pub(crate) fn remote_config_status(
+        &self,
+    ) -> Result<Option<RemoteConfigStatus>, SyncedStateError> {
         Ok(self.data.read()?.remote_config_status.clone())
+    }
+
+    pub(crate) fn remote_config_status_unchanged(
+        &self,
+        status: &RemoteConfigStatus,
+    ) -> Result<bool, SyncedStateError> {
+        if let Some(synced_remote_config_status) = self.remote_config_status()? {
+            return Ok(synced_remote_config_status.eq(status));
+        }
+        Ok(false)
     }
 
     #[allow(dead_code)]
@@ -96,11 +127,70 @@ impl ClientSyncedState {
         &self,
         status: PackageStatuses,
     ) -> Result<(), SyncedStateError> {
-        self.data.write()?.package_statuses = status;
+        self.data.write()?.package_statuses = Some(status);
         Ok(())
     }
 
-    pub(crate) fn package_statuses(&self) -> Result<PackageStatuses, SyncedStateError> {
+    pub(crate) fn package_statuses(&self) -> Result<Option<PackageStatuses>, SyncedStateError> {
         Ok(self.data.read()?.package_statuses.clone())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::opamp::proto::any_value::Value;
+    use crate::opamp::proto::{AnyValue, KeyValue};
+
+    #[test]
+    fn agent_description_unchanged() {
+        let expected_agent_description = AgentDescription {
+            identifying_attributes: vec![KeyValue {
+                key: "thing".to_string(),
+                value: Some(AnyValue {
+                    value: Some(Value::StringValue("thing_value".to_string())),
+                }),
+            }],
+            non_identifying_attributes: vec![],
+        };
+
+        let synced_state = ClientSyncedState::default();
+        assert!(synced_state
+            .set_agent_description(expected_agent_description.clone())
+            .is_ok());
+        assert!(synced_state
+            .agent_description_unchanged(&expected_agent_description)
+            .unwrap());
+    }
+
+    #[test]
+    fn health_unchanged() {
+        let expected_health = ComponentHealth {
+            healthy: true,
+            start_time_unix_nano: 1,
+            last_error: "".to_string(),
+            ..Default::default()
+        };
+
+        let synced_state = ClientSyncedState::default();
+        assert!(synced_state.set_health(expected_health.clone()).is_ok());
+        assert!(synced_state.health_unchanged(&expected_health).unwrap());
+    }
+
+    #[test]
+    fn remote_config_status_unchanged() {
+        let expected_remote_config_status = RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 2,
+            error_message: "".to_string(),
+        };
+
+        let synced_state = ClientSyncedState::default();
+        assert!(synced_state
+            .set_remote_config_status(expected_remote_config_status.clone())
+            .is_ok());
+        assert!(synced_state
+            .remote_config_status_unchanged(&expected_remote_config_status)
+            .unwrap());
     }
 }
