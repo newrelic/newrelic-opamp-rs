@@ -32,8 +32,8 @@ impl<T> From<PoisonError<T>> for SyncedStateError {
 // it is not stored in this struct since it can be large, and we do not want to always
 // keep it in memory. To avoid storing it in memory the EffectiveConfig is supposed to be
 // stored by the Agent implementation (e.g. it can be stored on disk) and is fetched
-// via GetEffectiveConfig callback when it is needed by OpAMP client, and then it is
-// discarded from memory. See implementation of UpdateEffectiveConfig().
+// via get_effective_config callback when it is needed by OpAMP client, and then it is
+// discarded from memory. See implementation of update_effective_config().
 //
 // It is safe to call methods of this struct concurrently.
 #[derive(Debug, Default)]

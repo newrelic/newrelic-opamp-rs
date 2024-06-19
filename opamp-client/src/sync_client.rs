@@ -17,6 +17,8 @@ pub trait Client: Send + Sync {
 
     /// update_effective_config fetches the current local effective config using
     /// get_effective_config callback and sends it to the Server.
+    /// The reason why there is a callback to fetch the EffectiveConfig from the Agent and it is not
+    /// sent by the Agent like health, is to allow the compression mechanism without storing it.
     fn update_effective_config(&self) -> ClientResult<()>;
 
     /// set_remote_config_status sets the current RemoteConfigStatus.
