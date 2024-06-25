@@ -502,9 +502,8 @@ mod test {
         let res = client.set_agent_description(AgentDescription::default());
         assert!(res.is_err());
 
-        let expected_err = SyncedStateError::AgentDescriptionNoAttributes;
         match res.unwrap_err() {
-            ClientError::SyncedStateError(e) => assert_eq!(expected_err, e),
+            ClientError::SyncedStateError(e) =>  assert!(matches!(e, SyncedStateError::AgentDescriptionNoAttributes)),
             err => panic!("Wrong error variant was returned. Expected `ConnectionError::SyncedStateError`, found {}", err),
         }
         assert!(client.stop().is_ok())

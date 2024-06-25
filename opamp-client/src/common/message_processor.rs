@@ -21,7 +21,7 @@ use crate::{
 use super::nextmessage::NextMessage;
 use crate::opamp::proto::AgentCapabilities;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum ProcessError {
     #[error("Error while acquiring read-write lock")]
     PoisonError,
@@ -655,7 +655,6 @@ mod test {
 
         let expected_health = ComponentHealth {
             healthy: true,
-            start_time_unix_nano: 1,
             last_error: "".to_string(),
             ..Default::default()
         };
@@ -698,7 +697,7 @@ mod test {
             message.agent_description.unwrap()
         );
 
-        assert_eq!(expected_health, message.health.unwrap());
+        assert!(message.health.unwrap().is_same_as(&expected_health));
 
         assert_eq!(
             expected_remote_config_status,
@@ -706,7 +705,7 @@ mod test {
         );
 
         assert_eq!(expected_package_statuses, message.package_statuses.unwrap());
-        assert_eq!(result, Ok(ProcessResult::NeedsResend));
+        assert!(matches!(result, Ok(ProcessResult::NeedsResend)));
     }
 
     #[test]
@@ -721,6 +720,6 @@ mod test {
         let result_synced: Result<ProcessResult, ProcessError> =
             rcv_flags(&state, unset_flag, next_message.clone(), &callbacks_mock);
 
-        assert_eq!(result_synced, Ok(ProcessResult::Synced));
+        assert!(matches!(result_synced, Ok(ProcessResult::Synced)));
     }
 }

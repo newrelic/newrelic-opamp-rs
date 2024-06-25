@@ -526,9 +526,8 @@ mod test {
             .await;
         assert!(res.is_err());
 
-        let expected_err = SyncedStateError::AgentDescriptionNoAttributes;
         match res.unwrap_err() {
-            AsyncClientError::SyncedStateError(e) => assert_eq!(expected_err, e),
+            AsyncClientError::SyncedStateError(e) => assert!(matches!(e, SyncedStateError::AgentDescriptionNoAttributes)),
             err => panic!("Wrong error variant was returned. Expected `ConnectionError::SyncedStateError`, found {}", err),
         }
         assert!(client.stop().await.is_ok())

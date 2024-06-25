@@ -353,16 +353,16 @@ mod test {
         );
 
         assert_ne!(
-            client.synced_state.agent_description(),
-            ClientSyncedState::default().agent_description()
+            client.synced_state.agent_description().unwrap(),
+            ClientSyncedState::default().agent_description().unwrap()
         );
         assert_ne!(
-            client.synced_state.health(),
-            ClientSyncedState::default().health()
+            client.synced_state.health().unwrap(),
+            ClientSyncedState::default().health().unwrap()
         );
         assert_ne!(
-            client.synced_state.remote_config_status(),
-            ClientSyncedState::default().remote_config_status()
+            client.synced_state.remote_config_status().unwrap(),
+            ClientSyncedState::default().remote_config_status().unwrap()
         );
     }
 

@@ -98,7 +98,7 @@ fn main() {
     client
         .set_health(ComponentHealth {
             healthy: true,
-            start_time_unix_nano: 1689942447,
+            status_time_unix_nano: 1689942447,
             last_error: "".to_string(),
             ..Default::default()
         })
@@ -111,7 +111,7 @@ fn main() {
     client
         .set_health(ComponentHealth {
             healthy: false,
-            start_time_unix_nano: 1689942447,
+            status_time_unix_nano: 1689942447,
             last_error: "wow! what an error".to_string(),
             ..Default::default()
         })

@@ -6,7 +6,7 @@ use std::sync::PoisonError;
 
 use thiserror::Error;
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum SyncedStateError {
     #[error("agent description must contain attributes")]
     AgentDescriptionNoAttributes,
@@ -47,6 +47,29 @@ struct Data {
     health: Option<ComponentHealth>,
     remote_config_status: Option<RemoteConfigStatus>,
     package_statuses: Option<PackageStatuses>,
+}
+
+impl ComponentHealth {
+    /// Compares two `ComponentHealth` structs disregarding the status timestamps,
+    /// as we can expect them to be equal. We do check the start timestamp though.
+    ///
+    /// This needs to be done as the component health information can be "compressed" if it hasn't
+    /// changed since the last update.
+    pub(crate) fn is_same_as(&self, other: &ComponentHealth) -> bool {
+        self.healthy == other.healthy
+            && self.start_time_unix_nano == other.start_time_unix_nano
+            && self.last_error == other.last_error
+            && self.status == other.status
+            // Inner component health maps are also ComponentHealths, so they have timestamps...
+            && (self.component_health_map.len() == other.component_health_map.len() && {
+                self.component_health_map.iter().all(|(key, value)| {
+                    other
+                        .component_health_map
+                        .get(key)
+                        .map_or(false, |other_value| value.is_same_as(other_value))
+                })
+            })
+    }
 }
 
 impl ClientSyncedState {
@@ -92,7 +115,7 @@ impl ClientSyncedState {
         health: &ComponentHealth,
     ) -> Result<bool, SyncedStateError> {
         if let Some(synced_health) = self.health()? {
-            return Ok(synced_health.eq(health));
+            return Ok(synced_health.is_same_as(health));
         }
         Ok(false)
     }
@@ -167,7 +190,6 @@ mod test {
     fn health_unchanged() {
         let expected_health = ComponentHealth {
             healthy: true,
-            start_time_unix_nano: 1,
             last_error: "".to_string(),
             ..Default::default()
         };
@@ -192,5 +214,65 @@ mod test {
         assert!(synced_state
             .remote_config_status_unchanged(&expected_remote_config_status)
             .unwrap());
+    }
+
+    #[test]
+    fn compare_health() {
+        let health1 = ComponentHealth {
+            healthy: true,
+            status_time_unix_nano: 1,
+            last_error: "".to_string(),
+            ..Default::default()
+        };
+
+        let health2 = ComponentHealth {
+            healthy: true,
+            status_time_unix_nano: 2,
+            last_error: "".to_string(),
+            ..Default::default()
+        };
+
+        assert!(health1.is_same_as(&health2));
+    }
+
+    #[test]
+    fn compare_health_with_inner_component_health() {
+        let health1 = ComponentHealth {
+            healthy: true,
+            status_time_unix_nano: 1,
+            last_error: "".to_string(),
+            component_health_map: vec![(
+                "inner".to_string(),
+                ComponentHealth {
+                    healthy: true,
+                    status_time_unix_nano: 1,
+                    last_error: "".to_string(),
+                    ..Default::default()
+                },
+            )]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        };
+
+        let health2 = ComponentHealth {
+            healthy: true,
+            status_time_unix_nano: 2,
+            last_error: "".to_string(),
+            component_health_map: vec![(
+                "inner".to_string(),
+                ComponentHealth {
+                    healthy: true,
+                    status_time_unix_nano: 2,
+                    last_error: "".to_string(),
+                    ..Default::default()
+                },
+            )]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        };
+
+        assert!(health1.is_same_as(&health2));
     }
 }
