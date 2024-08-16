@@ -7,7 +7,7 @@ license-file.workspace = true
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 httpmock = "0.7.0"
-mockall = "0.12.1"
+mockall = "0.13.0"
 
 [dependencies]
 async-trait = "0.1.81"
