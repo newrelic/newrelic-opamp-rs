@@ -11,7 +11,7 @@ mockall = "0.13.0"
 
 [dependencies]
 async-trait = "0.1.81"
-prost = "0.13.1"
+prost = "0.13.2"
 thiserror = "1.0.63"
 tokio = { version = "1.39.3", features = [
   "macros",
