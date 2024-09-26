@@ -1,5 +1,4 @@
 //! # Synchronous HTTP Client Module
-use std::io;
 use std::io::Cursor;
 
 use http::{HeaderMap, Response};
@@ -26,12 +25,9 @@ pub enum HttpClientError {
     /// Represents a compression error.
     #[error("`{0}`")]
     CompressionError(#[from] CompressorError),
-    /// Represents an io reader error.
-    #[error("`{0}`")]
-    IOError(#[from] io::Error),
     /// Represents an http crate consume body error.
     #[error("`{0}`")]
-    HTTPBodyError(#[from] http::Error),
+    HTTPBodyError(String),
 }
 
 /// A synchronous trait that defines the internal methods for HTTP clients.
@@ -107,9 +103,14 @@ fn build_response(response: ureq::Response) -> Result<Response<Vec<u8>>, HttpCli
         .version(http_version);
 
     let mut buf: Vec<u8> = vec![];
-    response.into_reader().read_to_end(&mut buf)?;
+    response
+        .into_reader()
+        .read_to_end(&mut buf)
+        .map_err(|e| HttpClientError::HTTPBodyError(format!("cannot read ureq response: {}", e)))?;
 
-    Ok(response_builder.body(buf)?)
+    response_builder
+        .body(buf)
+        .map_err(|e| HttpClientError::HTTPBodyError(format!("cannot build body: {}", e)))
 }
 
 #[cfg(test)]
