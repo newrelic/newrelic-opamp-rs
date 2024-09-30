@@ -215,7 +215,7 @@ mod test {
     fn start_stop() {
         // should be called one time (1 init)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().once().returning(|_| {
+        mock_client.expect_post().times(2).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -255,7 +255,7 @@ mod test {
     fn poll_and_set_health() {
         // should be called 5 times (1 init + 4 polling + 4 set_health - 2 set_health skipped)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(7).returning(|_| {
+        mock_client.expect_post().times(8).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -327,7 +327,7 @@ mod test {
     fn poll_and_update_effective_config() {
         // should be called three times (1 init + 1 polling + 1 update_effective_config)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(3).returning(|_| {
+        mock_client.expect_post().times(4).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -383,7 +383,7 @@ mod test {
     fn poll_and_set_agent_description() {
         // should be called three times (1 init + 1 polling + 1 set_agent_description)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(3).returning(|_| {
+        mock_client.expect_post().times(4).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -452,7 +452,7 @@ mod test {
     fn poll_and_set_agent_description_no_attrs() {
         // should be called two times (1 init + 1 poll)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(2).returning(|_| {
+        mock_client.expect_post().times(3).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -513,7 +513,7 @@ mod test {
     fn poll_and_set_remote_config_status_three_calls_two_same_status() {
         // should be called three times (1 init + 2 statuses, last status is repeated)
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(3).returning(|_| {
+        mock_client.expect_post().times(4).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),

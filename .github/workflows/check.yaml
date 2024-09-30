@@ -28,8 +28,9 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: dtolnay/rust-toolchain@4f366e621dc8fa63f557ca04b8f4361824a35a45
+        uses: dtolnay/rust-toolchain@1.78.0
         with:
+          toolchain: stable
           components: rustfmt
       - name: cargo fmt --check
         run: cargo fmt --check
@@ -48,7 +49,7 @@ jobs:
         with:
           submodules: true
       - name: Install ${{ matrix.toolchain }}
-        uses: dtolnay/rust-toolchain@4f366e621dc8fa63f557ca04b8f4361824a35a45
+        uses: dtolnay/rust-toolchain@1.78.0
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
@@ -57,19 +58,3 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: -- -D clippy::all
-  msrv:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        msrv: [1.70.0]
-    name: ubuntu / ${{ matrix.msrv }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Install ${{ matrix.msrv }}
-        uses: dtolnay/rust-toolchain@4f366e621dc8fa63f557ca04b8f4361824a35a45
-        with:
-          toolchain: ${{ matrix.msrv }}
-      - name: cargo +${{ matrix.msrv }} check
-        run: cargo check

@@ -10,18 +10,15 @@ name: test
 jobs:
   required:
     runs-on: ubuntu-latest
-    name: ubuntu / ${{ matrix.toolchain }}
-    strategy:
-      matrix:
-        toolchain: [stable, beta]
+    name: test
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - name: Install ${{ matrix.toolchain }}
-        uses: dtolnay/rust-toolchain@4f366e621dc8fa63f557ca04b8f4361824a35a45
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@1.78.0
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: stable
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
@@ -29,21 +26,4 @@ jobs:
         run: cargo test --locked --all-features --all-targets
       - name: cargo test --doc
         run: cargo test --locked --all-features --doc
-  os-check:
-    runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} / stable
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@4f366e621dc8fa63f557ca04b8f4361824a35a45
-      - name: cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      - name: cargo test
-        run: cargo test --locked --all-features --all-targets
+

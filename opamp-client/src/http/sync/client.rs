@@ -6,13 +6,13 @@ use crate::{
     common::{
         clientstate::ClientSyncedState, message_processor::ProcessResult, nextmessage::NextMessage,
     },
-    opamp::proto::{AgentCapabilities, AgentToServer},
+    opamp::proto::{AgentCapabilities, AgentDisconnect, AgentToServer},
     operation::{callbacks::Callbacks, capabilities::Capabilities, settings::StartSettings},
     Client, ClientError, ClientResult,
 };
 
 use super::{http_client::HttpClient, sender::HttpSender};
-use tracing::debug;
+use tracing::{debug, error};
 
 /// An implementation of an OpAMP Synchronous Client using HTTP transport with HttpClient.
 pub struct OpAMPHttpClient<C, L>
@@ -36,7 +36,7 @@ where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
 {
-    // Initializes a new OpAMPHttpClient with the provided Callbacks, uid, Capabilities, and HttpClient.
+    /// Initializes a new OpAMPHttpClient with the provided Callbacks, uid, Capabilities, and HttpClient.
     pub(super) fn new(
         callbacks: C,
         start_settings: StartSettings,
@@ -56,7 +56,7 @@ where
         })
     }
 
-    // Prompt the client to poll for updates and process messages.
+    /// Prompt the client to poll for updates and process messages.
     pub(super) fn poll(&self) -> ClientResult<()> {
         self.send_process()
     }
@@ -101,6 +101,31 @@ where
             ProcessResult::NeedsResend => Ok(self.send_process()?),
             ProcessResult::Synced => Ok(()),
         }
+    }
+}
+
+impl<C, L> Drop for OpAMPHttpClient<C, L>
+where
+    C: Callbacks + Send + Sync,
+    L: HttpClient + Send + Sync,
+{
+    fn drop(&mut self) {
+        // By OpAMP protocol, AgentDisconnect must be sent in the last message.
+        match self.message.write() {
+            Ok(mut next_message) => {
+                let mut msg = next_message.pop();
+                msg.agent_disconnect = Some(AgentDisconnect::default());
+
+                let _ = self.sender.send(msg).inspect_err(|err| {
+                    error!(%err, "Sending disconnect OpAMP message");
+                });
+
+                debug!("OpAMPHttpClient disconnected from server");
+            }
+            Err(err) => {
+                error!(%err,"Assembling disconnect OpAMP message");
+            }
+        };
     }
 }
 
@@ -227,11 +252,13 @@ mod test {
     use super::*;
     use http::StatusCode;
     use std::collections::HashMap;
+    use tracing_test::traced_test;
 
     use super::super::http_client::test::{
         response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
     };
 
+    use crate::http::HttpClientError;
     use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::AgentDescription;
     use crate::opamp::proto::{
@@ -247,13 +274,15 @@ mod test {
     #[test]
     fn unsuccessful_http_response() {
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.should_post(response_from_server_to_agent(
-            &ServerToAgent::default(),
-            ResponseParts {
-                status: StatusCode::FORBIDDEN,
-                ..Default::default()
-            },
-        ));
+        mock_client.expect_post().times(2).returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts {
+                    status: StatusCode::FORBIDDEN,
+                    ..Default::default()
+                },
+            ))
+        });
         let mut mock_callbacks = MockCallbacksMockall::new();
         mock_callbacks.should_on_connect_failed();
 
@@ -269,7 +298,7 @@ mod test {
     #[test]
     fn reset_message_fields_after_send() {
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(4).returning(|_| {
+        mock_client.expect_post().times(5).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
@@ -372,13 +401,15 @@ mod test {
     #[test]
     fn remote_config_status_should_still_sync_state_update_on_error() {
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.should_post(response_from_server_to_agent(
-            &ServerToAgent::default(),
-            ResponseParts {
-                status: StatusCode::FORBIDDEN,
-                ..Default::default()
-            },
-        ));
+        mock_client.expect_post().times(2).returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts {
+                    status: StatusCode::FORBIDDEN,
+                    ..Default::default()
+                },
+            ))
+        });
         let mut mock_callbacks = MockCallbacksMockall::new();
         mock_callbacks.should_on_connect_failed();
 
@@ -406,5 +437,48 @@ mod test {
             client.synced_state.remote_config_status().unwrap().unwrap(),
             remote_config_status
         );
+    }
+
+    #[traced_test]
+    #[test]
+    fn test_drop_success() {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().once().returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                Default::default(),
+            ))
+        });
+
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            StartSettings::default(),
+            mock_client,
+        )
+        .unwrap();
+
+        drop(client);
+
+        assert!(logs_contain("OpAMPHttpClient disconnected from server"));
+    }
+    #[traced_test]
+    #[test]
+    fn test_fail_to_drop() {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client
+            .expect_post()
+            .once()
+            .returning(|_| Err(HttpClientError::TransportError("some error".to_string())));
+
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            StartSettings::default(),
+            mock_client,
+        )
+        .unwrap();
+
+        drop(client);
+
+        assert!(logs_contain("some error"));
     }
 }
