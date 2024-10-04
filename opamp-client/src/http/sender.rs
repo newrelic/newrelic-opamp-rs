@@ -63,16 +63,15 @@ mod test {
     use super::*;
     use crate::common::compression::CompressorError;
     use crate::http::http_client::test::{
-        response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
+        response_from_server_to_agent, HttpClientUreq, MockHttpClientMockall, ResponseParts,
     };
-    use crate::http::{HttpClientUreq, HttpConfig};
     use crate::opamp::proto::{AgentConfigFile, AgentConfigMap, AgentRemoteConfig};
     use crate::opamp::proto::{AgentToServer, ServerToAgent};
-    use http::StatusCode;
+    use http::{HeaderMap, StatusCode};
     use httpmock::prelude::*;
     use prost::Message;
     use std::collections::HashMap;
-    use std::time::Duration;
+    use url::Url;
 
     #[test]
     fn errors_when_unsupported_compression_is_received() {
@@ -165,17 +164,12 @@ custom_attributes:
                 .body(buf);
         });
 
-        let http_config = HttpConfig::new(server.url("/v1/opamp").as_str())
-            .unwrap()
-            .with_headers(HashMap::from([(
-                "super-key".to_string(),
-                "5UP4H-K3Y".to_string(),
-            )]))
-            .unwrap()
-            .with_gzip_compression(false)
-            .with_timeout(Duration::from_secs(5));
-
-        let http_client = HttpClientUreq::new(http_config).unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert("super-key", "5UP4H-K3Y".parse().unwrap());
+        let http_client = HttpClientUreq::new(
+            Url::parse(server.url("/v1/opamp").as_str()).unwrap(),
+            headers,
+        );
         let sender = HttpSender::new(http_client).unwrap();
         let res = sender.send(AgentToServer::default());
         assert!(res.is_ok());

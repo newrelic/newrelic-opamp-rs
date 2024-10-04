@@ -1,14 +1,11 @@
-//! OpAMP HTTP client implementation.
+pub mod client;
+pub mod http_client;
+mod managed_client;
+mod sender;
+mod ticker;
 
-#[cfg(feature = "async-http")]
-pub mod r#async;
-#[cfg(feature = "async-http")]
-pub use r#async::*;
-
-#[cfg(feature = "sync-http")]
-pub mod sync;
-#[cfg(feature = "sync-http")]
-pub use sync::*;
-
-pub mod config;
-pub use config::HttpConfig;
+// export public structs
+pub use {
+    http_client::HttpClientError, managed_client::NotStartedHttpClient,
+    managed_client::StartedHttpClient, ticker::Ticker, ticker::TickerError,
+};

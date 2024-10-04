@@ -105,7 +105,7 @@ pub(crate) fn process_message<C: Callbacks>(
     rcv_flags(synced_state, msg.flags, next_message, callbacks)
 }
 
-// An async function handling received flags.
+// Function handling received flags.
 fn rcv_flags<C: Callbacks>(
     state: &ClientSyncedState,
     flags: u64,

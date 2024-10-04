@@ -199,7 +199,7 @@ mod test {
     };
     use crate::capabilities;
     use crate::common::clientstate::SyncedStateError;
-    use crate::http::sync::ticker::test::MockTickerMockAll;
+    use crate::http::ticker::test::MockTickerMockAll;
     use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::{
         AgentCapabilities, AgentDescription, AnyValue, KeyValue, ServerToAgent,

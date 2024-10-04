@@ -26,23 +26,5 @@ pub use error::{NotStartedClientError, NotStartedClientResult};
 
 pub mod http;
 
-#[cfg(feature = "async")]
-pub mod async_client;
-#[cfg(feature = "async")]
-pub use async_client::*;
-
-#[cfg(feature = "async")]
-pub mod async_error;
-#[cfg(feature = "async")]
-pub use async_error::*;
-
-// Sync feature
-#[cfg(feature = "sync")]
-pub mod sync_client;
-#[cfg(feature = "sync")]
-pub use sync_client::*;
-
-#[cfg(feature = "sync")]
-pub mod sync_error;
-#[cfg(feature = "sync")]
-pub use sync_error::*;
+pub mod client;
+pub use client::*;
