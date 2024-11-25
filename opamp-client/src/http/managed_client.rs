@@ -24,6 +24,7 @@ use super::{
 
 // Default and minimum interval for OpAMP
 static DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
+static MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(1);
 
 /// NotStartedHttpClient implements the NotStartedClient trait for HTTP.
 pub struct NotStartedHttpClient<L, T = CrossBeamTicker>
@@ -69,13 +70,13 @@ where
     /// if the interval is smaller than default, a warning message will be printed and default
     /// value will be used
     pub fn with_interval(self, interval: Duration) -> NotStartedHttpClient<L, CrossBeamTicker> {
-        let interval = if interval.le(&DEFAULT_POLLING_INTERVAL) {
+        let interval = if interval.le(&MINIMUM_POLLING_INTERVAL) {
             warn!(
                 interval = interval.as_secs(),
-                default_inverval = DEFAULT_POLLING_INTERVAL.as_secs(),
-                "polling interval smaller than minimum. Falling back to default interval."
+                default_inverval = MINIMUM_POLLING_INTERVAL.as_secs(),
+                "polling interval smaller than minimum. Falling back to minimum interval."
             );
-            DEFAULT_POLLING_INTERVAL
+            MINIMUM_POLLING_INTERVAL
         } else {
             interval
         };
@@ -591,16 +592,16 @@ mod test {
         let opamp_client = NotStartedHttpClient::new(http_client);
         assert_eq!(opamp_client.ticker.duration(), DEFAULT_POLLING_INTERVAL);
 
-        // Bigger interval than default should be allowed
+        // Bigger interval than minimum should be allowed
         let http_client = MockHttpClientMockall::new();
-        let new_interval = DEFAULT_POLLING_INTERVAL.add(Duration::from_secs(1));
+        let new_interval = MINIMUM_POLLING_INTERVAL.add(Duration::from_secs(1));
         let opamp_client = NotStartedHttpClient::new(http_client).with_interval(new_interval);
         assert_eq!(opamp_client.ticker.duration(), new_interval);
 
-        // Smaller interval than default should not be allowed
+        // Smaller interval than minimum should not be allowed
         let http_client = MockHttpClientMockall::new();
-        let new_interval = DEFAULT_POLLING_INTERVAL.sub(Duration::from_secs(1));
+        let new_interval = MINIMUM_POLLING_INTERVAL.sub(Duration::from_secs(1));
         let opamp_client = NotStartedHttpClient::new(http_client).with_interval(new_interval);
-        assert_eq!(opamp_client.ticker.duration(), DEFAULT_POLLING_INTERVAL);
+        assert_eq!(opamp_client.ticker.duration(), MINIMUM_POLLING_INTERVAL);
     }
 }
