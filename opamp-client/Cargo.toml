@@ -9,7 +9,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 httpmock = "0.7.0"
 mockall = "0.13.1"
 tracing-test = { version = "0.2.5" }
-ureq = { version = "2.10.1", features = ["http-interop"] }
+ureq = { version = "2.12.1", features = ["http-interop"] }
 
 [dependencies]
 crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
