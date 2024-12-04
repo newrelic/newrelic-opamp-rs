@@ -35,6 +35,13 @@ pub enum DescriptionValueType {
     Bytes(Vec<u8>),
 }
 
+impl AgentDescription {
+    /// Check if the Agent Description is empty
+    pub fn is_empty(&self) -> bool {
+        self.identifying_attributes.is_empty() && self.non_identifying_attributes.is_empty()
+    }
+}
+
 impl From<DescriptionValueType> for Option<AnyValue> {
     fn from(description: DescriptionValueType) -> Self {
         match description {
@@ -146,6 +153,28 @@ mod test {
         any_value::Value, AgentDescription as ProtobufAgentDescription, AnyValue, KeyValue,
     };
 
+    #[test]
+    fn agent_description_is_empty() {
+        let agent_description = AgentDescription::default();
+        assert!(agent_description.is_empty());
+    }
+
+    #[test]
+    fn agent_description_is_not_empty() {
+        let agent_description = AgentDescription {
+            identifying_attributes: HashMap::from([
+                (
+                    "string".to_string(),
+                    DescriptionValueType::String("some string".to_string()),
+                ),
+                ("int".to_string(), DescriptionValueType::Int(45)),
+                ("bool".to_string(), DescriptionValueType::Bool(true)),
+                ("float".to_string(), DescriptionValueType::Float(5.6)),
+            ]),
+            non_identifying_attributes: HashMap::default(),
+        };
+        assert!(!agent_description.is_empty());
+    }
     #[test]
     fn agent_description_supports_multiple_types() {
         let bytes: Vec<u8> = vec![

@@ -42,6 +42,11 @@ where
         start_settings: StartSettings,
         http_client: L,
     ) -> ClientResult<Self> {
+        let synced_state = ClientSyncedState::default();
+        if !start_settings.agent_description.is_empty() {
+            synced_state.set_agent_description(start_settings.agent_description.clone().into())?;
+        }
+
         Ok(Self {
             sender: HttpSender::new(http_client)?,
             callbacks,
@@ -51,7 +56,7 @@ where
                 capabilities: u64::from(start_settings.capabilities),
                 ..Default::default()
             }))),
-            synced_state: ClientSyncedState::default(),
+            synced_state,
             capabilities: start_settings.capabilities,
         })
     }
@@ -160,6 +165,14 @@ where
         debug!("sending AgentToServer with provided description");
         self.send_process()
     }
+    /// get_agent_description returns the agent description from the synced state.
+    fn get_agent_description(&self) -> ClientResult<crate::opamp::proto::AgentDescription> {
+        match self.synced_state.agent_description() {
+            Ok(Some(description)) => Ok(description),
+            Err(e) => Err(e.into()),
+            _ => Ok(crate::opamp::proto::AgentDescription::default()),
+        }
+    }
 
     /// set_health sets the health status of the Agent.
     // It uses compression and will only modify the message if there is a change.
@@ -265,6 +278,7 @@ mod test {
         AgentConfigFile, AgentConfigMap, AnyValue, ComponentHealth, EffectiveConfig, KeyValue,
         RemoteConfigStatus,
     };
+    use crate::operation::settings::DescriptionValueType;
     use crate::{
         capabilities,
         opamp::proto::ServerToAgent,
@@ -293,6 +307,171 @@ mod test {
             client.send_process().unwrap_err(),
             ClientError::ConnectFailedCallback(_)
         ));
+    }
+
+    //Check if the Agent description is into the synced state after deleting the rest of fields.
+    #[test]
+    fn synced_state_contains_description_on_creation() {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().times(4).returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+        let mut mock_callbacks = MockCallbacksMockall::new();
+        mock_callbacks.expect_on_connect().times(3).return_const(());
+        mock_callbacks.expect_on_message().times(3).return_const(());
+        mock_callbacks
+            .expect_get_effective_config()
+            .once()
+            .returning(|| {
+                Ok(EffectiveConfig {
+                    config_map: Some(AgentConfigMap {
+                        config_map: HashMap::from([(
+                            "/test".to_string(),
+                            AgentConfigFile::default(),
+                        )]),
+                    }),
+                })
+            });
+
+        let mut description: HashMap<String, DescriptionValueType> = HashMap::new();
+        description.insert(
+            "thing".to_string(),
+            DescriptionValueType::String("thing_value".to_string()),
+        );
+
+        let settings = StartSettings {
+            instance_id: "NOT_AN_UID".into(),
+            capabilities: capabilities!(
+                AgentCapabilities::ReportsEffectiveConfig,
+                AgentCapabilities::ReportsHealth,
+                AgentCapabilities::ReportsRemoteConfig
+            ),
+            agent_description: crate::operation::settings::AgentDescription {
+                identifying_attributes: description.clone(),
+                non_identifying_attributes: description.clone(),
+            },
+        };
+
+        let client = OpAMPHttpClient::new(mock_callbacks, settings, mock_client).unwrap();
+
+        let result = client.update_effective_config();
+        assert!(result.is_ok());
+
+        let result = client.set_health(ComponentHealth {
+            healthy: false,
+            start_time_unix_nano: 1689942447,
+            last_error: "wow! what an error".to_string(),
+            ..Default::default()
+        });
+        assert!(result.is_ok());
+
+        let result = client.set_remote_config_status(RemoteConfigStatus {
+            last_remote_config_hash: vec![],
+            status: 2,
+            error_message: "".to_string(),
+        });
+        assert!(result.is_ok());
+
+        // this pop should return a current message with the attributes reset
+        let message = client.message.write().unwrap().pop();
+
+        assert_eq!(
+            message.agent_description,
+            AgentToServer::default().agent_description
+        );
+        assert_eq!(message.health, AgentToServer::default().health);
+        assert_eq!(
+            message.remote_config_status,
+            AgentToServer::default().remote_config_status
+        );
+        assert_eq!(
+            message.effective_config,
+            AgentToServer::default().effective_config
+        );
+
+        assert_ne!(
+            client.synced_state.health().unwrap(),
+            ClientSyncedState::default().health().unwrap()
+        );
+        assert_ne!(
+            client.synced_state.remote_config_status().unwrap(),
+            ClientSyncedState::default().remote_config_status().unwrap()
+        );
+
+        let random_value = KeyValue {
+            key: "thing".to_string(),
+            value: Some(AnyValue {
+                value: Some(Value::StringValue("thing_value".to_string())),
+            }),
+        };
+
+        let expected_result = AgentDescription {
+            identifying_attributes: vec![random_value.clone()],
+            non_identifying_attributes: vec![random_value],
+        };
+
+        assert_eq!(
+            client
+                .synced_state
+                .agent_description()
+                .unwrap()
+                .unwrap()
+                .identifying_attributes
+                .get(0)
+                .unwrap()
+                .value,
+            expected_result.identifying_attributes.get(0).unwrap().value
+        );
+
+        assert_eq!(
+            client
+                .synced_state
+                .agent_description()
+                .unwrap()
+                .unwrap()
+                .identifying_attributes
+                .get(0)
+                .unwrap()
+                .key,
+            expected_result.identifying_attributes.get(0).unwrap().key
+        );
+
+        assert_eq!(
+            client
+                .synced_state
+                .agent_description()
+                .unwrap()
+                .unwrap()
+                .non_identifying_attributes
+                .get(0)
+                .unwrap()
+                .value,
+            expected_result
+                .non_identifying_attributes
+                .get(0)
+                .unwrap()
+                .value
+        );
+
+        assert_eq!(
+            client
+                .synced_state
+                .agent_description()
+                .unwrap()
+                .unwrap()
+                .non_identifying_attributes
+                .get(0)
+                .unwrap()
+                .key,
+            expected_result
+                .non_identifying_attributes
+                .get(0)
+                .unwrap()
+                .key
+        );
     }
 
     #[test]

@@ -74,6 +74,8 @@ pub trait Client: Send + Sync {
     /// set_agent_description sets attributes of the Agent. The attributes will be included
     /// in the next status report sent to the Server.
     fn set_agent_description(&self, description: AgentDescription) -> ClientResult<()>;
+    /// get_agent_description returns attributes of the Agent.
+    fn get_agent_description(&self) -> ClientResult<AgentDescription>;
 
     /// set_health sets the health status of the Agent. The ComponentHealth will be included
     fn set_health(&self, health: ComponentHealth) -> ClientResult<()>;

@@ -167,6 +167,10 @@ where
         self.opamp_client.set_agent_description(description)
     }
 
+    fn get_agent_description(&self) -> ClientResult<crate::opamp::proto::AgentDescription> {
+        self.opamp_client.get_agent_description()
+    }
+
     /// set_health sets the health status of the Agent.
     fn set_health(&self, health: crate::opamp::proto::ComponentHealth) -> ClientResult<()> {
         self.ticker.reset()?;
@@ -447,6 +451,81 @@ mod test {
         });
         assert!(res.is_ok());
         assert!(client.stop().is_ok())
+    }
+    #[test]
+    fn get_agent_description() {
+        // should be called three times (1 init + 1 polling + 1 set_agent_description)
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().times(4).returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+
+        // ticker that will be cancelled after one call
+        let mut ticker = MockTickerMockAll::new();
+        ticker.expect_next().once().returning(|| Ok(()));
+        ticker
+            .expect_next()
+            .returning(|| Err(TickerError::Cancelled));
+
+        ticker.expect_reset().times(1).returning(|| Ok(())); // set_agent_description
+        ticker.expect_stop().times(1).returning(|| Ok(()));
+
+        let mut mocked_callbacks = MockCallbacksMockall::new();
+        mocked_callbacks
+            .expect_on_connect()
+            .times(3) // 1 init, 1 poll, 1 set_agent_description
+            .return_const(());
+        mocked_callbacks
+            .expect_on_message()
+            .times(3) // 1 init, 1 poll, 1 set_agent_description
+            .return_const(());
+
+        let not_started = NotStartedHttpClient {
+            ticker,
+            http_client: mock_client,
+        };
+
+        let client = not_started
+            .start(
+                mocked_callbacks,
+                StartSettings {
+                    instance_id: "NOT_AN_UID".into(),
+                    capabilities: capabilities!(
+                        crate::opamp::proto::AgentCapabilities::ReportsEffectiveConfig
+                    ),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+
+        let random_value = KeyValue {
+            key: "thing".to_string(),
+            value: Some(AnyValue {
+                value: Some(Value::StringValue("thing_value".to_string())),
+            }),
+        };
+
+        let ad = AgentDescription {
+            identifying_attributes: vec![random_value.clone()],
+            non_identifying_attributes: vec![random_value.clone()],
+        };
+
+        let res = client.set_agent_description(ad.clone());
+        assert!(res.is_ok());
+
+        let result = client.get_agent_description();
+        match result {
+            Ok(agent_description) => {
+                assert_eq!(agent_description, ad);
+                assert!(client.stop().is_ok())
+            }
+            Err(e) => {
+                assert!(false, "{:?}", e);
+            }
+        }
     }
 
     #[test]
