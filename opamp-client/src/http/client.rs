@@ -261,13 +261,13 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use http::StatusCode;
     use std::collections::HashMap;
     use tracing_test::traced_test;
 
-    use super::super::http_client::test::{
+    use super::super::http_client::tests::{
         response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
     };
 
@@ -282,7 +282,7 @@ mod test {
     use crate::{
         capabilities,
         opamp::proto::ServerToAgent,
-        operation::{callbacks::test::MockCallbacksMockall, settings::StartSettings},
+        operation::{callbacks::tests::MockCallbacksMockall, settings::StartSettings},
     };
 
     #[test]

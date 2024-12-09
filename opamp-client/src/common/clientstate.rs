@@ -160,7 +160,7 @@ impl ClientSyncedState {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::{AnyValue, KeyValue};

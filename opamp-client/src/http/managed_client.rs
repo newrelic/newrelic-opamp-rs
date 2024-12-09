@@ -193,23 +193,23 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use core::panic;
     use std::ops::{Add, Sub};
     use std::time::SystemTime;
 
-    use super::super::http_client::test::{
+    use super::super::http_client::tests::{
         response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
     };
     use crate::capabilities;
     use crate::common::clientstate::SyncedStateError;
-    use crate::http::ticker::test::MockTickerMockAll;
+    use crate::http::ticker::tests::MockTickerMockAll;
     use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::{
         AgentCapabilities, AgentDescription, AnyValue, KeyValue, ServerToAgent,
     };
-    use crate::operation::callbacks::test::MockCallbacksMockall;
+    use crate::operation::callbacks::tests::MockCallbacksMockall;
     use crate::operation::capabilities::Capabilities;
 
     use super::super::*;

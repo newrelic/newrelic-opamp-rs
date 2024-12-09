@@ -82,7 +82,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use rand::distributions::{Alphanumeric, DistString};

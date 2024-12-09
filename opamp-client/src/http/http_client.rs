@@ -33,7 +33,7 @@ pub trait HttpClient {
 }
 
 #[cfg(test)]
-pub(crate) mod test {
+pub(crate) mod tests {
     use std::collections::HashMap;
 
     use super::*;

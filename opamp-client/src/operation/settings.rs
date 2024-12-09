@@ -140,7 +140,7 @@ pub struct StartSettings {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::operation::settings::{
         populate_agent_description, AgentDescription, DescriptionValueType,
     };

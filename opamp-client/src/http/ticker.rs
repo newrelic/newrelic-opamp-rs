@@ -95,7 +95,7 @@ impl Ticker for CrossBeamTicker {
 }
 
 #[cfg(test)]
-pub(super) mod test {
+pub(super) mod tests {
     use super::*;
     use mockall::mock;
 

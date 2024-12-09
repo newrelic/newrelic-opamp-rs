@@ -227,7 +227,7 @@ fn get_telemetry_connection_settings(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::capabilities;
     use crate::common::clientstate::ClientSyncedState;
@@ -236,7 +236,7 @@ mod test {
         AnyValue, ComponentHealth, KeyValue, PackageStatuses, RemoteConfigStatus,
         ServerErrorResponse, ServerToAgent, ServerToAgentCommand,
     };
-    use crate::operation::callbacks::test::MockCallbacksMockall;
+    use crate::operation::callbacks::tests::MockCallbacksMockall;
     use tracing_test::traced_test;
 
     #[test]

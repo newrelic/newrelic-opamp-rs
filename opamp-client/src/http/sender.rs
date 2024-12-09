@@ -59,10 +59,10 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::common::compression::CompressorError;
-    use crate::http::http_client::test::{
+    use crate::http::http_client::tests::{
         response_from_server_to_agent, HttpClientUreq, MockHttpClientMockall, ResponseParts,
     };
     use crate::opamp::proto::{AgentConfigFile, AgentConfigMap, AgentRemoteConfig};
