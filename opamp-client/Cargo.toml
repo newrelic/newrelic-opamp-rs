@@ -5,7 +5,7 @@ edition = "2021"
 license-file.workspace = true
 
 [dev-dependencies]
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 httpmock = "0.7.0"
 mockall = "0.13.1"
 tracing-test = { version = "0.2.5" }
