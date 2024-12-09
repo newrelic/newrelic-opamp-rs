@@ -13,7 +13,7 @@ ureq = { version = "2.12.1", features = ["http-interop"] }
 
 [dependencies]
 crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
-prost = "0.13.3"
+prost = "0.13.4"
 thiserror = "2.0.4"
 url = "2.5.4"
 tracing = "0.1.40"
