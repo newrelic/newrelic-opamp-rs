@@ -3,7 +3,8 @@
 use std::collections::HashMap;
 
 use crate::opamp::proto::{
-    any_value::Value, AgentDescription as ProtobufAgentDescription, AnyValue, KeyValue,
+    any_value::Value, AgentDescription as ProtobufAgentDescription, AnyValue, CustomCapabilities,
+    KeyValue,
 };
 
 use super::capabilities::Capabilities;
@@ -134,6 +135,9 @@ pub struct StartSettings {
     /// Defines the capabilities of the Agent. AgentCapabilities_ReportsStatus bit does not need to
     /// be set in this field, it will be set automatically since it is required by OpAMP protocol.
     pub capabilities: Capabilities,
+
+    /// Custom capabilities the Agent has from the start.
+    pub custom_capabilities: Option<CustomCapabilities>,
 
     /// Agent's description: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message
     pub agent_description: AgentDescription,

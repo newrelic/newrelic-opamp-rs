@@ -4,8 +4,9 @@ use crate::common::clientstate::SyncedStateError;
 use crate::common::message_processor::ProcessError;
 use crate::http::HttpClientError;
 use crate::http::TickerError;
-use crate::opamp::proto::RemoteConfigStatus;
-use crate::opamp::proto::{AgentDescription, ComponentHealth};
+use crate::opamp::proto::{
+    AgentDescription, ComponentHealth, CustomCapabilities, RemoteConfigStatus,
+};
 use crate::operation::{callbacks::Callbacks, settings::StartSettings};
 use crate::NotStartedClientResult;
 use thiserror::Error;
@@ -88,6 +89,9 @@ pub trait Client: Send + Sync {
 
     /// set_remote_config_status sets the current RemoteConfigStatus.
     fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()>;
+
+    /// set_custom_capabilities sets the custom capabilities of the Agent.
+    fn set_custom_capabilities(&self, custom_capabilities: CustomCapabilities) -> ClientResult<()>;
 }
 
 /// A trait defining the methods necessary for managing a client in the OpAMP library.

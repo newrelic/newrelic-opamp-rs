@@ -8,8 +8,8 @@ use std::{
 use tracing::warn;
 
 use crate::{
-    opamp::proto::RemoteConfigStatus, ClientError, StartedClient, StartedClientError,
-    StartedClientResult,
+    opamp::proto::{CustomCapabilities, RemoteConfigStatus},
+    ClientError, StartedClient, StartedClientError, StartedClientResult,
 };
 use crate::{
     operation::{callbacks::Callbacks, settings::StartSettings},
@@ -189,6 +189,12 @@ where
     fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()> {
         self.ticker.reset()?;
         self.opamp_client.set_remote_config_status(status)
+    }
+
+    fn set_custom_capabilities(&self, custom_capabilities: CustomCapabilities) -> ClientResult<()> {
+        self.ticker.reset()?;
+        self.opamp_client
+            .set_custom_capabilities(custom_capabilities)
     }
 }
 

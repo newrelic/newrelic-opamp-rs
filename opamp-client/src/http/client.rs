@@ -6,7 +6,7 @@ use crate::{
     common::{
         clientstate::ClientSyncedState, message_processor::ProcessResult, nextmessage::NextMessage,
     },
-    opamp::proto::{AgentCapabilities, AgentDisconnect, AgentToServer},
+    opamp::proto::{AgentCapabilities, AgentDisconnect, AgentToServer, CustomCapabilities},
     operation::{callbacks::Callbacks, capabilities::Capabilities, settings::StartSettings},
     Client, ClientError, ClientResult,
 };
@@ -45,6 +45,9 @@ where
         let synced_state = ClientSyncedState::default();
         if !start_settings.agent_description.is_empty() {
             synced_state.set_agent_description(start_settings.agent_description.clone().into())?;
+        }
+        if let Some(custom_capabilities) = start_settings.custom_capabilities {
+            synced_state.set_custom_capabilities(custom_capabilities)?;
         }
 
         Ok(Self {
@@ -258,6 +261,27 @@ where
         debug!("sending AgentToServer with remote");
         self.send_process()
     }
+
+    fn set_custom_capabilities(&self, custom_capabilities: CustomCapabilities) -> ClientResult<()> {
+        if self
+            .synced_state
+            .custom_capabilities_unchanged(&custom_capabilities)?
+        {
+            return Ok(());
+        }
+        self.synced_state
+            .set_custom_capabilities(custom_capabilities.clone())?;
+
+        self.message
+            .write()
+            .map_err(|_| ClientError::PoisonError)?
+            .update(|msg| {
+                msg.custom_capabilities = Some(custom_capabilities);
+            });
+
+        debug!("sending AgentToServer with custom capabilities");
+        self.send_process()
+    }
 }
 
 #[cfg(test)]
@@ -349,6 +373,7 @@ mod tests {
                 AgentCapabilities::ReportsHealth,
                 AgentCapabilities::ReportsRemoteConfig
             ),
+            custom_capabilities: None,
             agent_description: crate::operation::settings::AgentDescription {
                 identifying_attributes: description.clone(),
                 non_identifying_attributes: description.clone(),
@@ -477,15 +502,15 @@ mod tests {
     #[test]
     fn reset_message_fields_after_send() {
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(5).returning(|_| {
+        mock_client.expect_post().times(6).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
             ))
         });
         let mut mock_callbacks = MockCallbacksMockall::new();
-        mock_callbacks.expect_on_connect().times(4).return_const(());
-        mock_callbacks.expect_on_message().times(4).return_const(());
+        mock_callbacks.expect_on_connect().times(5).return_const(());
+        mock_callbacks.expect_on_message().times(5).return_const(());
         mock_callbacks
             .expect_get_effective_config()
             .once()
@@ -543,6 +568,11 @@ mod tests {
         });
         assert!(result.is_ok());
 
+        let result = client.set_custom_capabilities(CustomCapabilities {
+            capabilities: vec!["foo_capability".to_string()],
+        });
+        assert!(result.is_ok());
+
         // this pop should return a current message with the attributes reset
         let message = client.message.write().unwrap().pop();
 
@@ -559,6 +589,10 @@ mod tests {
             message.effective_config,
             AgentToServer::default().effective_config
         );
+        assert_eq!(
+            message.custom_capabilities,
+            AgentToServer::default().custom_capabilities
+        );
 
         assert_ne!(
             client.synced_state.agent_description().unwrap(),
@@ -571,6 +605,10 @@ mod tests {
         assert_ne!(
             client.synced_state.remote_config_status().unwrap(),
             ClientSyncedState::default().remote_config_status().unwrap()
+        );
+        assert_ne!(
+            client.synced_state.custom_capabilities().unwrap(),
+            ClientSyncedState::default().custom_capabilities().unwrap()
         );
     }
 

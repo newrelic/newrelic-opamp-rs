@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use crate::{
     error::ConnectionError,
     opamp::proto::{
-        AgentIdentification, AgentRemoteConfig, EffectiveConfig, OpAmpConnectionSettings,
-        OtherConnectionSettings, ServerErrorResponse, ServerToAgentCommand,
-        TelemetryConnectionSettings,
+        AgentIdentification, AgentRemoteConfig, CustomCapabilities, CustomMessage, EffectiveConfig,
+        OpAmpConnectionSettings, OtherConnectionSettings, ServerErrorResponse,
+        ServerToAgentCommand, TelemetryConnectionSettings,
     },
 };
 
@@ -35,6 +35,12 @@ pub struct MessageData {
     /// The Agent must save this identification and use it in the future instantiations
     /// of OpAMPClient.
     pub agent_identification: Option<AgentIdentification>,
+
+    /// custom_capabilities the Server is offering to the Agent.
+    pub custom_capabilities: Option<CustomCapabilities>,
+
+    /// custom_message is a custom message received from the Server that the Agent has capability to process.
+    pub custom_message: Option<CustomMessage>,
 }
 
 /// Callbacks is a trait for the Client to handle messages from the Server.

@@ -1,6 +1,8 @@
 use std::sync::RwLock;
 
-use crate::opamp::proto::{AgentDescription, ComponentHealth, PackageStatuses, RemoteConfigStatus};
+use crate::opamp::proto::{
+    AgentDescription, ComponentHealth, CustomCapabilities, PackageStatuses, RemoteConfigStatus,
+};
 
 use std::sync::PoisonError;
 
@@ -44,6 +46,7 @@ pub struct ClientSyncedState {
 #[derive(Debug, Default)]
 struct Data {
     agent_description: Option<AgentDescription>,
+    custom_capabilities: Option<CustomCapabilities>,
     health: Option<ComponentHealth>,
     remote_config_status: Option<RemoteConfigStatus>,
     package_statuses: Option<PackageStatuses>,
@@ -156,6 +159,28 @@ impl ClientSyncedState {
 
     pub(crate) fn package_statuses(&self) -> Result<Option<PackageStatuses>, SyncedStateError> {
         Ok(self.data.read()?.package_statuses.clone())
+    }
+
+    pub(crate) fn custom_capabilities(
+        &self,
+    ) -> Result<Option<CustomCapabilities>, SyncedStateError> {
+        Ok(self.data.read()?.custom_capabilities.clone())
+    }
+    pub(crate) fn custom_capabilities_unchanged(
+        &self,
+        custom_capabilities: &CustomCapabilities,
+    ) -> Result<bool, SyncedStateError> {
+        if let Some(synced_custom_capabilities) = self.custom_capabilities()? {
+            return Ok(synced_custom_capabilities.eq(custom_capabilities));
+        }
+        Ok(false)
+    }
+    pub(crate) fn set_custom_capabilities(
+        &self,
+        custom_capabilities: CustomCapabilities,
+    ) -> Result<(), SyncedStateError> {
+        self.data.write()?.custom_capabilities = Some(custom_capabilities);
+        Ok(())
     }
 }
 
@@ -274,5 +299,24 @@ mod tests {
         };
 
         assert!(health1.is_same_as(&health2));
+    }
+
+    #[test]
+    fn custom_capabilities() {
+        let custom_capabilities = CustomCapabilities {
+            capabilities: vec!["foo".to_string(), "bar".to_string()],
+        };
+
+        let synced_state = ClientSyncedState::default();
+
+        assert_eq!(synced_state.custom_capabilities().unwrap(), None);
+
+        synced_state
+            .set_custom_capabilities(custom_capabilities.clone())
+            .unwrap();
+
+        assert!(synced_state
+            .custom_capabilities_unchanged(&custom_capabilities)
+            .unwrap());
     }
 }

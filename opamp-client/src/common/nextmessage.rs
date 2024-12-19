@@ -54,5 +54,6 @@ impl NextMessage {
         self.message.effective_config = None;
         self.message.remote_config_status = None;
         self.message.package_statuses = None;
+        self.message.custom_capabilities = None;
     }
 }

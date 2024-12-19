@@ -9,8 +9,8 @@ use tracing::{debug, error};
 use crate::common::clientstate::{ClientSyncedState, SyncedStateError};
 use crate::{
     opamp::proto::{
-        AgentCapabilities::*, AgentToServer, ConnectionSettingsOffers, OtherConnectionSettings,
-        ServerToAgent, ServerToAgentFlags, TelemetryConnectionSettings,
+        AgentCapabilities::*, AgentToServer, ConnectionSettingsOffers, CustomCapabilities,
+        OtherConnectionSettings, ServerToAgent, ServerToAgentFlags, TelemetryConnectionSettings,
     },
     operation::{
         callbacks::{Callbacks, MessageData},
@@ -71,9 +71,9 @@ pub(crate) fn process_message<C: Callbacks>(
         .is_some()
     {
         return Ok(ProcessResult::Synced);
-    }
-
-    let msg_data = message_data(&msg, capabilities);
+    };
+    let custom_capabilities = synced_state.custom_capabilities()?;
+    let msg_data = message_data(&msg, capabilities, custom_capabilities);
 
     if let Some(id) = &msg_data.agent_identification {
         next_message
@@ -118,12 +118,14 @@ fn rcv_flags<C: Callbacks>(
         let health = state.health()?;
         let remote_config_status = state.remote_config_status()?;
         let package_statuses = state.package_statuses()?;
+        let custom_capabilities = state.custom_capabilities()?;
 
         next_message
             .write()
             .map_err(|_| ProcessError::PoisonError)?
             .update(|msg: &mut AgentToServer| {
                 msg.agent_description = agent_description;
+                msg.custom_capabilities = custom_capabilities;
                 msg.health = health;
                 msg.remote_config_status = remote_config_status;
                 msg.package_statuses = package_statuses;
@@ -139,11 +141,22 @@ fn rcv_flags<C: Callbacks>(
 }
 
 // A helper function that returns a MessageData object containing relevant fields based on agent capabilities.
-fn message_data(msg: &ServerToAgent, capabilities: &Capabilities) -> MessageData {
+fn message_data(
+    msg: &ServerToAgent,
+    capabilities: &Capabilities,
+    agent_custom_capabilities: Option<CustomCapabilities>,
+) -> MessageData {
     let remote_config = msg
         .remote_config
         .clone()
         .filter(|_| report_capability("remote_config", capabilities, AcceptsRemoteConfig));
+
+    let custom_message = msg.custom_message.clone().filter(|custom_message| {
+        agent_custom_capabilities
+            .is_some_and(|c| c.capabilities.contains(&custom_message.capability))
+    });
+
+    let custom_capabilities = msg.custom_capabilities.clone();
 
     let (own_metrics, own_traces, own_logs, other_connection_settings) =
         get_telemetry_connection_settings(msg.connection_settings.clone(), capabilities);
@@ -171,6 +184,8 @@ fn message_data(msg: &ServerToAgent, capabilities: &Capabilities) -> MessageData
         own_logs,
         other_connection_settings,
         agent_identification,
+        custom_message,
+        custom_capabilities,
         // packages_available,
         // package_syncer,
     }
@@ -233,8 +248,8 @@ mod tests {
     use crate::common::clientstate::ClientSyncedState;
     use crate::opamp::proto::{
         any_value::Value, AgentConfigMap, AgentDescription, AgentIdentification, AgentRemoteConfig,
-        AnyValue, ComponentHealth, KeyValue, PackageStatuses, RemoteConfigStatus,
-        ServerErrorResponse, ServerToAgent, ServerToAgentCommand,
+        AnyValue, ComponentHealth, CustomCapabilities, CustomMessage, KeyValue, PackageStatuses,
+        RemoteConfigStatus, ServerErrorResponse, ServerToAgent, ServerToAgentCommand,
     };
     use crate::operation::callbacks::tests::MockCallbacksMockall;
     use tracing_test::traced_test;
@@ -307,11 +322,12 @@ mod tests {
         let mut callbacks = MockCallbacksMockall::new();
         let synced_state = ClientSyncedState::default();
         let capabilities = capabilities!();
+        let custom_capabilities = CustomCapabilities::default();
         let next_message = Arc::new(RwLock::new(NextMessage::default()));
 
         callbacks.should_not_on_command(); // I expect on_command to NOT be called
 
-        let msg_data = message_data(&server_to_agent, &capabilities);
+        let msg_data = message_data(&server_to_agent, &capabilities, Some(custom_capabilities));
         callbacks.should_on_message(msg_data);
 
         let res = process_message(
@@ -339,6 +355,7 @@ mod tests {
         let mut callbacks = MockCallbacksMockall::new();
         let synced_state = ClientSyncedState::default();
         let capabilities = capabilities!();
+        let custom_capabilities = CustomCapabilities::default();
         let next_message = Arc::new(RwLock::new(NextMessage::new(AgentToServer {
             instance_uid: agent_uid.to_owned(),
             ..AgentToServer::default()
@@ -346,7 +363,7 @@ mod tests {
 
         callbacks.should_not_on_command(); // I expect on_command to NOT be called
 
-        let msg_data = message_data(&server_to_agent, &capabilities);
+        let msg_data = message_data(&server_to_agent, &capabilities, Some(custom_capabilities));
         callbacks.should_on_message(msg_data);
 
         let res = process_message(
@@ -379,11 +396,12 @@ mod tests {
         let mut callbacks = MockCallbacksMockall::new();
         let synced_state = ClientSyncedState::default();
         let capabilities = capabilities!();
+        let custom_capabilities = CustomCapabilities::default();
         let next_message = Arc::new(RwLock::new(NextMessage::default()));
 
         callbacks.should_not_on_command(); // I expect on_command to NOT be called
 
-        let msg_data = message_data(&server_to_agent, &capabilities);
+        let msg_data = message_data(&server_to_agent, &capabilities, Some(custom_capabilities));
         callbacks.should_on_message(msg_data);
 
         let _res = process_message(
@@ -401,22 +419,6 @@ mod tests {
     }
 
     #[test]
-    fn test_message_data() {
-        let msg = ServerToAgent::default();
-
-        let capabilities = Capabilities::default();
-
-        let message_data = message_data(&msg, &capabilities);
-
-        assert_eq!(message_data.remote_config, None);
-        assert_eq!(message_data.own_metrics, None);
-        assert_eq!(message_data.own_traces, None);
-        assert_eq!(message_data.own_logs, None);
-        assert_eq!(message_data.other_connection_settings, None);
-        assert_eq!(message_data.agent_identification, None);
-    }
-
-    #[test]
     fn test_message_data_with_remote_config() {
         let remote_config = AgentRemoteConfig {
             config: Some(AgentConfigMap {
@@ -431,8 +433,9 @@ mod tests {
         };
 
         let capabilities = capabilities!(AgentCapabilities::AcceptsRemoteConfig);
+        let custom_capabilities = CustomCapabilities::default();
 
-        let message_data = message_data(&msg, &capabilities);
+        let message_data = message_data(&msg, &capabilities, Some(custom_capabilities));
 
         assert_eq!(message_data.remote_config, Some(remote_config));
         assert_eq!(message_data.own_metrics, None);
@@ -454,8 +457,9 @@ mod tests {
         };
 
         let capabilities = capabilities!();
+        let custom_capabilities = CustomCapabilities::default();
 
-        let message_data = message_data(&msg, &capabilities);
+        let message_data = message_data(&msg, &capabilities, Some(custom_capabilities));
 
         assert_eq!(message_data.remote_config, None);
         assert_eq!(message_data.own_metrics, None);
@@ -482,8 +486,9 @@ mod tests {
         };
 
         let capabilities = capabilities!();
+        let custom_capabilities = CustomCapabilities::default();
 
-        let message_data = message_data(&msg, &capabilities);
+        let message_data = message_data(&msg, &capabilities, Some(custom_capabilities));
 
         assert_eq!(message_data.remote_config, None);
         assert_eq!(message_data.own_metrics, None);
@@ -721,5 +726,91 @@ mod tests {
             rcv_flags(&state, unset_flag, next_message.clone(), &callbacks_mock);
 
         assert!(matches!(result_synced, Ok(ProcessResult::Synced)));
+    }
+
+    #[test]
+    fn test_custom_message() {
+        struct TestCase {
+            name: &'static str,
+            agent_custom_capabilities: CustomCapabilities,
+            custom_message: CustomMessage,
+            expected_message_data: MessageData,
+        }
+        impl TestCase {
+            fn run(self) {
+                let server_to_agent = ServerToAgent {
+                    custom_message: Some(self.custom_message.clone()),
+                    // whether the agent has the capability to process the custom message or not is not defined by the
+                    // ServerToAgent custom_capability but by the AgentToServer custom_capability.
+                    custom_capabilities: None,
+                    ..ServerToAgent::default()
+                };
+
+                let synced_state = ClientSyncedState::default();
+                synced_state
+                    .set_custom_capabilities(self.agent_custom_capabilities.clone())
+                    .unwrap();
+
+                let mut callbacks = MockCallbacksMockall::new();
+                callbacks.should_on_message(self.expected_message_data);
+
+                let res = process_message(
+                    server_to_agent,
+                    &callbacks,
+                    &synced_state,
+                    &capabilities!(),
+                    Arc::new(RwLock::new(NextMessage::default())),
+                )
+                .unwrap_or_else(|_| panic!("failed processing, case: {}", self.name));
+
+                assert_eq!(
+                    res,
+                    ProcessResult::Synced,
+                    "failed test case: {}",
+                    self.name
+                );
+            }
+        }
+
+        let test_cases = vec![
+            TestCase {
+                name: "custom message with accepted capability",
+                agent_custom_capabilities: CustomCapabilities {
+                    capabilities: vec!["foo_capability".to_string()],
+                },
+                custom_message: CustomMessage {
+                    capability: "foo_capability".to_string(),
+                    r#type: "foo_type".to_string(),
+                    data: "foo".as_bytes().to_vec(),
+                },
+                expected_message_data: MessageData {
+                    custom_message: Some(CustomMessage {
+                        capability: "foo_capability".to_string(),
+                        r#type: "foo_type".to_string(),
+                        data: "foo".as_bytes().to_vec(),
+                    }),
+                    ..MessageData::default()
+                },
+            },
+            TestCase {
+                name: "custom message with non-accepted capability",
+                agent_custom_capabilities: CustomCapabilities {
+                    capabilities: vec!["bar_capability".to_string()],
+                },
+                custom_message: CustomMessage {
+                    capability: "foo_capability".to_string(),
+                    r#type: "foo_type".to_string(),
+                    data: "foo".as_bytes().to_vec(),
+                },
+                expected_message_data: MessageData {
+                    custom_message: None,
+                    ..MessageData::default()
+                },
+            },
+        ];
+
+        for test_case in test_cases {
+            test_case.run();
+        }
     }
 }
