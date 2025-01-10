@@ -14,7 +14,7 @@ ureq = { version = "2.12.1", features = ["http-interop"] }
 [dependencies]
 crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
 prost = "0.13.4"
-thiserror = "2.0.8"
+thiserror = "2.0.10"
 url = "2.5.4"
 tracing = "0.1.40"
 http = "1.2.0"
