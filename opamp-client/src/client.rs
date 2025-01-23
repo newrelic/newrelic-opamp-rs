@@ -18,7 +18,7 @@ pub enum ClientError {
     #[error("poison error, a thread panicked while holding a lock")]
     PoisonError,
     /// Error to use when the `on_connect_failed` callback has been called with this error type, which would consume its value.
-    #[error("Client error. Handling via `on_connect_failed`.")]
+    #[error("connect failed: `{0}`")]
     ConnectFailedCallback(String),
     /// Represents a process message error.
     #[error("`{0}`")]
