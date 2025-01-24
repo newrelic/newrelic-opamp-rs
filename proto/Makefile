@@ -1,16 +1,14 @@
-.DEFAULT_GOAL := gen-proto
+.DEFAULT_GOAL := update-proto
 
 
 SPEC_DIR := ./opamp-spec
 
-gen-proto: gen-rust
-.PHONY: gen-proto
-
-# Generate Protobuf Rust files.
-.PHONY: gen-rust
-gen-rust:
+# Update protos from spec submodule
+.PHONY: update-proto
+update-proto:
 	git submodule update --init
-	OUT_DIR=$(CURDIR) cargo run
+	REBUILD_PROTO=true cargo build
+	cargo fmt
 
 .PHONY: clean
 clean:

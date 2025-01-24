@@ -2,8 +2,8 @@
 /// AnyValue is used to represent any type of attribute value. AnyValue may contain a
 /// primitive value such as a string or integer or it may contain an arbitrary nested
 /// object containing arrays, key-value lists and primitives.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+#[prost(skip_debug)]
 pub struct AnyValue {
     /// The value is one of the listed fields. It is valid for all values to be unspecified
     /// in which case this AnyValue is considered to be "null".
@@ -14,8 +14,8 @@ pub struct AnyValue {
 pub mod any_value {
     /// The value is one of the listed fields. It is valid for all values to be unspecified
     /// in which case this AnyValue is considered to be "null".
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[prost(skip_debug)]
     pub enum Value {
         #[prost(string, tag = "1")]
         StringValue(::prost::alloc::string::String),
@@ -35,7 +35,6 @@ pub mod any_value {
 }
 /// ArrayValue is a list of AnyValue messages. We need ArrayValue as a message
 /// since oneof in AnyValue does not allow repeated fields.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ArrayValue {
     /// Array of values. The array may be empty (contain 0 elements).
@@ -47,7 +46,6 @@ pub struct ArrayValue {
 /// a list of KeyValue messages (e.g. in Span) we use `repeated KeyValue` directly to
 /// avoid unnecessary extra wrapping (which slows down the protocol). The 2 approaches
 /// are semantically equivalent.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValueList {
     /// A collection of key/value pairs of key-value pairs. The list may be empty (may
@@ -57,7 +55,6 @@ pub struct KeyValueList {
 }
 /// KeyValue is a key-value pair that is used to store Span attributes, Link
 /// attributes, etc.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValue {
     #[prost(string, tag = "1")]
@@ -65,7 +62,6 @@ pub struct KeyValue {
     #[prost(message, optional, tag = "2")]
     pub value: ::core::option::Option<AnyValue>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AgentToServer {
     /// Globally unique identifier of the running instance of the Agent. SHOULD remain
@@ -145,13 +141,11 @@ pub struct AgentToServer {
 /// forget association of all Agent instances that were previously established for
 /// this message stream using AgentConnect message, even if the corresponding
 /// AgentDisconnect message were not explicitly received from the Agent.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct AgentDisconnect {}
 /// ConnectionSettingsRequest is a request from the Agent to the Server to create
 /// and respond with an offer of connection settings for the Agent.
 /// Status: \[Development\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConnectionSettingsRequest {
     /// Request for OpAMP connection settings. If this field is unset
@@ -163,7 +157,6 @@ pub struct ConnectionSettingsRequest {
 /// OpAMPConnectionSettingsRequest is a request for the Server to produce
 /// a OpAMPConnectionSettings in its response.
 /// Status: \[Development\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OpAmpConnectionSettingsRequest {
     /// A request to create a client certificate. This is used to initiate a
@@ -173,7 +166,6 @@ pub struct OpAmpConnectionSettingsRequest {
     pub certificate_request: ::core::option::Option<CertificateRequest>,
 }
 /// Status: \[Development\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CertificateRequest {
     /// PEM-encoded Client Certificate Signing Request (CSR), signed by client's private key.
@@ -183,7 +175,6 @@ pub struct CertificateRequest {
     #[prost(bytes = "vec", tag = "1")]
     pub csr: ::prost::alloc::vec::Vec<u8>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerToAgent {
     /// Agent instance uid. MUST match the instance_uid field in AgentToServer message.
@@ -244,7 +235,6 @@ pub struct ServerToAgent {
 /// offer from the Server to the Agent to use the specified settings for OpAMP
 /// connection.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OpAmpConnectionSettings {
     /// OpAMP Server URL This MUST be a WebSocket or HTTP URL and MUST be non-empty, for
@@ -271,7 +261,6 @@ pub struct OpAmpConnectionSettings {
 /// offer from the Server to the Agent to use the specified settings for a network
 /// connection to report own telemetry.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TelemetryConnectionSettings {
     /// The value MUST be a full URL an OTLP/HTTP/Protobuf receiver with path. Schema
@@ -316,7 +305,6 @@ pub struct TelemetryConnectionSettings {
 /// compilers don't generate methods that allow to check for the presence of
 /// the field.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OtherConnectionSettings {
     /// A URL, host:port or some other destination specifier.
@@ -340,20 +328,16 @@ pub struct OtherConnectionSettings {
     /// Other connection settings. These are Agent-specific and are up to the Agent
     /// interpret.
     #[prost(map = "string, string", tag = "4")]
-    pub other_settings: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub other_settings:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Headers {
     #[prost(message, repeated, tag = "1")]
     pub headers: ::prost::alloc::vec::Vec<Header>,
 }
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Header {
     #[prost(string, tag = "1")]
@@ -375,7 +359,6 @@ pub struct Header {
 ///
 /// Alternatively the certificate may be self-signed, assuming the Server can
 /// verify the certificate.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TlsCertificate {
     /// PEM-encoded public key of the certificate. Required.
@@ -394,7 +377,6 @@ pub struct TlsCertificate {
     pub ca_public_key: ::prost::alloc::vec::Vec<u8>,
 }
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConnectionSettingsOffers {
     /// Hash of all settings, including settings that may be omitted from this message
@@ -440,22 +422,16 @@ pub struct ConnectionSettingsOffers {
     /// If this field is not set then the Agent should assume that the other_connections
     /// settings are unchanged.
     #[prost(map = "string, message", tag = "6")]
-    pub other_connections: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        OtherConnectionSettings,
-    >,
+    pub other_connections:
+        ::std::collections::HashMap<::prost::alloc::string::String, OtherConnectionSettings>,
 }
 /// List of packages that the Server offers to the Agent.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PackagesAvailable {
     /// Map of packages. Keys are package names, values are the packages available for download.
     #[prost(map = "string, message", tag = "1")]
-    pub packages: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        PackageAvailable,
-    >,
+    pub packages: ::std::collections::HashMap<::prost::alloc::string::String, PackageAvailable>,
     /// Aggregate hash of all remotely installed packages. The Agent SHOULD include this
     /// value in subsequent PackageStatuses messages. This in turn allows the management
     /// Server to identify that a different set of packages is available for the Agent
@@ -484,7 +460,6 @@ pub struct PackagesAvailable {
 /// hash then the Agent does not need to do anything, it already
 /// has the right version of the package.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PackageAvailable {
     #[prost(enumeration = "PackageType", tag = "1")]
@@ -505,7 +480,6 @@ pub struct PackageAvailable {
     pub hash: ::prost::alloc::vec::Vec<u8>,
 }
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DownloadableFile {
     /// The URL from which the file can be downloaded using HTTP GET request.
@@ -526,7 +500,6 @@ pub struct DownloadableFile {
     #[prost(bytes = "vec", tag = "3")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerErrorResponse {
     #[prost(enumeration = "ServerErrorResponseType", tag = "1")]
@@ -539,16 +512,14 @@ pub struct ServerErrorResponse {
 }
 /// Nested message and enum types in `ServerErrorResponse`.
 pub mod server_error_response {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Details {
         /// Additional information about retrying if type==UNAVAILABLE.
         #[prost(message, tag = "3")]
         RetryInfo(super::RetryInfo),
     }
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct RetryInfo {
     #[prost(uint64, tag = "1")]
     pub retry_after_nanoseconds: u64,
@@ -556,13 +527,11 @@ pub struct RetryInfo {
 /// ServerToAgentCommand is sent from the Server to the Agent to request that the Agent
 /// perform a command.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct ServerToAgentCommand {
     #[prost(enumeration = "CommandType", tag = "1")]
     pub r#type: i32,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AgentDescription {
     /// Attributes that identify the Agent.
@@ -602,7 +571,6 @@ pub struct AgentDescription {
 }
 /// The health of the Agent and sub-components
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ComponentHealth {
     /// Set to true if the component is up and healthy.
@@ -628,20 +596,17 @@ pub struct ComponentHealth {
     /// A map to store more granular, sub-component health. It can nest as deeply as needed to
     /// describe the underlying system.
     #[prost(map = "string, message", tag = "6")]
-    pub component_health_map: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ComponentHealth,
-    >,
+    pub component_health_map:
+        ::std::collections::HashMap<::prost::alloc::string::String, ComponentHealth>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EffectiveConfig {
     /// The effective config of the Agent.
     #[prost(message, optional, tag = "1")]
     pub config_map: ::core::option::Option<AgentConfigMap>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+#[prost(skip_debug)]
 pub struct RemoteConfigStatus {
     /// The hash of the remote config that was last received by this Agent in the
     /// AgentRemoteConfig.config_hash field.
@@ -659,16 +624,12 @@ pub struct RemoteConfigStatus {
 /// The PackageStatuses message describes the status of all packages that the Agent
 /// has or was offered.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PackageStatuses {
     /// A map of PackageStatus messages, where the keys are package names.
     /// The key MUST match the name field of PackageStatus message.
     #[prost(map = "string, message", tag = "1")]
-    pub packages: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        PackageStatus,
-    >,
+    pub packages: ::std::collections::HashMap<::prost::alloc::string::String, PackageStatus>,
     /// The aggregate hash of all packages that this Agent previously received from the
     /// Server via PackagesAvailable message.
     ///
@@ -686,7 +647,6 @@ pub struct PackageStatuses {
 }
 /// The status of a single package.
 /// Status: \[Beta\]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PackageStatus {
     /// Package name. MUST be always set and MUST match the key in the packages field
@@ -741,7 +701,6 @@ pub struct PackageStatus {
 }
 /// Properties related to identification of the Agent, which can be overridden
 /// by the Server if needed
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AgentIdentification {
     /// When new_instance_uid is set, Agent MUST update instance_uid
@@ -750,8 +709,8 @@ pub struct AgentIdentification {
     #[prost(bytes = "vec", tag = "1")]
     pub new_instance_uid: ::prost::alloc::vec::Vec<u8>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+#[prost(skip_debug)]
 pub struct AgentRemoteConfig {
     /// Agent config offered by the management Server to the Agent instance. SHOULD NOT be
     /// set if the config for this Agent has not changed since it was last requested (i.e.
@@ -771,8 +730,8 @@ pub struct AgentRemoteConfig {
     #[prost(bytes = "vec", tag = "2")]
     pub config_hash: ::prost::alloc::vec::Vec<u8>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+#[prost(skip_debug)]
 pub struct AgentConfigMap {
     /// Map of configs. Keys are config file names or config section names.
     /// The configuration is assumed to be a collection of one or more named config files
@@ -780,13 +739,10 @@ pub struct AgentConfigMap {
     /// For agents that use a single config file or section the map SHOULD contain a single
     /// entry and the key may be an empty string.
     #[prost(map = "string, message", tag = "1")]
-    pub config_map: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        AgentConfigFile,
-    >,
+    pub config_map: ::std::collections::HashMap<::prost::alloc::string::String, AgentConfigFile>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+#[prost(skip_debug)]
 pub struct AgentConfigFile {
     /// Config file or section body. The content, format and encoding depends on the Agent
     /// type. The content_type field may optionally describe the MIME type of the body.
@@ -797,7 +753,6 @@ pub struct AgentConfigFile {
     #[prost(string, tag = "2")]
     pub content_type: ::prost::alloc::string::String,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CustomCapabilities {
     /// A list of custom capabilities that are supported. Each capability is a reverse FQDN
@@ -807,8 +762,8 @@ pub struct CustomCapabilities {
     #[prost(string, repeated, tag = "1")]
     pub capabilities: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+#[prost(skip_debug)]
 pub struct CustomMessage {
     /// A reverse FQDN that uniquely identifies the capability and matches one of the
     /// capabilities in the CustomCapabilities message.
@@ -842,10 +797,8 @@ impl AgentToServerFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            AgentToServerFlags::Unspecified => "AgentToServerFlags_Unspecified",
-            AgentToServerFlags::RequestInstanceUid => {
-                "AgentToServerFlags_RequestInstanceUid"
-            }
+            Self::Unspecified => "AgentToServerFlags_Unspecified",
+            Self::RequestInstanceUid => "AgentToServerFlags_RequestInstanceUid",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -876,8 +829,8 @@ impl ServerToAgentFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            ServerToAgentFlags::Unspecified => "ServerToAgentFlags_Unspecified",
-            ServerToAgentFlags::ReportFullState => "ServerToAgentFlags_ReportFullState",
+            Self::Unspecified => "ServerToAgentFlags_Unspecified",
+            Self::ReportFullState => "ServerToAgentFlags_ReportFullState",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -921,22 +874,14 @@ impl ServerCapabilities {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            ServerCapabilities::Unspecified => "ServerCapabilities_Unspecified",
-            ServerCapabilities::AcceptsStatus => "ServerCapabilities_AcceptsStatus",
-            ServerCapabilities::OffersRemoteConfig => {
-                "ServerCapabilities_OffersRemoteConfig"
-            }
-            ServerCapabilities::AcceptsEffectiveConfig => {
-                "ServerCapabilities_AcceptsEffectiveConfig"
-            }
-            ServerCapabilities::OffersPackages => "ServerCapabilities_OffersPackages",
-            ServerCapabilities::AcceptsPackagesStatus => {
-                "ServerCapabilities_AcceptsPackagesStatus"
-            }
-            ServerCapabilities::OffersConnectionSettings => {
-                "ServerCapabilities_OffersConnectionSettings"
-            }
-            ServerCapabilities::AcceptsConnectionSettingsRequest => {
+            Self::Unspecified => "ServerCapabilities_Unspecified",
+            Self::AcceptsStatus => "ServerCapabilities_AcceptsStatus",
+            Self::OffersRemoteConfig => "ServerCapabilities_OffersRemoteConfig",
+            Self::AcceptsEffectiveConfig => "ServerCapabilities_AcceptsEffectiveConfig",
+            Self::OffersPackages => "ServerCapabilities_OffersPackages",
+            Self::AcceptsPackagesStatus => "ServerCapabilities_AcceptsPackagesStatus",
+            Self::OffersConnectionSettings => "ServerCapabilities_OffersConnectionSettings",
+            Self::AcceptsConnectionSettingsRequest => {
                 "ServerCapabilities_AcceptsConnectionSettingsRequest"
             }
         }
@@ -947,16 +892,10 @@ impl ServerCapabilities {
             "ServerCapabilities_Unspecified" => Some(Self::Unspecified),
             "ServerCapabilities_AcceptsStatus" => Some(Self::AcceptsStatus),
             "ServerCapabilities_OffersRemoteConfig" => Some(Self::OffersRemoteConfig),
-            "ServerCapabilities_AcceptsEffectiveConfig" => {
-                Some(Self::AcceptsEffectiveConfig)
-            }
+            "ServerCapabilities_AcceptsEffectiveConfig" => Some(Self::AcceptsEffectiveConfig),
             "ServerCapabilities_OffersPackages" => Some(Self::OffersPackages),
-            "ServerCapabilities_AcceptsPackagesStatus" => {
-                Some(Self::AcceptsPackagesStatus)
-            }
-            "ServerCapabilities_OffersConnectionSettings" => {
-                Some(Self::OffersConnectionSettings)
-            }
+            "ServerCapabilities_AcceptsPackagesStatus" => Some(Self::AcceptsPackagesStatus),
+            "ServerCapabilities_OffersConnectionSettings" => Some(Self::OffersConnectionSettings),
             "ServerCapabilities_AcceptsConnectionSettingsRequest" => {
                 Some(Self::AcceptsConnectionSettingsRequest)
             }
@@ -979,8 +918,8 @@ impl PackageType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            PackageType::TopLevel => "PackageType_TopLevel",
-            PackageType::Addon => "PackageType_Addon",
+            Self::TopLevel => "PackageType_TopLevel",
+            Self::Addon => "PackageType_Addon",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -1014,9 +953,9 @@ impl ServerErrorResponseType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            ServerErrorResponseType::Unknown => "ServerErrorResponseType_Unknown",
-            ServerErrorResponseType::BadRequest => "ServerErrorResponseType_BadRequest",
-            ServerErrorResponseType::Unavailable => "ServerErrorResponseType_Unavailable",
+            Self::Unknown => "ServerErrorResponseType_Unknown",
+            Self::BadRequest => "ServerErrorResponseType_BadRequest",
+            Self::Unavailable => "ServerErrorResponseType_Unavailable",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -1044,7 +983,7 @@ impl CommandType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            CommandType::Restart => "CommandType_Restart",
+            Self::Restart => "CommandType_Restart",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -1108,34 +1047,24 @@ impl AgentCapabilities {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            AgentCapabilities::Unspecified => "AgentCapabilities_Unspecified",
-            AgentCapabilities::ReportsStatus => "AgentCapabilities_ReportsStatus",
-            AgentCapabilities::AcceptsRemoteConfig => {
-                "AgentCapabilities_AcceptsRemoteConfig"
-            }
-            AgentCapabilities::ReportsEffectiveConfig => {
-                "AgentCapabilities_ReportsEffectiveConfig"
-            }
-            AgentCapabilities::AcceptsPackages => "AgentCapabilities_AcceptsPackages",
-            AgentCapabilities::ReportsPackageStatuses => {
-                "AgentCapabilities_ReportsPackageStatuses"
-            }
-            AgentCapabilities::ReportsOwnTraces => "AgentCapabilities_ReportsOwnTraces",
-            AgentCapabilities::ReportsOwnMetrics => "AgentCapabilities_ReportsOwnMetrics",
-            AgentCapabilities::ReportsOwnLogs => "AgentCapabilities_ReportsOwnLogs",
-            AgentCapabilities::AcceptsOpAmpConnectionSettings => {
+            Self::Unspecified => "AgentCapabilities_Unspecified",
+            Self::ReportsStatus => "AgentCapabilities_ReportsStatus",
+            Self::AcceptsRemoteConfig => "AgentCapabilities_AcceptsRemoteConfig",
+            Self::ReportsEffectiveConfig => "AgentCapabilities_ReportsEffectiveConfig",
+            Self::AcceptsPackages => "AgentCapabilities_AcceptsPackages",
+            Self::ReportsPackageStatuses => "AgentCapabilities_ReportsPackageStatuses",
+            Self::ReportsOwnTraces => "AgentCapabilities_ReportsOwnTraces",
+            Self::ReportsOwnMetrics => "AgentCapabilities_ReportsOwnMetrics",
+            Self::ReportsOwnLogs => "AgentCapabilities_ReportsOwnLogs",
+            Self::AcceptsOpAmpConnectionSettings => {
                 "AgentCapabilities_AcceptsOpAMPConnectionSettings"
             }
-            AgentCapabilities::AcceptsOtherConnectionSettings => {
+            Self::AcceptsOtherConnectionSettings => {
                 "AgentCapabilities_AcceptsOtherConnectionSettings"
             }
-            AgentCapabilities::AcceptsRestartCommand => {
-                "AgentCapabilities_AcceptsRestartCommand"
-            }
-            AgentCapabilities::ReportsHealth => "AgentCapabilities_ReportsHealth",
-            AgentCapabilities::ReportsRemoteConfig => {
-                "AgentCapabilities_ReportsRemoteConfig"
-            }
+            Self::AcceptsRestartCommand => "AgentCapabilities_AcceptsRestartCommand",
+            Self::ReportsHealth => "AgentCapabilities_ReportsHealth",
+            Self::ReportsRemoteConfig => "AgentCapabilities_ReportsRemoteConfig",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -1144,13 +1073,9 @@ impl AgentCapabilities {
             "AgentCapabilities_Unspecified" => Some(Self::Unspecified),
             "AgentCapabilities_ReportsStatus" => Some(Self::ReportsStatus),
             "AgentCapabilities_AcceptsRemoteConfig" => Some(Self::AcceptsRemoteConfig),
-            "AgentCapabilities_ReportsEffectiveConfig" => {
-                Some(Self::ReportsEffectiveConfig)
-            }
+            "AgentCapabilities_ReportsEffectiveConfig" => Some(Self::ReportsEffectiveConfig),
             "AgentCapabilities_AcceptsPackages" => Some(Self::AcceptsPackages),
-            "AgentCapabilities_ReportsPackageStatuses" => {
-                Some(Self::ReportsPackageStatuses)
-            }
+            "AgentCapabilities_ReportsPackageStatuses" => Some(Self::ReportsPackageStatuses),
             "AgentCapabilities_ReportsOwnTraces" => Some(Self::ReportsOwnTraces),
             "AgentCapabilities_ReportsOwnMetrics" => Some(Self::ReportsOwnMetrics),
             "AgentCapabilities_ReportsOwnLogs" => Some(Self::ReportsOwnLogs),
@@ -1160,9 +1085,7 @@ impl AgentCapabilities {
             "AgentCapabilities_AcceptsOtherConnectionSettings" => {
                 Some(Self::AcceptsOtherConnectionSettings)
             }
-            "AgentCapabilities_AcceptsRestartCommand" => {
-                Some(Self::AcceptsRestartCommand)
-            }
+            "AgentCapabilities_AcceptsRestartCommand" => Some(Self::AcceptsRestartCommand),
             "AgentCapabilities_ReportsHealth" => Some(Self::ReportsHealth),
             "AgentCapabilities_ReportsRemoteConfig" => Some(Self::ReportsRemoteConfig),
             _ => None,
@@ -1189,10 +1112,10 @@ impl RemoteConfigStatuses {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            RemoteConfigStatuses::Unset => "RemoteConfigStatuses_UNSET",
-            RemoteConfigStatuses::Applied => "RemoteConfigStatuses_APPLIED",
-            RemoteConfigStatuses::Applying => "RemoteConfigStatuses_APPLYING",
-            RemoteConfigStatuses::Failed => "RemoteConfigStatuses_FAILED",
+            Self::Unset => "RemoteConfigStatuses_UNSET",
+            Self::Applied => "RemoteConfigStatuses_APPLIED",
+            Self::Applying => "RemoteConfigStatuses_APPLYING",
+            Self::Failed => "RemoteConfigStatuses_FAILED",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -1233,10 +1156,10 @@ impl PackageStatusEnum {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            PackageStatusEnum::Installed => "PackageStatusEnum_Installed",
-            PackageStatusEnum::InstallPending => "PackageStatusEnum_InstallPending",
-            PackageStatusEnum::Installing => "PackageStatusEnum_Installing",
-            PackageStatusEnum::InstallFailed => "PackageStatusEnum_InstallFailed",
+            Self::Installed => "PackageStatusEnum_Installed",
+            Self::InstallPending => "PackageStatusEnum_InstallPending",
+            Self::Installing => "PackageStatusEnum_Installing",
+            Self::InstallFailed => "PackageStatusEnum_InstallFailed",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

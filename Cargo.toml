@@ -1,9 +1,7 @@
 [workspace]
 resolver = "2"
 
-members = ["opamp-client"]
-
-exclude = ["proto"]
+members = ["opamp-client", "proto"]
 
 [workspace.package]
 license-file = "LICENSE"

@@ -52,29 +52,6 @@ struct Data {
     package_statuses: Option<PackageStatuses>,
 }
 
-impl ComponentHealth {
-    /// Compares two `ComponentHealth` structs disregarding the status timestamps,
-    /// as we can expect them to be equal. We do check the start timestamp though.
-    ///
-    /// This needs to be done as the component health information can be "compressed" if it hasn't
-    /// changed since the last update.
-    pub(crate) fn is_same_as(&self, other: &ComponentHealth) -> bool {
-        self.healthy == other.healthy
-            && self.start_time_unix_nano == other.start_time_unix_nano
-            && self.last_error == other.last_error
-            && self.status == other.status
-            // Inner component health maps are also ComponentHealths, so they have timestamps...
-            && (self.component_health_map.len() == other.component_health_map.len() && {
-                self.component_health_map.iter().all(|(key, value)| {
-                    other
-                        .component_health_map
-                        .get(key)
-                        .map_or(false, |other_value| value.is_same_as(other_value))
-                })
-            })
-    }
-}
-
 impl ClientSyncedState {
     pub(crate) fn agent_description(&self) -> Result<Option<AgentDescription>, SyncedStateError> {
         Ok(self.data.read()?.agent_description.clone())
