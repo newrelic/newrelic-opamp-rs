@@ -446,10 +446,14 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .identifying_attributes
-                .get(0)
+                .first()
                 .unwrap()
                 .value,
-            expected_result.identifying_attributes.get(0).unwrap().value
+            expected_result
+                .identifying_attributes
+                .first()
+                .unwrap()
+                .value
         );
 
         assert_eq!(
@@ -459,10 +463,10 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .identifying_attributes
-                .get(0)
+                .first()
                 .unwrap()
                 .key,
-            expected_result.identifying_attributes.get(0).unwrap().key
+            expected_result.identifying_attributes.first().unwrap().key
         );
 
         assert_eq!(
@@ -472,12 +476,12 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .non_identifying_attributes
-                .get(0)
+                .first()
                 .unwrap()
                 .value,
             expected_result
                 .non_identifying_attributes
-                .get(0)
+                .first()
                 .unwrap()
                 .value
         );
@@ -489,12 +493,12 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .non_identifying_attributes
-                .get(0)
+                .first()
                 .unwrap()
                 .key,
             expected_result
                 .non_identifying_attributes
-                .get(0)
+                .first()
                 .unwrap()
                 .key
         );

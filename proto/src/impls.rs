@@ -1,7 +1,7 @@
 use crate::proto::any_value::Value;
 use crate::proto::{
     AgentConfigFile, AgentConfigMap, AgentRemoteConfig, AnyValue, ComponentHealth, CustomMessage,
-    KeyValue, RemoteConfigStatus,
+    RemoteConfigStatus,
 };
 use std::fmt::Debug;
 
@@ -101,7 +101,7 @@ impl Debug for AnyValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::proto::{AgentDescription, AgentToServer, EffectiveConfig, ServerToAgent};
+    use crate::proto::{AgentDescription, AgentToServer, EffectiveConfig, KeyValue, ServerToAgent};
 
     use super::*;
 

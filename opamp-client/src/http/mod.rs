@@ -1,3 +1,5 @@
+//! # Synchronous HTTP Client implementation.
+
 pub mod client;
 pub mod http_client;
 mod managed_client;

@@ -529,7 +529,7 @@ mod tests {
                 assert!(client.stop().is_ok())
             }
             Err(e) => {
-                assert!(false, "{:?}", e);
+                panic!("{:?}", e);
             }
         }
     }

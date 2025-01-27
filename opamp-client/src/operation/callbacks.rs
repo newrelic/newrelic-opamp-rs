@@ -162,7 +162,7 @@ pub(crate) mod tests {
             self.expect_on_command()
                 .once()
                 .withf({
-                    let cmd = cmd.clone();
+                    let cmd = *cmd;
                     move |x| x == &cmd
                 })
                 .returning(|_| Ok(()));
