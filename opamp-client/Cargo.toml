@@ -18,6 +18,6 @@ thiserror = "2.0.11"
 url = "2.5.4"
 tracing = "0.1.40"
 http = "1.2.0"
-rand = "0.8.5"
+rand = "0.9.0"
 libflate = "2"
 proto = { path = "../proto" }

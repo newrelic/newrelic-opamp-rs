@@ -85,7 +85,7 @@ where
 mod tests {
     use std::collections::HashMap;
 
-    use rand::distributions::{Alphanumeric, DistString};
+    use rand::distr::{Alphanumeric, SampleString};
 
     use crate::opamp::proto::{AgentConfigFile, AgentConfigMap, AgentToServer, EffectiveConfig};
 
@@ -123,7 +123,7 @@ mod tests {
                     "/test".to_string(),
                     AgentConfigFile {
                         body: Alphanumeric
-                            .sample_string(&mut rand::thread_rng(), 300)
+                            .sample_string(&mut rand::rng(), 300)
                             .as_bytes()
                             .to_vec(),
                         content_type: "random".to_string(),
