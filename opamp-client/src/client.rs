@@ -3,11 +3,9 @@
 use crate::common::clientstate::SyncedStateError;
 use crate::common::message_processor::ProcessError;
 use crate::http::HttpClientError;
-use crate::http::TickerError;
 use crate::opamp::proto::{
     AgentDescription, ComponentHealth, CustomCapabilities, RemoteConfigStatus,
 };
-use crate::operation::{callbacks::Callbacks, settings::StartSettings};
 use crate::NotStartedClientResult;
 use thiserror::Error;
 
@@ -41,9 +39,6 @@ pub enum ClientError {
     /// Indicates an error while fetching effective configuration.
     #[error("error while fetching effective config")]
     EffectiveConfigError,
-    /// Represents an internal ticker error.
-    #[error("`{0}`")]
-    TickerError(#[from] TickerError),
 }
 
 /// Represents errors related to the OpAMP started client.
@@ -55,9 +50,6 @@ pub enum StartedClientError {
     /// Represents a synchronized state error.
     #[error("`{0}`")]
     ClientError(#[from] ClientError),
-    /// Represents an internal ticker error.
-    #[error("`{0}`")]
-    TickerError(#[from] TickerError),
 }
 
 /// A type alias for results from OpAMP operations.
@@ -96,9 +88,8 @@ pub trait Client: Send + Sync {
 
 /// A trait defining the methods necessary for managing a client in the OpAMP library.
 pub trait NotStartedClient {
-    /// Associated type for this UnstartedClient which implements the StartedClient trait.
-    type StartedClient<C: Callbacks + Send + Sync + 'static>: StartedClient<C>;
-
+    /// The type of the client that is started.
+    type StartedClient: StartedClient;
     /// start the client and begin attempts to connect to the Server. Once a connection
     /// is established the client will attempt to maintain it by reconnecting if
     /// the connection is lost. All failed connections attempts will be reported via
@@ -118,15 +109,11 @@ pub trait NotStartedClient {
     ///
     ///  Starts should periodically poll status updates from the remote server and apply
     ///  the corresponding updates.
-    fn start<C: Callbacks + Send + Sync + 'static>(
-        self,
-        callbacks: C,
-        start_settings: StartSettings,
-    ) -> NotStartedClientResult<Self::StartedClient<C>>;
+    fn start(self) -> NotStartedClientResult<Self::StartedClient>;
 }
 
 /// A trait defining the `stop()` method for stopping a client in the OpAMP library. Implements the `Client` trait.
-pub trait StartedClient<C: Callbacks>: Client {
+pub trait StartedClient: Client {
     /// After this call returns successfully it is guaranteed that no
     /// callbacks will be called. stop() will cancel context of any in-fly
     /// callbacks, but will wait until such in-fly callbacks are returned before

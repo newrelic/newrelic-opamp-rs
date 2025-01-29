@@ -11,8 +11,13 @@ use crate::{
     Client, ClientError, ClientResult,
 };
 
-use super::{http_client::HttpClient, sender::HttpSender};
+use super::{http_client::HttpClient, managed_client::Notifier, sender::HttpSender};
 use tracing::{debug, error};
+
+/// UnManagedClient is a trait for clients that do not manage their own polling.
+pub trait UnManagedClient: Client {
+    fn poll(&self) -> ClientResult<()>;
+}
 
 /// An implementation of an OpAMP Synchronous Client using HTTP transport with HttpClient.
 pub struct OpAMPHttpClient<C, L>
@@ -25,6 +30,7 @@ where
     message: Arc<RwLock<NextMessage>>,
     synced_state: ClientSyncedState,
     capabilities: Capabilities,
+    pending_msg: Notifier,
 }
 
 /// OpAMPHttpClient synchronous HTTP implementation of the Client trait.
@@ -41,6 +47,7 @@ where
         callbacks: C,
         start_settings: StartSettings,
         http_client: L,
+        pending_msg: Notifier,
     ) -> ClientResult<Self> {
         let synced_state = ClientSyncedState::default();
         if !start_settings.agent_description.is_empty() {
@@ -61,11 +68,17 @@ where
             }))),
             synced_state,
             capabilities: start_settings.capabilities,
+            pending_msg,
         })
     }
+}
 
-    /// Prompt the client to poll for updates and process messages.
-    pub(super) fn poll(&self) -> ClientResult<()> {
+impl<C, L> UnManagedClient for OpAMPHttpClient<C, L>
+where
+    C: Callbacks + Send + Sync,
+    L: HttpClient + Send + Sync,
+{
+    fn poll(&self) -> ClientResult<()> {
         self.send_process()
     }
 }
@@ -97,19 +110,17 @@ where
 
         tracing::trace!("Received payload: {:?}", server_to_agent);
 
-        let result = crate::common::message_processor::process_message(
+        if let ProcessResult::NeedsResend = crate::common::message_processor::process_message(
             server_to_agent,
             &self.callbacks,
             &self.synced_state,
             &self.capabilities,
             self.message.clone(),
-        )?;
+        )? {
+            self.pending_msg.notify_or_warn();
+        };
 
-        // check if resend is needed
-        match result {
-            ProcessResult::NeedsResend => Ok(self.send_process()?),
-            ProcessResult::Synced => Ok(()),
-        }
+        Ok(())
     }
 }
 
@@ -167,7 +178,8 @@ where
             });
 
         debug!("sending AgentToServer with provided description");
-        self.send_process()
+        self.pending_msg.notify_or_warn();
+        Ok(())
     }
     /// get_agent_description returns the agent description from the synced state.
     fn get_agent_description(&self) -> ClientResult<crate::opamp::proto::AgentDescription> {
@@ -202,7 +214,8 @@ where
             });
 
         debug!("sending AgentToServer with provided health");
-        self.send_process()
+        self.pending_msg.notify_or_warn();
+        Ok(())
     }
 
     // update_effective_config fetches the current local effective config using
@@ -229,8 +242,8 @@ where
             });
 
         debug!("sending AgentToServer with fetched effective config");
-
-        self.send_process()
+        self.pending_msg.notify_or_warn();
+        Ok(())
     }
 
     // set_remote_config_status sends the status of the remote config
@@ -260,7 +273,8 @@ where
             });
 
         debug!("sending AgentToServer with remote");
-        self.send_process()
+        self.pending_msg.notify_or_warn();
+        Ok(())
     }
 
     fn set_custom_capabilities(&self, custom_capabilities: CustomCapabilities) -> ClientResult<()> {
@@ -281,14 +295,16 @@ where
             });
 
         debug!("sending AgentToServer with custom capabilities");
-        self.send_process()
+        self.pending_msg.notify_or_warn();
+        Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use http::StatusCode;
+    use mockall::mock;
     use std::collections::HashMap;
     use tracing_test::traced_test;
 
@@ -310,6 +326,23 @@ mod tests {
         operation::{callbacks::tests::MockCallbacksMockall, settings::StartSettings},
     };
 
+    mock! {
+      #[derive(Debug)]
+      pub(crate) UnmanagedClientMockall {}
+
+        impl UnManagedClient for UnmanagedClientMockall {
+            fn poll(&self) -> ClientResult<()>;
+        }
+        impl Client for UnmanagedClientMockall {
+            fn set_agent_description(&self, description: AgentDescription) -> ClientResult<()>;
+            fn get_agent_description(&self) -> ClientResult<AgentDescription>;
+            fn set_health(&self, health: proto::proto::ComponentHealth) -> ClientResult<()>;
+            fn update_effective_config(&self) -> ClientResult<()>;
+            fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()>;
+            fn set_custom_capabilities(&self, custom_capabilities: CustomCapabilities) -> ClientResult<()>;
+        }
+    }
+
     #[test]
     fn unsuccessful_http_response() {
         let mut mock_client = MockHttpClientMockall::new();
@@ -325,8 +358,14 @@ mod tests {
         let mut mock_callbacks = MockCallbacksMockall::new();
         mock_callbacks.should_on_connect_failed();
 
-        let client =
-            OpAMPHttpClient::new(mock_callbacks, StartSettings::default(), mock_client).unwrap();
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client = OpAMPHttpClient::new(
+            mock_callbacks,
+            StartSettings::default(),
+            mock_client,
+            pending_msg,
+        )
+        .unwrap();
 
         assert!(matches!(
             client.send_process().unwrap_err(),
@@ -338,15 +377,15 @@ mod tests {
     #[test]
     fn synced_state_contains_description_on_creation() {
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(4).returning(|_| {
+        mock_client.expect_post().times(2).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
             ))
         });
         let mut mock_callbacks = MockCallbacksMockall::new();
-        mock_callbacks.expect_on_connect().times(3).return_const(());
-        mock_callbacks.expect_on_message().times(3).return_const(());
+        mock_callbacks.expect_on_connect().times(1).return_const(());
+        mock_callbacks.expect_on_message().times(1).return_const(());
         mock_callbacks
             .expect_get_effective_config()
             .once()
@@ -380,8 +419,9 @@ mod tests {
                 non_identifying_attributes: description.clone(),
             },
         };
-
-        let client = OpAMPHttpClient::new(mock_callbacks, settings, mock_client).unwrap();
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client =
+            OpAMPHttpClient::new(mock_callbacks, settings, mock_client, pending_msg).unwrap();
 
         let result = client.update_effective_config();
         assert!(result.is_ok());
@@ -400,6 +440,8 @@ mod tests {
             error_message: "".to_string(),
         });
         assert!(result.is_ok());
+
+        client.poll().unwrap();
 
         // this pop should return a current message with the attributes reset
         let message = client.message.write().unwrap().pop();
@@ -507,31 +549,22 @@ mod tests {
     #[test]
     fn reset_message_fields_after_send() {
         let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().times(6).returning(|_| {
+        mock_client.expect_post().times(2).returning(|_| {
             Ok(response_from_server_to_agent(
                 &ServerToAgent::default(),
                 ResponseParts::default(),
             ))
         });
         let mut mock_callbacks = MockCallbacksMockall::new();
-        mock_callbacks.expect_on_connect().times(5).return_const(());
-        mock_callbacks.expect_on_message().times(5).return_const(());
+        mock_callbacks.expect_on_connect().times(1).return_const(());
+        mock_callbacks.expect_on_message().times(1).return_const(());
         mock_callbacks
             .expect_get_effective_config()
             .once()
-            .returning(|| {
-                Ok(EffectiveConfig {
-                    config_map: Some(AgentConfigMap {
-                        config_map: HashMap::from([(
-                            "/test".to_string(),
-                            AgentConfigFile::default(),
-                        )]),
-                    }),
-                })
-            });
+            .returning(|| Ok(EffectiveConfig::default()));
 
         let settings = StartSettings {
-            instance_id: "NOT_AN_UID".into(),
+            instance_id: "fake".into(),
             capabilities: capabilities!(
                 AgentCapabilities::ReportsEffectiveConfig,
                 AgentCapabilities::ReportsHealth,
@@ -540,7 +573,9 @@ mod tests {
             ..Default::default()
         };
 
-        let client = OpAMPHttpClient::new(mock_callbacks, settings, mock_client).unwrap();
+        let (pending_msg, has_pending_msg) = Notifier::new("msg".to_string());
+        let client =
+            OpAMPHttpClient::new(mock_callbacks, settings, mock_client, pending_msg).unwrap();
 
         let random_value = KeyValue {
             key: "thing".to_string(),
@@ -548,72 +583,68 @@ mod tests {
                 value: Some(Value::StringValue("thing_value".to_string())),
             }),
         };
-
-        let result = client.set_agent_description(AgentDescription {
+        let agent_description = AgentDescription {
             identifying_attributes: vec![random_value.clone()],
             non_identifying_attributes: vec![random_value],
-        });
-        assert!(result.is_ok());
+        };
+        client
+            .set_agent_description(agent_description.clone())
+            .unwrap();
+        has_pending_msg.try_recv().unwrap();
 
-        let result = client.update_effective_config();
-        assert!(result.is_ok());
+        client.update_effective_config().unwrap();
 
-        let result = client.set_health(ComponentHealth {
-            healthy: false,
-            start_time_unix_nano: 1689942447,
+        let health = ComponentHealth {
             last_error: "wow! what an error".to_string(),
             ..Default::default()
-        });
-        assert!(result.is_ok());
+        };
+        client.set_health(health.clone()).unwrap();
+        has_pending_msg.try_recv().unwrap();
 
-        let result = client.set_remote_config_status(RemoteConfigStatus {
-            last_remote_config_hash: vec![],
-            status: 2,
-            error_message: "".to_string(),
-        });
-        assert!(result.is_ok());
+        let remote_config_status = RemoteConfigStatus {
+            error_message: "fake".to_string(),
+            ..Default::default()
+        };
+        client
+            .set_remote_config_status(remote_config_status.clone())
+            .unwrap();
+        has_pending_msg.try_recv().unwrap();
 
-        let result = client.set_custom_capabilities(CustomCapabilities {
+        let custom_capabilities = CustomCapabilities {
             capabilities: vec!["foo_capability".to_string()],
-        });
-        assert!(result.is_ok());
+        };
+        client
+            .set_custom_capabilities(custom_capabilities.clone())
+            .unwrap();
+        has_pending_msg.try_recv().unwrap();
+
+        // This should send the message and "compress" the fields
+        client.poll().unwrap();
 
         // this pop should return a current message with the attributes reset
         let message = client.message.write().unwrap().pop();
 
-        assert_eq!(
-            message.agent_description,
-            AgentToServer::default().agent_description
-        );
-        assert_eq!(message.health, AgentToServer::default().health);
-        assert_eq!(
-            message.remote_config_status,
-            AgentToServer::default().remote_config_status
-        );
-        assert_eq!(
-            message.effective_config,
-            AgentToServer::default().effective_config
-        );
-        assert_eq!(
-            message.custom_capabilities,
-            AgentToServer::default().custom_capabilities
-        );
+        // Asserts the next message is going to be sent is compressed
+        let expected = AgentToServer::default();
+        assert_eq!(message.agent_description, expected.agent_description);
+        assert_eq!(message.health, expected.health);
+        assert_eq!(message.remote_config_status, expected.remote_config_status);
+        assert_eq!(message.effective_config, expected.effective_config);
+        assert_eq!(message.custom_capabilities, expected.custom_capabilities);
 
-        assert_ne!(
+        // Asserts the state contains the last set values
+        assert_eq!(
             client.synced_state.agent_description().unwrap(),
-            ClientSyncedState::default().agent_description().unwrap()
+            Some(agent_description)
         );
-        assert_ne!(
-            client.synced_state.health().unwrap(),
-            ClientSyncedState::default().health().unwrap()
-        );
-        assert_ne!(
+        assert_eq!(client.synced_state.health().unwrap(), Some(health));
+        assert_eq!(
             client.synced_state.remote_config_status().unwrap(),
-            ClientSyncedState::default().remote_config_status().unwrap()
+            Some(remote_config_status)
         );
-        assert_ne!(
+        assert_eq!(
             client.synced_state.custom_capabilities().unwrap(),
-            ClientSyncedState::default().custom_capabilities().unwrap()
+            Some(custom_capabilities)
         );
     }
 
@@ -640,15 +671,20 @@ mod tests {
             capabilities: capabilities!(AgentCapabilities::ReportsRemoteConfig),
             ..Default::default()
         };
-
-        let client = OpAMPHttpClient::new(mock_callbacks, settings, mock_client).unwrap();
+        let (pending_msg, _r) = Notifier::new("msg".to_string());
+        let client =
+            OpAMPHttpClient::new(mock_callbacks, settings, mock_client, pending_msg).unwrap();
 
         let remote_config_status = RemoteConfigStatus {
             last_remote_config_hash: vec![],
             status: 2,
             error_message: "".to_string(),
         };
-        let result = client.set_remote_config_status(remote_config_status.clone());
+        client
+            .set_remote_config_status(remote_config_status.clone())
+            .unwrap();
+
+        let result = client.poll();
 
         assert!(matches!(
             result.unwrap_err(),
@@ -672,10 +708,12 @@ mod tests {
             ))
         });
 
+        let (pending_msg, _) = Notifier::new("msg".to_string());
         let client = OpAMPHttpClient::new(
             MockCallbacksMockall::new(),
             StartSettings::default(),
             mock_client,
+            pending_msg,
         )
         .unwrap();
 
@@ -692,10 +730,12 @@ mod tests {
             .once()
             .returning(|_| Err(HttpClientError::TransportError("some error".to_string())));
 
+        let (pending_msg, _) = Notifier::new("msg".to_string());
         let client = OpAMPHttpClient::new(
             MockCallbacksMockall::new(),
             StartSettings::default(),
             mock_client,
+            pending_msg,
         )
         .unwrap();
 
