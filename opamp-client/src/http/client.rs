@@ -60,7 +60,7 @@ where
         }
 
         Ok(Self {
-            sender: HttpSender::new(http_client)?,
+            sender: HttpSender::new(http_client),
             callbacks,
             message: Arc::new(RwLock::new(NextMessage::new(AgentToServer {
                 instance_uid: start_settings.instance_id,

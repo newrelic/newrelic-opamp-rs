@@ -21,11 +21,11 @@ where
     C: HttpClient,
 {
     // Initializes a new instance of HttpSender with the provided HTTP client.
-    pub(super) fn new(client: C) -> OpampSenderResult<Self> {
-        Ok(Self {
+    pub(super) fn new(client: C) -> Self {
+        Self {
             compressor: Compressor::Plain,
             client,
-        })
+        }
     }
 
     // Sends an AgentToServer message using the HttpSender and returns an optional ServerToAgent message as a result.
@@ -87,7 +87,7 @@ mod tests {
             },
         ));
 
-        let sender = HttpSender::new(mock_client).unwrap();
+        let sender = HttpSender::new(mock_client);
         let res = sender.send(AgentToServer::default());
         assert!(res.is_err());
 
@@ -110,7 +110,7 @@ mod tests {
             },
         ));
 
-        let sender = HttpSender::new(mock_client).unwrap();
+        let sender = HttpSender::new(mock_client);
         let res = sender.send(AgentToServer::default());
         assert!(res.is_err());
 
@@ -170,7 +170,7 @@ custom_attributes:
             Url::parse(server.url("/v1/opamp").as_str()).unwrap(),
             headers,
         );
-        let sender = HttpSender::new(http_client).unwrap();
+        let sender = HttpSender::new(http_client);
         let res = sender.send(AgentToServer::default());
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), server_to_agent)
