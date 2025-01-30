@@ -1,24 +1,25 @@
 [package]
 name = "opamp-client"
 version = "0.0.26"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 license-file.workspace = true
 
 [dev-dependencies]
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-httpmock = "0.7.0"
-mockall = "0.13.1"
-tracing-test = { version = "0.2.5" }
-ureq = { version = "2.12.1", features = ["http-interop"] }
-assert_matches = "1.5.0"
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+httpmock.workspace = true
+mockall.workspace = true
+tracing-test.workspace = true
+ureq = { workspace = true, features = ["http-interop"] }
+assert_matches.workspace = true
+rand.workspace = true
 
 [dependencies]
-crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
-prost = "0.13.4"
-thiserror = "2.0.11"
-url = "2.5.4"
-tracing = "0.1.40"
-http = "1.2.0"
-rand = "0.9.0"
-libflate = "2"
+crossbeam = { workspace = true, features = ["crossbeam-channel"] }
+prost.workspace = true
+thiserror.workspace = true
+url.workspace = true
+tracing.workspace = true
+http.workspace = true
+libflate.workspace = true
 proto = { path = "../proto" }
