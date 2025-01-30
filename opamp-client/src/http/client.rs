@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{http_client::HttpClient, managed_client::Notifier, sender::HttpSender};
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 /// UnManagedClient is a trait for clients that do not manage their own polling.
 pub trait UnManagedClient: Client {
@@ -100,7 +100,7 @@ where
             .write()
             .map_err(|_| ClientError::PoisonError)?
             .pop();
-        tracing::trace!("Send payload: {:?}", msg);
+        trace!("Send payload: {:?}", msg);
         let server_to_agent = self.sender.send(msg).map_err(|e| {
             let err_msg = e.to_string();
             self.callbacks.on_connect_failed(e.into());
@@ -110,7 +110,7 @@ where
         // We consider it connected if we receive 2XX status from the Server.
         self.callbacks.on_connect();
 
-        tracing::trace!("Received payload: {:?}", server_to_agent);
+        trace!("Received payload: {:?}", server_to_agent);
 
         if let ProcessResult::NeedsResend = crate::common::message_processor::process_message(
             server_to_agent,

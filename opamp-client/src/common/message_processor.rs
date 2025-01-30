@@ -66,7 +66,7 @@ pub(crate) fn process_message<C: Callbacks>(
         .map(|c| {
             callbacks
                 .on_command(c)
-                .map_err(|e| error!("on_command callback returned an error: {e}"))
+                .inspect_err(|err| error!(callback = "on_demand", %err))
         })
         .is_some()
     {
@@ -98,8 +98,8 @@ pub(crate) fn process_message<C: Callbacks>(
     //         .then(|| callbacks.on_opamp_connection_settings_accepted(&o));
     // }
 
-    if let Some(e) = msg.error_response {
-        error!("Received an error from server: {e:?}");
+    if let Some(err) = msg.error_response {
+        error!(?err, "Received an error from server");
     }
 
     rcv_flags(synced_state, msg.flags, next_message, callbacks)
@@ -131,7 +131,7 @@ fn rcv_flags<C: Callbacks>(
                 msg.package_statuses = package_statuses;
                 msg.effective_config = callbacks
                     .get_effective_config()
-                    .map_err(|e| error!("Cannot get effective config: {e}"))
+                    .inspect_err(|err| error!(%err, "Cannot get effective config"))
                     .ok();
             });
         Ok(ProcessResult::NeedsResend)
@@ -412,10 +412,7 @@ mod tests {
             next_message.clone(),
         );
 
-        assert!(logs_contain(&format!(
-            "Received an error from server: {:?}",
-            err_response
-        )));
+        assert!(logs_contain(&format!("{:?}", err_response)));
     }
 
     #[test]

@@ -6,7 +6,7 @@ use std::{
     thread::{sleep, spawn, JoinHandle},
     time::Duration,
 };
-use tracing::{trace, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::{
     opamp::proto::{CustomCapabilities, RemoteConfigStatus},
@@ -150,7 +150,7 @@ where
 
     fn start(self) -> NotStartedClientResult<Self::StartedClient> {
         // use poll method to send an initial message
-        tracing::debug!("sending first AgentToServer message");
+        debug!("sending first AgentToServer message");
         self.opamp_client.poll()?;
 
         let (shutdown_notifier, exit) = Notifier::new("shut_down".to_string());
@@ -162,18 +162,18 @@ where
                 loop {
                     select_biased! {
                         recv(exit) -> _ => {
-                            tracing::debug!("gracefully shutting down the polling task");
+                            debug!("gracefully shutting down the polling task");
                             break;
                         }
                         recv(self.has_pending_msg) -> res => {
                             if let Err(err) = res {
-                                tracing::error!("pending message channel error: {}", err);
+                                error!(%err, "Pending message channel error");
                                 break;
                             }
-                            tracing::debug!("sending requested AgentToServer message");
+                            debug!("sending requested AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| tracing::error!("error while polling message: {}", err));
+                                .inspect_err(|err| error!(%err, "Error while polling message"));
 
                             // reset the ticker so next status report is sent after the interval
                             status_report_ticker = tick(self.poll_interval);
@@ -183,17 +183,17 @@ where
                         }
                         recv(status_report_ticker) -> res => {
                             if let Err(err) = res {
-                                tracing::error!("poll interval ticker error: {}", err);
+                                error!(%err, "Poll interval ticker error");
                                 break;
                             }
-                            tracing::debug!("sending scheduled status report AgentToServer message");
+                            debug!("sending scheduled status report AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| tracing::error!("error while polling message: {}", err));
+                                .inspect_err(|err| error!(%err, "Error while polling message"));
                         }
                     }
                 }
-                tracing::debug!("polling task stopped");
+                debug!("polling task stopped");
             }
         });
         Ok(StartedHttpClient {

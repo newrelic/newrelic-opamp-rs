@@ -42,6 +42,7 @@ pub(crate) mod tests {
     use mockall::mock;
     use prost::Message;
     use std::io::Cursor;
+    use tracing::error;
     use url::Url;
 
     /////////////////////////////////////////////
@@ -94,7 +95,7 @@ pub(crate) mod tests {
                 if let Ok(value) = value.to_str() {
                     req = req.set(name.as_str(), value);
                 } else {
-                    tracing::error!("invalid header value string: {:?}", value);
+                    error!("invalid header value string: {:?}", value);
                 }
             }
 
