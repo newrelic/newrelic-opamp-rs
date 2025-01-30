@@ -21,8 +21,7 @@ impl ComponentHealth {
               self.component_health_map.iter().all(|(key, value)| {
                   other
                       .component_health_map
-                      .get(key)
-                      .map_or(false, |other_value| value.is_same_as(other_value))
+                      .get(key).is_some_and(|other_value| value.is_same_as(other_value))
               })
           })
     }

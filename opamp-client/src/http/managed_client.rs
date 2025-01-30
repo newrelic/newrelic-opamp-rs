@@ -130,12 +130,12 @@ impl Notifier {
     /// Notify the receiver. Prints a warning if the receiver is disconnected.
     pub fn notify_or_warn(&self) {
         match self.sender.try_send(()) {
-            Ok(_) => {}
+            Ok(()) => {}
             // if the channel is full, it means that there is already a notification pending to be read.
-            Err(TrySendError::Full(_)) => {
+            Err(TrySendError::Full(())) => {
                 trace!("{} already notified", self.name);
             }
-            Err(TrySendError::Disconnected(_)) => {
+            Err(TrySendError::Disconnected(())) => {
                 warn!("{} notification channel disconnected", self.name);
             }
         }
