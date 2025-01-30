@@ -16,6 +16,8 @@ use tracing::{debug, error};
 
 /// UnManagedClient is a trait for clients that do not manage their own polling.
 pub trait UnManagedClient: Client {
+    /// Executes a complete roundtrip of the opamp protocol.
+    /// Sends a AgentToServer message, receives a ServerToAgent message, and processes it.
     fn poll(&self) -> ClientResult<()>;
 }
 

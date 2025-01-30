@@ -3,14 +3,14 @@
 use crossbeam::channel::{bounded, select_biased, tick, Receiver, Sender, TrySendError};
 use std::{
     sync::Arc,
-    thread::{spawn, JoinHandle},
+    thread::{sleep, spawn, JoinHandle},
     time::Duration,
 };
 use tracing::{trace, warn};
 
 use crate::{
     opamp::proto::{CustomCapabilities, RemoteConfigStatus},
-    ClientError, StartedClient, StartedClientError, StartedClientResult,
+    StartedClient, StartedClientError, StartedClientResult,
 };
 use crate::{
     operation::{callbacks::Callbacks, settings::StartSettings},
@@ -23,8 +23,10 @@ use super::{
 };
 
 // Default and minimum interval for OpAMP
-static DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
-static MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(1);
+const DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
+const MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(1);
+// Minimum time between polls in case of multiple notifications to close to each other
+const DEFAULT_MINIMUM_DURATION_BETWEEN_POLL: Duration = Duration::from_secs(5);
 
 /// NotStartedHttpClient implements the NotStartedClient trait for HTTP.
 pub struct NotStartedHttpClient<C>
@@ -33,6 +35,7 @@ where
 {
     opamp_client: Arc<C>,
     poll_interval: Duration,
+    min_duration_between_poll: Duration,
     has_pending_msg: Receiver<()>,
 }
 /// An HttpClient that frequently polls for OpAMP remote updates in a background thread
@@ -75,6 +78,7 @@ where
         Ok(NotStartedHttpClient {
             opamp_client,
             poll_interval: DEFAULT_POLLING_INTERVAL,
+            min_duration_between_poll: DEFAULT_MINIMUM_DURATION_BETWEEN_POLL,
             has_pending_msg,
         })
     }
@@ -97,8 +101,16 @@ where
             interval
         };
 
+        // make sure that the minimum duration between polls is less than the interval
+        let min_duration_between_poll = if interval.le(&DEFAULT_MINIMUM_DURATION_BETWEEN_POLL) {
+            MINIMUM_POLLING_INTERVAL
+        } else {
+            DEFAULT_MINIMUM_DURATION_BETWEEN_POLL
+        };
+
         NotStartedHttpClient {
             poll_interval: interval,
+            min_duration_between_poll,
             ..self
         }
     }
@@ -165,6 +177,9 @@ where
 
                             // reset the ticker so next status report is sent after the interval
                             status_report_ticker = tick(self.poll_interval);
+
+                            // wait for the minimum duration between polls
+                            sleep(self.min_duration_between_poll);
                         }
                         recv(status_report_ticker) -> res => {
                             if let Err(err) = res {
@@ -253,7 +268,7 @@ mod tests {
     use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::{AgentDescription, AnyValue, KeyValue, ServerToAgent};
     use crate::operation::callbacks::tests::MockCallbacksMockall;
-    use crate::NotStartedClientError;
+    use crate::{ClientError, NotStartedClientError};
     use assert_matches::assert_matches;
     use mockall::{predicate, Sequence};
     use std::ops::{Add, Div, Mul, Sub};
@@ -282,8 +297,27 @@ mod tests {
         )
         .unwrap();
         assert_eq!(opamp_client.poll_interval, DEFAULT_POLLING_INTERVAL);
+        assert_eq!(
+            opamp_client.min_duration_between_poll,
+            DEFAULT_MINIMUM_DURATION_BETWEEN_POLL
+        );
 
         // Bigger interval than minimum should be allowed
+        let new_interval = MINIMUM_POLLING_INTERVAL.add(DEFAULT_MINIMUM_DURATION_BETWEEN_POLL);
+        let opamp_client = NotStartedHttpClient::new(
+            http_mock(),
+            MockCallbacksMockall::new(),
+            StartSettings::default(),
+        )
+        .unwrap()
+        .with_interval(new_interval);
+        assert_eq!(opamp_client.poll_interval, new_interval);
+        assert_eq!(
+            opamp_client.min_duration_between_poll,
+            DEFAULT_MINIMUM_DURATION_BETWEEN_POLL
+        );
+
+        // Interval smaller that backoff time should be limited to backoff time
         let new_interval = MINIMUM_POLLING_INTERVAL.add(Duration::from_secs(1));
         let opamp_client = NotStartedHttpClient::new(
             http_mock(),
@@ -293,6 +327,10 @@ mod tests {
         .unwrap()
         .with_interval(new_interval);
         assert_eq!(opamp_client.poll_interval, new_interval);
+        assert_eq!(
+            opamp_client.min_duration_between_poll,
+            MINIMUM_POLLING_INTERVAL
+        );
 
         // Smaller interval than minimum should not be allowed
         let new_interval = MINIMUM_POLLING_INTERVAL.sub(Duration::from_secs(1));
@@ -317,6 +355,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap_err();
@@ -350,6 +389,7 @@ mod tests {
         let started_client = NotStartedHttpClient {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
+            min_duration_between_poll: Duration::ZERO,
             has_pending_msg,
         }
         .start()
@@ -379,6 +419,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: Duration::from_millis(100),
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -406,6 +447,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -425,6 +467,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: SENDING_MESSAGE_TIME,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -450,6 +493,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -479,6 +523,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -498,6 +543,33 @@ mod tests {
         started_client.stop().unwrap();
     }
     #[test]
+    fn test_next_message_backoff() {
+        let (pending_msg_notifier, has_pending_msg) = Notifier::new("msg".to_string());
+        let mut opamp_client = MockUnmanagedClientMockall::new();
+
+        // first message + 1 notification , no status message
+        opamp_client.expect_poll().times(1 + 1).returning(|| Ok(()));
+
+        let min_duration_between_poll = SENDING_MESSAGE_TIME.mul(10);
+        let started_client = NotStartedHttpClient {
+            opamp_client: Arc::new(opamp_client),
+            poll_interval: DISABLE_POLLING,
+            has_pending_msg,
+            min_duration_between_poll,
+        }
+        .start()
+        .unwrap();
+
+        // spread notifications over the backoff time should more than 1 poll
+        for _ in 0..9 {
+            pending_msg_notifier.notify_or_warn();
+            sleep(SENDING_MESSAGE_TIME);
+        }
+
+        // Verify that the thread didn't panic
+        started_client.stop().unwrap();
+    }
+    #[test]
     fn test_interval_reset_after_pending_msg() {
         let (pending_msg_notifier, has_pending_msg) = Notifier::new("msg".to_string());
         let mut opamp_client = MockUnmanagedClientMockall::new();
@@ -509,6 +581,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: Duration::from_millis(100),
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -522,6 +595,7 @@ mod tests {
         // Verify that the thread didn't panic
         started_client.stop().unwrap();
     }
+
     //    TEST CLIENT METHODS
     #[test]
     fn test_set_health() {
@@ -545,6 +619,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -576,6 +651,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -607,6 +683,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -651,6 +728,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
@@ -682,6 +760,7 @@ mod tests {
             opamp_client: Arc::new(opamp_client),
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
         }
         .start()
         .unwrap();
