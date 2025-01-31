@@ -13,12 +13,12 @@ tracing-test.workspace = true
 ureq = { workspace = true, features = ["http-interop"] }
 assert_matches.workspace = true
 rand.workspace = true
+url.workspace = true
 
 [dependencies]
 crossbeam = { workspace = true, features = ["crossbeam-channel"] }
 prost.workspace = true
 thiserror.workspace = true
-url.workspace = true
 tracing.workspace = true
 http.workspace = true
 libflate.workspace = true
