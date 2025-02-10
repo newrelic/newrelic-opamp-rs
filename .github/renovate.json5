@@ -1,0 +1,26 @@
+{
+  "extends": [
+    "config:base",
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "enabledManagers": [
+    "cargo",
+  ],
+  "prConcurrentLimit": 0,
+  "printConfig": true,
+  "prHourlyLimit": 0,
+  "packageRules": [
+    {
+      "managers": [
+        "cargo"
+      ],
+      "updateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "minor and patch updates"
+    }
+  ],
+}
