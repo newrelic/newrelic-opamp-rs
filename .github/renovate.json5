@@ -8,6 +8,7 @@
   "enabledManagers": [
     "cargo",
   ],
+  "rangeStrategy": "bump",
   "prConcurrentLimit": 0,
   "printConfig": true,
   "prHourlyLimit": 0,
