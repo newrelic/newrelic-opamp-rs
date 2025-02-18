@@ -29,7 +29,7 @@ pub struct MessageData {
     /// Logging connection settings offered by the Server.
     pub own_logs: Option<TelemetryConnectionSettings>,
     /// Other connection settings offered by the Server.
-    pub other_connection_settings: Option<HashMap<String, OtherConnectionSettings>>,
+    pub other_connection_settings: HashMap<String, OtherConnectionSettings>,
 
     /// agent_identification indicates a new identification received from the Server.
     /// The Agent must save this identification and use it in the future instantiations

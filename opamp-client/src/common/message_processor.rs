@@ -212,7 +212,7 @@ type ConnectionSettings = (
     Option<TelemetryConnectionSettings>,
     Option<TelemetryConnectionSettings>,
     Option<TelemetryConnectionSettings>,
-    Option<HashMap<String, OtherConnectionSettings>>,
+    HashMap<String, OtherConnectionSettings>,
 );
 
 // A helper function that extracts the telemetry connection settings based on agent capabilities.
@@ -220,25 +220,26 @@ fn get_telemetry_connection_settings(
     settings: Option<ConnectionSettingsOffers>,
     capabilities: &Capabilities,
 ) -> ConnectionSettings {
-    if let Some(s) = settings {
-        (
-            s.own_metrics
-                .filter(|_| report_capability("own_metrics", capabilities, ReportsOwnMetrics)),
-            s.own_traces
-                .filter(|_| report_capability("own_traces", capabilities, ReportsOwnTraces)),
-            s.own_logs
-                .filter(|_| report_capability("own_logs", capabilities, ReportsOwnLogs)),
-            Some(s.other_connections).filter(|_| {
-                report_capability(
-                    "other_connections",
-                    capabilities,
-                    AcceptsOtherConnectionSettings,
-                )
-            }),
-        )
-    } else {
-        (None, None, None, None)
-    }
+    let Some(s) = settings else {
+        return ConnectionSettings::default();
+    };
+    (
+        s.own_metrics
+            .filter(|_| report_capability("own_metrics", capabilities, ReportsOwnMetrics)),
+        s.own_traces
+            .filter(|_| report_capability("own_traces", capabilities, ReportsOwnTraces)),
+        s.own_logs
+            .filter(|_| report_capability("own_logs", capabilities, ReportsOwnLogs)),
+        if report_capability(
+            "other_connections",
+            capabilities,
+            AcceptsOtherConnectionSettings,
+        ) {
+            s.other_connections
+        } else {
+            HashMap::default()
+        },
+    )
 }
 
 #[cfg(test)]
@@ -438,7 +439,7 @@ mod tests {
         assert_eq!(message_data.own_metrics, None);
         assert_eq!(message_data.own_traces, None);
         assert_eq!(message_data.own_logs, None);
-        assert_eq!(message_data.other_connection_settings, None);
+        assert_eq!(message_data.other_connection_settings, HashMap::default());
         assert_eq!(message_data.agent_identification, None);
     }
 
@@ -462,7 +463,7 @@ mod tests {
         assert_eq!(message_data.own_metrics, None);
         assert_eq!(message_data.own_traces, None);
         assert_eq!(message_data.own_logs, None);
-        assert_eq!(message_data.other_connection_settings, None);
+        assert_eq!(message_data.other_connection_settings, HashMap::default());
         assert_eq!(
             message_data.agent_identification,
             Some(AgentIdentification {
@@ -491,7 +492,7 @@ mod tests {
         assert_eq!(message_data.own_metrics, None);
         assert_eq!(message_data.own_traces, None);
         assert_eq!(message_data.own_logs, None);
-        assert_eq!(message_data.other_connection_settings, None);
+        assert_eq!(message_data.other_connection_settings, HashMap::default());
         assert_eq!(message_data.agent_identification, None);
     }
 
@@ -510,7 +511,7 @@ mod tests {
             Some(TelemetryConnectionSettings::default()),
             None,
             None,
-            None,
+            HashMap::default(),
         );
         assert_eq!(
             get_telemetry_connection_settings(settings, &capabilities),
@@ -533,7 +534,7 @@ mod tests {
             None,
             Some(TelemetryConnectionSettings::default()),
             None,
-            None,
+            HashMap::default(),
         );
         assert_eq!(
             get_telemetry_connection_settings(settings, &capabilities),
@@ -556,7 +557,7 @@ mod tests {
             None,
             None,
             Some(TelemetryConnectionSettings::default()),
-            None,
+            HashMap::default(),
         );
         assert_eq!(
             get_telemetry_connection_settings(settings, &capabilities),
@@ -580,7 +581,7 @@ mod tests {
             other_connections: other_conn.clone(),
             ..Default::default()
         });
-        let expected = (None, None, None, Some(other_conn));
+        let expected = (None, None, None, other_conn);
         assert_eq!(
             get_telemetry_connection_settings(settings, &capabilities),
             expected
@@ -598,7 +599,7 @@ mod tests {
             other_connections: HashMap::default(),
             ..Default::default()
         });
-        let expected = (None, None, None, None);
+        let expected = (None, None, None, HashMap::default());
         assert_eq!(
             get_telemetry_connection_settings(settings, &capabilities),
             expected
@@ -607,7 +608,7 @@ mod tests {
         // Test with no settings
         let capabilities = capabilities!();
         let settings = None;
-        let expected = (None, None, None, None);
+        let expected = (None, None, None, HashMap::default());
         assert_eq!(
             get_telemetry_connection_settings(settings, &capabilities),
             expected
@@ -628,7 +629,7 @@ mod tests {
             Some(TelemetryConnectionSettings::default()),
             Some(TelemetryConnectionSettings::default()),
             Some(TelemetryConnectionSettings::default()),
-            None,
+            HashMap::default(),
         );
         assert_eq!(
             get_telemetry_connection_settings(settings, &capabilities),
