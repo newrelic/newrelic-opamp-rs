@@ -30,7 +30,7 @@ jobs:
         with:
           payload: |
             {
-              "text": ":x: Hi CAOS an OpAMP client release have just failed"
+              "text": ":x: Hi AC, an OpAMP client release has just failed"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook }}

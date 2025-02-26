@@ -46,7 +46,7 @@ jobs:
         with:
           payload: |
             {
-              "text": ":rotating_light: Hi CAOS (@hero), critical or high vulnerabilities found in the OpAMP client, see scheduled security action. :rotating_light:"
+              "text": ":rotating_light: Hi AC (@hero), critical or high vulnerabilities found in the OpAMP client, see scheduled security action. :rotating_light:"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook }}

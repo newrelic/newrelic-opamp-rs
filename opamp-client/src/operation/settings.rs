@@ -10,29 +10,29 @@ use crate::opamp::proto::{
 use super::capabilities::Capabilities;
 
 #[derive(Debug, PartialEq, Clone, Default)]
-/// Internal representation of the OpAMP AgentDescription: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message
+/// Internal representation of the OpAMP AgentDescription: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message>
 pub struct AgentDescription {
-    /// Attributes that identify the Agent. See: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescriptionidentifying_attributes
+    /// Attributes that identify the Agent. See: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescriptionidentifying_attributes>
     pub identifying_attributes: HashMap<String, DescriptionValueType>,
 
-    /// Attributes that do not necessarily identify the Agent but help describe where it runs. See: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescriptionnon_identifying_attributes
+    /// Attributes that do not necessarily identify the Agent but help describe where it runs. See: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescriptionnon_identifying_attributes>
     pub non_identifying_attributes: HashMap<String, DescriptionValueType>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 /// Values type mapping for the AgentDescription attributes
 pub enum DescriptionValueType {
-    /// String wrapper
+    /// `String` type variant
     String(String),
-    /// i64 wrapper
+    /// `i64` type variant
     Int(i64),
-    /// bool wrapper
+    /// `bool` type variant
     Bool(bool),
-    /// f64 wrapper
+    /// `f64` type variant
     Float(f64),
     // Array(Vec<DescType>),
     // Map(HashMap<String, DescType>),
-    /// Vec<u8> wrapper
+    /// `Vec<u8>` type variant, representing bytes
     Bytes(Vec<u8>),
 }
 
@@ -139,7 +139,7 @@ pub struct StartSettings {
     /// Custom capabilities the Agent has from the start.
     pub custom_capabilities: Option<CustomCapabilities>,
 
-    /// Agent's description: https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message
+    /// Agent's description: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message>
     pub agent_description: AgentDescription,
 }
 
