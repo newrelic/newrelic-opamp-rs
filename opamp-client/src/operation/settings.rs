@@ -7,7 +7,7 @@ use crate::opamp::proto::{
     KeyValue,
 };
 
-use super::capabilities::Capabilities;
+use super::{capabilities::Capabilities, instance_uid::InstanceUid};
 
 #[derive(Debug, PartialEq, Clone, Default)]
 /// Internal representation of the OpAMP AgentDescription: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message>
@@ -127,10 +127,10 @@ fn populate_agent_description(attrs: HashMap<String, DescriptionValueType>) -> V
 }
 
 /// StartSettings defines the parameters for starting the OpAMP Client.
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq)]
 pub struct StartSettings {
-    /// Agent information.
-    pub instance_id: Vec<u8>,
+    /// Agent identifier: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agenttoserverinstance_uid>
+    pub instance_uid: InstanceUid,
 
     /// Defines the capabilities of the Agent. AgentCapabilities_ReportsStatus bit does not need to
     /// be set in this field, it will be set automatically since it is required by OpAMP protocol.
@@ -141,6 +141,18 @@ pub struct StartSettings {
 
     /// Agent's description: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message>
     pub agent_description: AgentDescription,
+}
+
+/// The default implementation creates a new instance_id
+impl Default for StartSettings {
+    fn default() -> Self {
+        Self {
+            instance_uid: InstanceUid::create(),
+            capabilities: Default::default(),
+            custom_capabilities: Default::default(),
+            agent_description: Default::default(),
+        }
+    }
 }
 
 #[cfg(test)]

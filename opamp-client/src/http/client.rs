@@ -33,6 +33,7 @@ where
     synced_state: ClientSyncedState,
     capabilities: Capabilities,
     pending_msg: Notifier,
+    instance_uid: String,
 }
 
 /// OpAMPHttpClient synchronous HTTP implementation of the Client trait.
@@ -58,12 +59,13 @@ where
         if let Some(custom_capabilities) = start_settings.custom_capabilities {
             synced_state.set_custom_capabilities(custom_capabilities)?;
         }
+        let instance_uid = start_settings.instance_uid.to_string();
 
         Ok(Self {
             sender: HttpSender::new(http_client),
             callbacks,
             message: Arc::new(RwLock::new(NextMessage::new(AgentToServer {
-                instance_uid: start_settings.instance_id,
+                instance_uid: start_settings.instance_uid.into(),
                 agent_description: Some(start_settings.agent_description.into()),
                 capabilities: u64::from(start_settings.capabilities),
                 ..Default::default()
@@ -71,6 +73,7 @@ where
             synced_state,
             capabilities: start_settings.capabilities,
             pending_msg,
+            instance_uid,
         })
     }
 }
@@ -100,7 +103,7 @@ where
             .write()
             .map_err(|_| ClientError::PoisonError)?
             .pop();
-        trace!("Send payload: {:?}", msg);
+        trace!(instance_uid = self.instance_uid, "Send payload: {:?}", msg);
         let server_to_agent = self.sender.send(msg).map_err(|e| {
             let err_msg = e.to_string();
             self.callbacks.on_connect_failed(e.into());
@@ -110,7 +113,11 @@ where
         // We consider it connected if we receive 2XX status from the Server.
         self.callbacks.on_connect();
 
-        trace!("Received payload: {:?}", server_to_agent);
+        trace!(
+            instance_uid = self.instance_uid,
+            "Received payload: {:?}",
+            server_to_agent
+        );
 
         if let ProcessResult::NeedsResend = crate::common::message_processor::process_message(
             server_to_agent,
@@ -139,13 +146,16 @@ where
                 msg.agent_disconnect = Some(AgentDisconnect::default());
 
                 let _ = self.sender.send(msg).inspect_err(|err| {
-                    error!(%err, "Sending disconnect OpAMP message");
+                    error!(%err, instance_id=self.instance_uid, "Sending disconnect OpAMP message");
                 });
 
-                debug!("OpAMPHttpClient disconnected from server");
+                debug!(
+                    instance_uid = self.instance_uid,
+                    "OpAMPHttpClient disconnected from server"
+                );
             }
             Err(err) => {
-                error!(%err,"Assembling disconnect OpAMP message");
+                error!(%err, instance_id=self.instance_uid, "Assembling disconnect OpAMP message");
             }
         };
     }
@@ -179,7 +189,10 @@ where
                 msg.agent_description = Some(description);
             });
 
-        debug!("sending AgentToServer with provided description");
+        debug!(
+            instance_uid = self.instance_uid,
+            "sending AgentToServer with provided description"
+        );
         self.pending_msg.notify_or_warn();
         Ok(())
     }
@@ -215,7 +228,10 @@ where
                 msg.health = Some(health);
             });
 
-        debug!("sending AgentToServer with provided health");
+        debug!(
+            instance_uid = self.instance_uid,
+            "sending AgentToServer with provided health"
+        );
         self.pending_msg.notify_or_warn();
         Ok(())
     }
@@ -243,7 +259,10 @@ where
                 msg.effective_config = Some(config);
             });
 
-        debug!("sending AgentToServer with fetched effective config");
+        debug!(
+            instance_uid = self.instance_uid,
+            "sending AgentToServer with fetched effective config"
+        );
         self.pending_msg.notify_or_warn();
         Ok(())
     }
@@ -274,7 +293,10 @@ where
                 msg.remote_config_status = Some(status);
             });
 
-        debug!("sending AgentToServer with remote");
+        debug!(
+            instance_uid = self.instance_uid,
+            "sending AgentToServer with remote"
+        );
         self.pending_msg.notify_or_warn();
         Ok(())
     }
@@ -296,7 +318,10 @@ where
                 msg.custom_capabilities = Some(custom_capabilities);
             });
 
-        debug!("sending AgentToServer with custom capabilities");
+        debug!(
+            instance_uid = self.instance_uid,
+            "sending AgentToServer with custom capabilities"
+        );
         self.pending_msg.notify_or_warn();
         Ok(())
     }
@@ -409,7 +434,6 @@ pub(crate) mod tests {
         );
 
         let settings = StartSettings {
-            instance_id: "NOT_AN_UID".into(),
             capabilities: capabilities!(
                 AgentCapabilities::ReportsEffectiveConfig,
                 AgentCapabilities::ReportsHealth,
@@ -420,6 +444,7 @@ pub(crate) mod tests {
                 identifying_attributes: description.clone(),
                 non_identifying_attributes: description.clone(),
             },
+            ..Default::default()
         };
         let (pending_msg, _) = Notifier::new("msg".to_string());
         let client =
@@ -566,7 +591,6 @@ pub(crate) mod tests {
             .returning(|| Ok(EffectiveConfig::default()));
 
         let settings = StartSettings {
-            instance_id: "fake".into(),
             capabilities: capabilities!(
                 AgentCapabilities::ReportsEffectiveConfig,
                 AgentCapabilities::ReportsHealth,
@@ -669,7 +693,6 @@ pub(crate) mod tests {
         mock_callbacks.should_on_connect_failed();
 
         let settings = StartSettings {
-            instance_id: "NOT_AN_UID".into(),
             capabilities: capabilities!(AgentCapabilities::ReportsRemoteConfig),
             ..Default::default()
         };
@@ -711,9 +734,11 @@ pub(crate) mod tests {
         });
 
         let (pending_msg, _) = Notifier::new("msg".to_string());
+        let start_settings = StartSettings::default();
+        let instance_uid = start_settings.instance_uid.clone();
         let client = OpAMPHttpClient::new(
             MockCallbacksMockall::new(),
-            StartSettings::default(),
+            start_settings,
             mock_client,
             pending_msg,
         )
@@ -722,6 +747,7 @@ pub(crate) mod tests {
         drop(client);
 
         assert!(logs_contain("OpAMPHttpClient disconnected from server"));
+        assert!(logs_contain(instance_uid.to_string().as_str()));
     }
     #[traced_test]
     #[test]

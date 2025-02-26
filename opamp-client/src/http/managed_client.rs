@@ -37,6 +37,7 @@ where
     poll_interval: Duration,
     min_duration_between_poll: Duration,
     has_pending_msg: Receiver<()>,
+    instance_uid: String,
 }
 /// An HttpClient that frequently polls for OpAMP remote updates in a background thread
 /// using HTTP transport for connections.
@@ -68,6 +69,8 @@ where
     ) -> NotStartedClientResult<Self> {
         let (pending_msg_notifier, has_pending_msg) = Notifier::new("pending_msg".to_string());
 
+        let instance_uid = start_settings.instance_uid.to_string();
+
         let opamp_client: Arc<OpAMPHttpClient<CB, HC>> = Arc::new(OpAMPHttpClient::new(
             callbacks,
             start_settings,
@@ -75,11 +78,12 @@ where
             pending_msg_notifier,
         )?);
 
-        Ok(NotStartedHttpClient {
+        Ok(Self {
             opamp_client,
             poll_interval: DEFAULT_POLLING_INTERVAL,
             min_duration_between_poll: DEFAULT_MINIMUM_DURATION_BETWEEN_POLL,
             has_pending_msg,
+            instance_uid,
         })
     }
 
@@ -150,7 +154,10 @@ where
 
     fn start(self) -> NotStartedClientResult<Self::StartedClient> {
         // use poll method to send an initial message
-        debug!("sending first AgentToServer message");
+        debug!(
+            instance_uid = self.instance_uid,
+            "sending first AgentToServer message"
+        );
         self.opamp_client.poll()?;
 
         let (shutdown_notifier, exit) = Notifier::new("shut_down".to_string());
@@ -162,18 +169,18 @@ where
                 loop {
                     select_biased! {
                         recv(exit) -> _ => {
-                            debug!("gracefully shutting down the polling task");
+                            debug!(instance_uid=self.instance_uid, "gracefully shutting down the polling task");
                             break;
                         }
                         recv(self.has_pending_msg) -> res => {
                             if let Err(err) = res {
-                                error!(%err, "Pending message channel error");
+                                error!(%err, instance_uid=self.instance_uid, "Pending message channel error");
                                 break;
                             }
-                            debug!("sending requested AgentToServer message");
+                            debug!(instance_uid=self.instance_uid, "sending requested AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| error!(%err, "Error while polling message"));
+                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "Error while polling message"));
 
                             // reset the ticker so next status report is sent after the interval
                             status_report_ticker = tick(self.poll_interval);
@@ -183,17 +190,17 @@ where
                         }
                         recv(status_report_ticker) -> res => {
                             if let Err(err) = res {
-                                error!(%err, "Poll interval ticker error");
+                                error!(%err, instance_uid=self.instance_uid, "Poll interval ticker error");
                                 break;
                             }
-                            debug!("sending scheduled status report AgentToServer message");
+                            debug!(instance_uid=self.instance_uid, "sending scheduled status report AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| error!(%err, "Error while polling message"));
+                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "Error while polling message"));
                         }
                     }
                 }
-                debug!("polling task stopped");
+                debug!(instance_uid = self.instance_uid, "polling task stopped");
             }
         });
         Ok(StartedHttpClient {
@@ -356,6 +363,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap_err();
@@ -391,6 +399,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             min_duration_between_poll: Duration::ZERO,
             has_pending_msg,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -420,6 +429,7 @@ mod tests {
             poll_interval: Duration::from_millis(100),
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -448,6 +458,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -468,6 +479,7 @@ mod tests {
             poll_interval: SENDING_MESSAGE_TIME,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -494,6 +506,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -524,6 +537,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -556,6 +570,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -582,6 +597,7 @@ mod tests {
             poll_interval: Duration::from_millis(100),
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -620,6 +636,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -652,6 +669,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -684,6 +702,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -729,6 +748,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
@@ -761,6 +781,7 @@ mod tests {
             poll_interval: DISABLE_POLLING,
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
         }
         .start()
         .unwrap();
