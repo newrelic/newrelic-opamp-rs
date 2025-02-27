@@ -149,10 +149,13 @@ impl Notifier {
             Ok(()) => {}
             // if the channel is full, it means that there is already a notification pending to be read.
             Err(TrySendError::Full(())) => {
-                trace!("{} already notified", self.name);
+                trace!(notifier_name = self.name, "channel full, already notified");
             }
             Err(TrySendError::Disconnected(())) => {
-                warn!("{} notification channel disconnected", self.name);
+                warn!(
+                    notifier_name = self.name,
+                    "notification channel disconnected",
+                );
             }
         }
     }
@@ -168,13 +171,13 @@ where
         // use poll method to send an initial message
         debug!(
             instance_uid = self.instance_uid,
-            "Sending first AgentToServer message"
+            "sending first AgentToServer message"
         );
         if let Err(err) = self.opamp_client.poll() {
             if self.perform_startup_check {
                 return Err(err.into());
             }
-            error!(%err, instance_uid = self.instance_uid, "Error sending first AgentToServer message");
+            error!(%err, instance_uid = self.instance_uid, "error sending first AgentToServer message");
         }
 
         let (shutdown_notifier, exit) = Notifier::new("shut_down".to_string());
@@ -191,13 +194,13 @@ where
                         }
                         recv(self.has_pending_msg) -> res => {
                             if let Err(err) = res {
-                                error!(%err, instance_uid=self.instance_uid, "Pending message channel error");
+                                error!(%err, instance_uid=self.instance_uid, "pending message channel error");
                                 break;
                             }
                             debug!(instance_uid=self.instance_uid, "sending requested AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "Error while polling message"));
+                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "error while polling message"));
 
                             // reset the ticker so next status report is sent after the interval
                             status_report_ticker = tick(self.poll_interval);
@@ -207,13 +210,13 @@ where
                         }
                         recv(status_report_ticker) -> res => {
                             if let Err(err) = res {
-                                error!(%err, instance_uid=self.instance_uid, "Poll interval ticker error");
+                                error!(%err, instance_uid=self.instance_uid, "poll interval ticker error");
                                 break;
                             }
                             debug!(instance_uid=self.instance_uid, "sending scheduled status report AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "Error while polling message"));
+                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "error while polling message"));
                         }
                     }
                 }

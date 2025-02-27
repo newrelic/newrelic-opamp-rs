@@ -146,7 +146,7 @@ where
                 msg.agent_disconnect = Some(AgentDisconnect::default());
 
                 let _ = self.sender.send(msg).inspect_err(|err| {
-                    error!(%err, instance_id=self.instance_uid, "Sending disconnect OpAMP message");
+                    error!(%err, instance_id=self.instance_uid, "sending disconnect OpAMP message");
                 });
 
                 debug!(
@@ -155,7 +155,7 @@ where
                 );
             }
             Err(err) => {
-                error!(%err, instance_id=self.instance_uid, "Assembling disconnect OpAMP message");
+                error!(%err, instance_id=self.instance_uid, "assembling disconnect OpAMP message");
             }
         };
     }

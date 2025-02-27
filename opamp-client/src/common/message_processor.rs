@@ -99,7 +99,7 @@ pub(crate) fn process_message<C: Callbacks>(
     // }
 
     if let Some(err) = msg.error_response {
-        error!(?err, "Received an error from server");
+        error!(?err, "received an error from server");
     }
 
     rcv_flags(synced_state, msg.flags, next_message, callbacks)
@@ -131,7 +131,7 @@ fn rcv_flags<C: Callbacks>(
                 msg.package_statuses = package_statuses;
                 msg.effective_config = callbacks
                     .get_effective_config()
-                    .inspect_err(|err| error!(%err, "Cannot get effective config"))
+                    .inspect_err(|err| error!(%err, "cannot get effective config"))
                     .ok();
             });
         Ok(ProcessResult::NeedsResend)
@@ -172,7 +172,7 @@ fn message_data(
     let agent_identification = msg.agent_identification.clone().filter(|id| {
         let is_empty_string = id.new_instance_uid.is_empty();
         if is_empty_string {
-            debug!("Empty instance UID is not allowed. Ignoring agent identification.");
+            debug!("empty instance UID is not allowed. Ignoring agent identification.");
         }
         !is_empty_string
     });
@@ -200,8 +200,9 @@ fn report_capability(
     let has_cap = capabilities.has_capability(capability);
     if !has_cap {
         debug!(
-            "Ignoring {opt_name}, agent does not have {} capability",
-            capability.as_str_name()
+            operation_name = opt_name,
+            capability = capability.as_str_name(),
+            "ignoring operation, agent does not have the required capability",
         );
     }
     has_cap
