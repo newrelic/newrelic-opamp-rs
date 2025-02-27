@@ -25,7 +25,7 @@ use super::{
 // Default and minimum interval for OpAMP
 const DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
 const MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(1);
-// Minimum time between polls in case of multiple notifications to close to each other
+// Minimum time between polls in case of multiple notifications too close to each other
 const DEFAULT_MINIMUM_DURATION_BETWEEN_POLL: Duration = Duration::from_secs(5);
 
 /// NotStartedHttpClient implements the NotStartedClient trait for HTTP.
@@ -38,6 +38,7 @@ where
     min_duration_between_poll: Duration,
     has_pending_msg: Receiver<()>,
     instance_uid: String,
+    perform_startup_check: bool,
 }
 /// An HttpClient that frequently polls for OpAMP remote updates in a background thread
 /// using HTTP transport for connections.
@@ -84,6 +85,7 @@ where
             min_duration_between_poll: DEFAULT_MINIMUM_DURATION_BETWEEN_POLL,
             has_pending_msg,
             instance_uid,
+            perform_startup_check: true,
         })
     }
 
@@ -115,6 +117,16 @@ where
         NotStartedHttpClient {
             poll_interval: interval,
             min_duration_between_poll,
+            ..self
+        }
+    }
+
+    /// Returns a new instance with the startup check disabled. The client's start method will not fail if
+    /// there is an error sending the first message. As a result, the client will keep trying to send messages
+    /// as scheduled according the polling interval or as requested due any status change.
+    pub fn with_startup_check_disabled(self) -> Self {
+        Self {
+            perform_startup_check: false,
             ..self
         }
     }
@@ -156,9 +168,14 @@ where
         // use poll method to send an initial message
         debug!(
             instance_uid = self.instance_uid,
-            "sending first AgentToServer message"
+            "Sending first AgentToServer message"
         );
-        self.opamp_client.poll()?;
+        if let Err(err) = self.opamp_client.poll() {
+            if self.perform_startup_check {
+                return Err(err.into());
+            }
+            error!(%err, instance_uid = self.instance_uid, "Error sending first AgentToServer message");
+        }
 
         let (shutdown_notifier, exit) = Notifier::new("shut_down".to_string());
 
@@ -296,7 +313,7 @@ mod tests {
             http_client
         }
 
-        // Default interval
+        // Defaults
         let opamp_client = NotStartedHttpClient::new(
             http_mock(),
             MockCallbacksMockall::new(),
@@ -308,6 +325,7 @@ mod tests {
             opamp_client.min_duration_between_poll,
             DEFAULT_MINIMUM_DURATION_BETWEEN_POLL
         );
+        assert!(opamp_client.perform_startup_check);
 
         // Bigger interval than minimum should be allowed
         let new_interval = MINIMUM_POLLING_INTERVAL.add(DEFAULT_MINIMUM_DURATION_BETWEEN_POLL);
@@ -349,6 +367,16 @@ mod tests {
         .unwrap()
         .with_interval(new_interval);
         assert_eq!(opamp_client.poll_interval, MINIMUM_POLLING_INTERVAL);
+
+        // Disable startup check
+        let opamp_client = NotStartedHttpClient::new(
+            http_mock(),
+            MockCallbacksMockall::new(),
+            StartSettings::default(),
+        )
+        .unwrap()
+        .with_startup_check_disabled();
+        assert!(!opamp_client.perform_startup_check);
     }
     #[test]
     fn test_first_message_fails() {
@@ -364,11 +392,34 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap_err();
 
         assert_matches!(err, NotStartedClientError::ClientError(_));
+    }
+    #[test]
+    fn test_first_message_fails_with_startup_check_disabled() {
+        let (_pending_msg_notifier, has_pending_msg) = Notifier::new("msg".to_string());
+        let mut opamp_client = MockUnmanagedClientMockall::new();
+        opamp_client
+            .expect_poll()
+            .returning(|| Err(ClientError::PoisonError));
+
+        let started_client = NotStartedHttpClient {
+            opamp_client: Arc::new(opamp_client),
+            poll_interval: DISABLE_POLLING,
+            has_pending_msg,
+            min_duration_between_poll: Duration::ZERO,
+            instance_uid: "instance_uid".to_string(),
+            perform_startup_check: false,
+        }
+        .start()
+        .expect("Start should not fail");
+
+        // Verify that the thread didn't panic
+        started_client.stop().unwrap();
     }
     #[test]
     fn test_failed_poll_do_not_stop_the_client() {
@@ -400,6 +451,7 @@ mod tests {
             min_duration_between_poll: Duration::ZERO,
             has_pending_msg,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -430,6 +482,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -459,6 +512,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -480,6 +534,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -507,6 +562,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -538,6 +594,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -571,6 +628,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -598,6 +656,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -637,6 +696,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -670,6 +730,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -703,6 +764,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -749,6 +811,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
@@ -782,6 +845,7 @@ mod tests {
             has_pending_msg,
             min_duration_between_poll: Duration::ZERO,
             instance_uid: "instance_uid".to_string(),
+            perform_startup_check: true,
         }
         .start()
         .unwrap();
