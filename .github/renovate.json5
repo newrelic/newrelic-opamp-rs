@@ -8,7 +8,7 @@
   "enabledManagers": [
     "cargo",
   ],
-  "rangeStrategy": "bump",
+  "rangeStrategy": "auto", // See <https://docs.renovatebot.com/configuration-options/#rangestrategy>
   "prConcurrentLimit": 0,
   "printConfig": true,
   "prHourlyLimit": 0,
