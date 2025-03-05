@@ -31,7 +31,7 @@ where
     // Sends an AgentToServer message using the HttpSender and returns an optional ServerToAgent message as a result.
     pub(super) fn send(&self, msg: AgentToServer) -> OpampSenderResult<ServerToAgent> {
         // Serialize the message to bytes
-        let bytes = encode_message(&self.compressor, msg)?;
+        let bytes = encode_message(&self.compressor, &msg)?;
 
         let response = self.client.post(bytes)?;
 
@@ -94,7 +94,7 @@ mod tests {
         let expected_err = CompressorError::UnsupportedEncoding("unsupported".to_string());
         match res.unwrap_err() {
             HttpClientError::CompressionError(e) => assert_eq!(expected_err, e),
-            err => panic!("Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {}", err)
+            err => panic!("Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {err}")
         }
     }
 
@@ -119,20 +119,20 @@ mod tests {
                 assert_eq!(StatusCode::FORBIDDEN, status_code);
                 assert_eq!("Forbidden".to_string(), message);
             }
-            err => panic!("Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {}", err)
+            err => panic!("Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {err}")
         }
     }
 
     #[test]
     fn assert_message_is_decoded() {
         let mut buf = vec![];
-        let body = r#"
+        let body = r"
 staging: true
 license_key: F4K3L1C3NS3-0N3
 custom_attributes:
   environment: test
   test: ulid-bug-3-removed-9
-"#;
+";
 
         let server_to_agent = ServerToAgent {
             instance_uid: "N0L1C3NS3INV3NT3D".into(),
@@ -173,6 +173,6 @@ custom_attributes:
         let sender = HttpSender::new(http_client);
         let res = sender.send(AgentToServer::default());
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), server_to_agent)
+        assert_eq!(res.unwrap(), server_to_agent);
     }
 }

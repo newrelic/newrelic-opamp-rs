@@ -192,7 +192,7 @@ mod tests {
     fn health_unchanged() {
         let expected_health = ComponentHealth {
             healthy: true,
-            last_error: "".to_string(),
+            last_error: String::new(),
             ..Default::default()
         };
 
@@ -206,7 +206,7 @@ mod tests {
         let expected_remote_config_status = RemoteConfigStatus {
             last_remote_config_hash: vec![],
             status: 2,
-            error_message: "".to_string(),
+            error_message: String::new(),
         };
 
         let synced_state = ClientSyncedState::default();
@@ -223,14 +223,14 @@ mod tests {
         let health1 = ComponentHealth {
             healthy: true,
             status_time_unix_nano: 1,
-            last_error: "".to_string(),
+            last_error: String::new(),
             ..Default::default()
         };
 
         let health2 = ComponentHealth {
             healthy: true,
             status_time_unix_nano: 2,
-            last_error: "".to_string(),
+            last_error: String::new(),
             ..Default::default()
         };
 
@@ -242,13 +242,13 @@ mod tests {
         let health1 = ComponentHealth {
             healthy: true,
             status_time_unix_nano: 1,
-            last_error: "".to_string(),
+            last_error: String::new(),
             component_health_map: vec![(
                 "inner".to_string(),
                 ComponentHealth {
                     healthy: true,
                     status_time_unix_nano: 1,
-                    last_error: "".to_string(),
+                    last_error: String::new(),
                     ..Default::default()
                 },
             )]
@@ -260,13 +260,13 @@ mod tests {
         let health2 = ComponentHealth {
             healthy: true,
             status_time_unix_nano: 2,
-            last_error: "".to_string(),
+            last_error: String::new(),
             component_health_map: vec![(
                 "inner".to_string(),
                 ComponentHealth {
                     healthy: true,
                     status_time_unix_nano: 2,
-                    last_error: "".to_string(),
+                    last_error: String::new(),
                     ..Default::default()
                 },
             )]

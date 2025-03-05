@@ -14,14 +14,14 @@ use crate::{
 use super::{http_client::HttpClient, managed_client::Notifier, sender::HttpSender};
 use tracing::{debug, error, trace};
 
-/// UnManagedClient is a trait for clients that do not manage their own polling.
+/// `UnManagedClient` is a trait for clients that do not manage their own polling.
 pub trait UnManagedClient: Client {
     /// Executes a complete roundtrip of the opamp protocol.
-    /// Sends a AgentToServer message, receives a ServerToAgent message, and processes it.
+    /// Sends a `AgentToServer` message, receives a `ServerToAgent` message, and processes it.
     fn poll(&self) -> ClientResult<()>;
 }
 
-/// An implementation of an OpAMP Synchronous Client using HTTP transport with HttpClient.
+/// An implementation of an `OpAMP` Synchronous Client using HTTP transport with `HttpClient`.
 pub struct OpAMPHttpClient<C, L>
 where
     C: Callbacks + Send + Sync,
@@ -36,7 +36,7 @@ where
     instance_uid: String,
 }
 
-/// OpAMPHttpClient synchronous HTTP implementation of the Client trait.
+/// `OpAMPHttpClient` synchronous HTTP implementation of the Client trait.
 // If there is an error sending, the syncState should still be updated, we want it to be consistent
 // with the agent status, and we leave the responsibility to the OpAMP server to call ReportFullState
 // if it detects a gap on sequence numbers.
@@ -45,7 +45,7 @@ where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
 {
-    /// Initializes a new OpAMPHttpClient with the provided Callbacks, uid, Capabilities, and HttpClient.
+    /// Initializes a new `OpAMPHttpClient` with the provided Callbacks, uid, Capabilities, and `HttpClient`.
     pub(super) fn new(
         callbacks: C,
         start_settings: StartSettings,
@@ -123,11 +123,11 @@ where
             server_to_agent,
             &self.callbacks,
             &self.synced_state,
-            &self.capabilities,
+            self.capabilities,
             self.message.clone(),
         )? {
             self.pending_msg.notify_or_warn();
-        };
+        }
 
         Ok(())
     }
@@ -166,7 +166,7 @@ where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
 {
-    /// set_agent_description sets the agent description of the Agent.
+    /// `set_agent_description` sets the agent description of the Agent.
     // It uses compression and will only modify the message if there is a change.
     fn set_agent_description(
         &self,
@@ -196,7 +196,7 @@ where
         self.pending_msg.notify_or_warn();
         Ok(())
     }
-    /// get_agent_description returns the agent description from the synced state.
+    /// `get_agent_description` returns the agent description from the synced state.
     fn get_agent_description(&self) -> ClientResult<crate::opamp::proto::AgentDescription> {
         match self.synced_state.agent_description() {
             Ok(Some(description)) => Ok(description),
@@ -205,7 +205,7 @@ where
         }
     }
 
-    /// set_health sets the health status of the Agent.
+    /// `set_health` sets the health status of the Agent.
     // It uses compression and will only modify the message if there is a change.
     fn set_health(&self, health: crate::opamp::proto::ComponentHealth) -> ClientResult<()> {
         if !self
@@ -464,7 +464,7 @@ pub(crate) mod tests {
         let result = client.set_remote_config_status(RemoteConfigStatus {
             last_remote_config_hash: vec![],
             status: 2,
-            error_message: "".to_string(),
+            error_message: String::new(),
         });
         assert!(result.is_ok());
 
@@ -703,7 +703,7 @@ pub(crate) mod tests {
         let remote_config_status = RemoteConfigStatus {
             last_remote_config_hash: vec![],
             status: 2,
-            error_message: "".to_string(),
+            error_message: String::new(),
         };
         client
             .set_remote_config_status(remote_config_status.clone())

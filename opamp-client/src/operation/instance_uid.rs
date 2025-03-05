@@ -1,4 +1,4 @@
-//! Provide tools to represent and generate a valid instance_uid.
+//! Provide tools to represent and generate a valid `instance_uid`.
 //!
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};
@@ -109,7 +109,7 @@ mod tests {
         impl TestCase {
             fn run(self) {
                 let err = InstanceUid::try_from(self.uuid).unwrap_err();
-                assert_matches!(err, InstanceUidError::InvalidFormat(_))
+                assert_matches!(err, InstanceUidError::InvalidFormat(_));
             }
         }
         let test_cases = vec![

@@ -28,7 +28,7 @@ impl TryFrom<&[u8]> for Compressor {
             b"gzip" => Ok(Compressor::Gzip),
             val => match str::from_utf8(val) {
                 Ok(s) => Err(CompressorError::UnsupportedEncoding(s.to_string())),
-                Err(_) => Err(CompressorError::UnsupportedEncoding(format!("{:?}", val))),
+                Err(_) => Err(CompressorError::UnsupportedEncoding(format!("{val:?}"))),
             },
         }
     }
@@ -48,9 +48,9 @@ pub enum DecoderError {
     IO(#[from] io::Error),
 }
 
-/// encode_message encodes the provided message as a Protobuffer and compresses the result
+/// `encode_message` encodes the provided message as a Protobuffer and compresses the result
 /// with the provided algorithm
-pub(crate) fn encode_message<M>(comp: &Compressor, msg: M) -> Result<Vec<u8>, EncoderError>
+pub(crate) fn encode_message<M>(comp: &Compressor, msg: &M) -> Result<Vec<u8>, EncoderError>
 where
     M: Message,
 {
@@ -65,7 +65,7 @@ where
     }
 }
 
-/// decode_message extracts and decodes the Protobuffer message with the provided algorithm
+/// `decode_message` extracts and decodes the Protobuffer message with the provided algorithm
 pub(crate) fn decode_message<M>(comp: &Compressor, msg: &[u8]) -> Result<M, DecoderError>
 where
     M: Message + Default,
@@ -95,8 +95,8 @@ mod tests {
     fn empty_message() {
         let default_message = AgentToServer::default();
 
-        let gzip_data = encode_message(&Compressor::Gzip, default_message.clone()).unwrap();
-        let plain_data = encode_message(&Compressor::Plain, default_message.clone()).unwrap();
+        let gzip_data = encode_message(&Compressor::Gzip, &default_message).unwrap();
+        let plain_data = encode_message(&Compressor::Plain, &default_message).unwrap();
 
         // empty message with gzip contains gzip header
         assert!(gzip_data.len() > plain_data.len());
@@ -132,8 +132,8 @@ mod tests {
             }),
         });
 
-        let gzip_data = encode_message(&Compressor::Gzip, sample_message.clone()).unwrap();
-        let plain_data = encode_message(&Compressor::Plain, sample_message.clone()).unwrap();
+        let gzip_data = encode_message(&Compressor::Gzip, &sample_message).unwrap();
+        let plain_data = encode_message(&Compressor::Plain, &sample_message).unwrap();
 
         // big message should have smaller size with gzip compression
         assert!(gzip_data.len() < plain_data.len());

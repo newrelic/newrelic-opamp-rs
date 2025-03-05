@@ -9,8 +9,12 @@ use tracing::{debug, error};
 use crate::common::clientstate::{ClientSyncedState, SyncedStateError};
 use crate::{
     opamp::proto::{
-        AgentCapabilities::*, AgentToServer, ConnectionSettingsOffers, CustomCapabilities,
-        OtherConnectionSettings, ServerToAgent, ServerToAgentFlags, TelemetryConnectionSettings,
+        AgentCapabilities::{
+            AcceptsOtherConnectionSettings, AcceptsRemoteConfig, AcceptsRestartCommand,
+            ReportsOwnLogs, ReportsOwnMetrics, ReportsOwnTraces,
+        },
+        AgentToServer, ConnectionSettingsOffers, CustomCapabilities, OtherConnectionSettings,
+        ServerToAgent, ServerToAgentFlags, TelemetryConnectionSettings,
     },
     operation::{
         callbacks::{Callbacks, MessageData},
@@ -37,17 +41,17 @@ pub(crate) enum ProcessResult {
     NeedsResend,
 }
 
-/// Asynchronously parses a ServerToAgent message and calls the corresponding callbacks.
-/// A ServerToAgent message might ask for a new AgentToServer send, which will be reflected in
-/// ProcessResult::NeedsResend.
+/// Asynchronously parses a `ServerToAgent` message and calls the corresponding callbacks.
+/// A `ServerToAgent` message might ask for a new `AgentToServer` send, which will be reflected in
+/// `ProcessResult::NeedsResend`.
 ///
 /// # Arguments
 ///
-/// * `msg` - The ServerToAgent message.
+/// * `msg` - The `ServerToAgent` message.
 /// * `callbacks` - A reference to the `Callbacks` object containing user-provided callbacks.
 /// * `synced_state` - A reference to the `ClientSyncedState` object holding the client state.
 /// * `capabilities` - A reference to the `Capabilities` object that describes agent capabilities.
-/// * `next_message` - An Arc<RwLock<NextMessage>> containing the next message to send.
+/// * `next_message` - An `Arc<RwLock<NextMessage>>` containing the next message to send.
 ///
 /// # Returns
 ///
@@ -56,7 +60,7 @@ pub(crate) fn process_message<C: Callbacks>(
     msg: ServerToAgent,
     callbacks: &C,
     synced_state: &ClientSyncedState,
-    capabilities: &Capabilities,
+    capabilities: Capabilities,
     next_message: Arc<RwLock<NextMessage>>,
 ) -> Result<ProcessResult, ProcessError> {
     if msg
@@ -71,7 +75,7 @@ pub(crate) fn process_message<C: Callbacks>(
         .is_some()
     {
         return Ok(ProcessResult::Synced);
-    };
+    }
     let custom_capabilities = synced_state.custom_capabilities()?;
     let msg_data = message_data(&msg, capabilities, custom_capabilities);
 
@@ -143,7 +147,7 @@ fn rcv_flags<C: Callbacks>(
 // A helper function that returns a MessageData object containing relevant fields based on agent capabilities.
 fn message_data(
     msg: &ServerToAgent,
-    capabilities: &Capabilities,
+    capabilities: Capabilities,
     agent_custom_capabilities: Option<CustomCapabilities>,
 ) -> MessageData {
     let remote_config = msg
@@ -184,8 +188,8 @@ fn message_data(
         own_logs,
         other_connection_settings,
         agent_identification,
-        custom_message,
         custom_capabilities,
+        custom_message,
         // packages_available,
         // package_syncer,
     }
@@ -194,7 +198,7 @@ fn message_data(
 // A helper function checking if an agent has a specified capability and reports information accordingly.
 fn report_capability(
     opt_name: &str,
-    capabilities: &Capabilities,
+    capabilities: Capabilities,
     capability: AgentCapabilities,
 ) -> bool {
     let has_cap = capabilities.has_capability(capability);
@@ -219,7 +223,7 @@ type ConnectionSettings = (
 // A helper function that extracts the telemetry connection settings based on agent capabilities.
 fn get_telemetry_connection_settings(
     settings: Option<ConnectionSettingsOffers>,
-    capabilities: &Capabilities,
+    capabilities: Capabilities,
 ) -> ConnectionSettings {
     let Some(s) = settings else {
         return ConnectionSettings::default();
@@ -277,7 +281,7 @@ mod tests {
             server_to_agent,
             &callbacks,
             &synced_state,
-            &capabilities,
+            capabilities,
             next_message,
         );
 
@@ -303,7 +307,7 @@ mod tests {
             server_to_agent,
             &callbacks,
             &synced_state,
-            &capabilities,
+            capabilities,
             next_message,
         );
 
@@ -317,7 +321,7 @@ mod tests {
 
         let server_to_agent = ServerToAgent {
             agent_identification: Some(AgentIdentification {
-                new_instance_uid: actual_message.to_owned(),
+                new_instance_uid: actual_message.clone(),
             }),
             ..ServerToAgent::default()
         };
@@ -329,14 +333,14 @@ mod tests {
 
         callbacks.should_not_on_command(); // I expect on_command to NOT be called
 
-        let msg_data = message_data(&server_to_agent, &capabilities, Some(custom_capabilities));
+        let msg_data = message_data(&server_to_agent, capabilities, Some(custom_capabilities));
         callbacks.should_on_message(msg_data);
 
         let res = process_message(
             server_to_agent,
             &callbacks,
             &synced_state,
-            &capabilities,
+            capabilities,
             next_message.clone(),
         );
 
@@ -348,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    /// Expected to not call message update if instance_uid is not present in ServerToAgent message
+    /// Expected to not call message update if `instance_uid` is not present in `ServerToAgent` message
     ///
     fn receive_no_agent_identification() {
         let agent_uid: Vec<u8> = "some_uid".into();
@@ -359,20 +363,20 @@ mod tests {
         let capabilities = capabilities!();
         let custom_capabilities = CustomCapabilities::default();
         let next_message = Arc::new(RwLock::new(NextMessage::new(AgentToServer {
-            instance_uid: agent_uid.to_owned(),
+            instance_uid: agent_uid.clone(),
             ..AgentToServer::default()
         })));
 
         callbacks.should_not_on_command(); // I expect on_command to NOT be called
 
-        let msg_data = message_data(&server_to_agent, &capabilities, Some(custom_capabilities));
+        let msg_data = message_data(&server_to_agent, capabilities, Some(custom_capabilities));
         callbacks.should_on_message(msg_data);
 
         let res = process_message(
             server_to_agent,
             &callbacks,
             &synced_state,
-            &capabilities,
+            capabilities,
             next_message.clone(),
         );
 
@@ -403,27 +407,27 @@ mod tests {
 
         callbacks.should_not_on_command(); // I expect on_command to NOT be called
 
-        let msg_data = message_data(&server_to_agent, &capabilities, Some(custom_capabilities));
+        let msg_data = message_data(&server_to_agent, capabilities, Some(custom_capabilities));
         callbacks.should_on_message(msg_data);
 
         let _res = process_message(
             server_to_agent,
             &callbacks,
             &synced_state,
-            &capabilities,
+            capabilities,
             next_message.clone(),
         );
 
-        assert!(logs_contain(&format!("{:?}", err_response)));
+        assert!(logs_contain(&format!("{err_response:?}")));
     }
 
     #[test]
     fn test_message_data_with_remote_config() {
         let remote_config = AgentRemoteConfig {
             config: Some(AgentConfigMap {
-                config_map: Default::default(),
+                config_map: HashMap::default(),
             }),
-            config_hash: Default::default(),
+            config_hash: Vec::default(),
         };
 
         let msg = ServerToAgent {
@@ -434,7 +438,7 @@ mod tests {
         let capabilities = capabilities!(AgentCapabilities::AcceptsRemoteConfig);
         let custom_capabilities = CustomCapabilities::default();
 
-        let message_data = message_data(&msg, &capabilities, Some(custom_capabilities));
+        let message_data = message_data(&msg, capabilities, Some(custom_capabilities));
 
         assert_eq!(message_data.remote_config, Some(remote_config));
         assert_eq!(message_data.own_metrics, None);
@@ -458,7 +462,7 @@ mod tests {
         let capabilities = capabilities!();
         let custom_capabilities = CustomCapabilities::default();
 
-        let message_data = message_data(&msg, &capabilities, Some(custom_capabilities));
+        let message_data = message_data(&msg, capabilities, Some(custom_capabilities));
 
         assert_eq!(message_data.remote_config, None);
         assert_eq!(message_data.own_metrics, None);
@@ -487,7 +491,7 @@ mod tests {
         let capabilities = capabilities!();
         let custom_capabilities = CustomCapabilities::default();
 
-        let message_data = message_data(&msg, &capabilities, Some(custom_capabilities));
+        let message_data = message_data(&msg, capabilities, Some(custom_capabilities));
 
         assert_eq!(message_data.remote_config, None);
         assert_eq!(message_data.own_metrics, None);
@@ -515,7 +519,7 @@ mod tests {
             HashMap::default(),
         );
         assert_eq!(
-            get_telemetry_connection_settings(settings, &capabilities),
+            get_telemetry_connection_settings(settings, capabilities),
             expected
         );
     }
@@ -538,7 +542,7 @@ mod tests {
             HashMap::default(),
         );
         assert_eq!(
-            get_telemetry_connection_settings(settings, &capabilities),
+            get_telemetry_connection_settings(settings, capabilities),
             expected
         );
     }
@@ -561,7 +565,7 @@ mod tests {
             HashMap::default(),
         );
         assert_eq!(
-            get_telemetry_connection_settings(settings, &capabilities),
+            get_telemetry_connection_settings(settings, capabilities),
             expected
         );
     }
@@ -584,7 +588,7 @@ mod tests {
         });
         let expected = (None, None, None, other_conn);
         assert_eq!(
-            get_telemetry_connection_settings(settings, &capabilities),
+            get_telemetry_connection_settings(settings, capabilities),
             expected
         );
     }
@@ -602,7 +606,7 @@ mod tests {
         });
         let expected = (None, None, None, HashMap::default());
         assert_eq!(
-            get_telemetry_connection_settings(settings, &capabilities),
+            get_telemetry_connection_settings(settings, capabilities),
             expected
         );
 
@@ -611,7 +615,7 @@ mod tests {
         let settings = None;
         let expected = (None, None, None, HashMap::default());
         assert_eq!(
-            get_telemetry_connection_settings(settings, &capabilities),
+            get_telemetry_connection_settings(settings, capabilities),
             expected
         );
     }
@@ -633,7 +637,7 @@ mod tests {
             HashMap::default(),
         );
         assert_eq!(
-            get_telemetry_connection_settings(settings, &capabilities),
+            get_telemetry_connection_settings(settings, capabilities),
             expected
         );
     }
@@ -659,7 +663,7 @@ mod tests {
 
         let expected_health = ComponentHealth {
             healthy: true,
-            last_error: "".to_string(),
+            last_error: String::new(),
             ..Default::default()
         };
 
@@ -668,7 +672,7 @@ mod tests {
         let expected_remote_config_status = RemoteConfigStatus {
             last_remote_config_hash: vec![],
             status: 2,
-            error_message: "".to_string(),
+            error_message: String::new(),
         };
 
         state
@@ -757,7 +761,7 @@ mod tests {
                     server_to_agent,
                     &callbacks,
                     &synced_state,
-                    &capabilities!(),
+                    capabilities!(),
                     Arc::new(RwLock::new(NextMessage::default())),
                 )
                 .unwrap_or_else(|_| panic!("failed processing, case: {}", self.name));

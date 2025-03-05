@@ -91,7 +91,7 @@ pub(crate) mod tests {
         fn post(&self, body: Vec<u8>) -> Result<Response<Vec<u8>>, HttpClientError> {
             let mut req = self.client.post(self.url.as_str());
 
-            for (name, value) in self.headers.iter() {
+            for (name, value) in &self.headers {
                 if let Ok(value) = value.to_str() {
                     req = req.set(name.as_str(), value);
                 } else {
@@ -100,7 +100,9 @@ pub(crate) mod tests {
             }
 
             match req.send(Cursor::new(body)) {
-                Ok(response) | Err(ureq::Error::Status(_, response)) => build_response(response),
+                Ok(response) | Err(ureq::Error::Status(_, response)) => {
+                    Ok(build_response(response))
+                }
 
                 Err(ureq::Error::Transport(e)) => {
                     Err(HttpClientError::TransportError(e.to_string()))
@@ -109,7 +111,7 @@ pub(crate) mod tests {
         }
     }
 
-    fn build_response(response: ureq::Response) -> Result<Response<Vec<u8>>, HttpClientError> {
+    fn build_response(response: ureq::Response) -> Response<Vec<u8>> {
         let http_version = match response.http_version() {
             "HTTP/0.9" => http::Version::HTTP_09,
             "HTTP/1.0" => http::Version::HTTP_10,
@@ -127,7 +129,7 @@ pub(crate) mod tests {
 
         response.into_reader().read_to_end(&mut buf).unwrap();
 
-        Ok(response_builder.body(buf).unwrap())
+        response_builder.body(buf).unwrap()
     }
 
     pub(crate) struct ResponseParts {

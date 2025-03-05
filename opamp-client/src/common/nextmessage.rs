@@ -9,15 +9,15 @@ pub(crate) struct NextMessage {
 
 // Implementation block for NextMessage struct.
 impl NextMessage {
-    /// Creates a new NextMessage with the given initial message.
+    /// Creates a new `NextMessage` with the given initial message.
     ///
     /// # Arguments
     ///
-    /// * `init` - An instance of AgentToServer to be used as the initial message.
+    /// * `init` - An instance of `AgentToServer` to be used as the initial message.
     ///
     /// # Returns
     ///
-    /// A new instance of NextMessage.
+    /// A new instance of `NextMessage`.
     pub(crate) fn new(init: AgentToServer) -> Self {
         NextMessage { message: init }
     }
@@ -26,7 +26,7 @@ impl NextMessage {
     ///
     /// # Arguments
     ///
-    /// * `modifier` - A closure that accepts a mutable reference to AgentToServer and modifies its state.
+    /// * `modifier` - A closure that accepts a mutable reference to `AgentToServer` and modifies its state.
     pub(crate) fn update<F>(&mut self, modifier: F)
     where
         F: FnOnce(&mut AgentToServer),
