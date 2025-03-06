@@ -41,21 +41,21 @@ pub(crate) enum ProcessResult {
     NeedsResend,
 }
 
-/// Asynchronously parses a `ServerToAgent` message and calls the corresponding callbacks.
-/// A `ServerToAgent` message might ask for a new `AgentToServer` send, which will be reflected in
-/// `ProcessResult::NeedsResend`.
+/// Asynchronously parses a [`ServerToAgent`] message and calls the corresponding callbacks.
+/// A [`ServerToAgent`] message might ask for a new [`AgentToServer`] send, which will be reflected in
+/// [`ProcessResult::NeedsResend`].
 ///
 /// # Arguments
 ///
-/// * `msg` - The `ServerToAgent` message.
-/// * `callbacks` - A reference to the `Callbacks` object containing user-provided callbacks.
-/// * `synced_state` - A reference to the `ClientSyncedState` object holding the client state.
-/// * `capabilities` - A reference to the `Capabilities` object that describes agent capabilities.
-/// * `next_message` - An `Arc<RwLock<NextMessage>>` containing the next message to send.
+/// * [`msg`] - The [`ServerToAgent`] message.
+/// * [`callbacks`] - A reference to the [`Callbacks`] object containing user-provided callbacks.
+/// * [`synced_state`] - A reference to the [`ClientSyncedState`] object holding the client state.
+/// * [`capabilities`] - A reference to the [`Capabilities`] object that describes agent capabilities.
+/// * [`next_message`] - An [`Arc<RwLock<NextMessage>>`] containing the next message to send.
 ///
 /// # Returns
 ///
-/// A `Result` containing a `ProcessResult` or a `ProcessError`.
+/// A [`Result`] containing a [`ProcessResult`] or a [`ProcessError`].
 pub(crate) fn process_message<C: Callbacks>(
     msg: ServerToAgent,
     callbacks: &C,
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn receive_command() {
-        // The idea here is that we construct all arguments passed to `receive`, and then check for:
+        // The idea here is that we construct all arguments passed to [`receive`], and then check for:
         // 1. The appropriate callbacks have been called
         // 2. The return value is what we expect
 
@@ -352,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    /// Expected to not call message update if `instance_uid` is not present in `ServerToAgent` message
+    /// Expected to not call message update if [`instance_uid`] is not present in [`ServerToAgent`] message
     ///
     fn receive_no_agent_identification() {
         let agent_uid: Vec<u8> = "some_uid".into();

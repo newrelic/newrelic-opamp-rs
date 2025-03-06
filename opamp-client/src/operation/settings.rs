@@ -10,7 +10,7 @@ use crate::opamp::proto::{
 use super::{capabilities::Capabilities, instance_uid::InstanceUid};
 
 #[derive(Debug, PartialEq, Clone, Default)]
-/// Internal representation of the OpAMP `AgentDescription`: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message>
+/// Internal representation of the OpAMP [`AgentDescription`]: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message>
 pub struct AgentDescription {
     /// Attributes that identify the Agent. See: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescriptionidentifying_attributes>
     pub identifying_attributes: HashMap<String, DescriptionValueType>,
@@ -20,19 +20,19 @@ pub struct AgentDescription {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-/// Values type mapping for the `AgentDescription` attributes
+/// Values type mapping for the [`AgentDescription`] attributes
 pub enum DescriptionValueType {
-    /// `String` type variant
+    /// [`String`] type variant
     String(String),
-    /// `i64` type variant
+    /// [`i64`] type variant
     Int(i64),
-    /// `bool` type variant
+    /// [`bool`] type variant
     Bool(bool),
-    /// `f64` type variant
+    /// [`f64`] type variant
     Float(f64),
     // Array(Vec<DescType>),
     // Map(HashMap<String, DescType>),
-    /// `Vec<u8>` type variant, representing bytes
+    /// [`Vec<u8>`] type variant, representing bytes
     Bytes(Vec<u8>),
 }
 
@@ -126,14 +126,14 @@ fn populate_agent_description(attrs: HashMap<String, DescriptionValueType>) -> V
     result
 }
 
-/// `StartSettings` defines the parameters for starting the `OpAMP` Client.
+/// [`StartSettings`] defines the parameters for starting the OpAMP Client.
 #[derive(Debug, PartialEq)]
 pub struct StartSettings {
     /// Agent identifier: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agenttoserverinstance_uid>
     pub instance_uid: InstanceUid,
 
-    /// Defines the capabilities of the Agent. `AgentCapabilities_ReportsStatus` bit does not need to
-    /// be set in this field, it will be set automatically since it is required by `OpAMP` protocol.
+    /// Defines the capabilities of the Agent. [`AgentCapabilities_ReportsStatus`] bit does not need to
+    /// be set in this field, it will be set automatically since it is required by OpAMP protocol.
     pub capabilities: Capabilities,
 
     /// Custom capabilities the Agent has from the start.
@@ -143,7 +143,7 @@ pub struct StartSettings {
     pub agent_description: AgentDescription,
 }
 
-/// The default implementation creates a new `instance_id`
+/// The default implementation creates a new [`instance_id`]
 impl Default for StartSettings {
     fn default() -> Self {
         Self {
