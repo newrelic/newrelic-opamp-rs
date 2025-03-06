@@ -14,7 +14,7 @@ The library is not available on [`crates.io`](https://crates.io/) for now, but y
 
 ```toml
 [dependencies]
-opamp-client = { git = "ssh://git@github.com/newrelic/opamp-rs.git", tag = "0.0.27" }
+opamp-client = { git = "ssh://git@github.com/newrelic/newrelic-opamp-rs.git", tag = "0.0.30" }
 ```
 
 ## Getting Started
