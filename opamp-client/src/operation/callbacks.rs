@@ -12,10 +12,10 @@ use crate::{
     },
 };
 
-/// [`MessageData`] represents a message received from the server and handled by Callbacks.
+/// Structure representing a message received from the server and handled by Callbacks.
 #[derive(Debug, Default, PartialEq)]
 pub struct MessageData {
-    /// [`remote_config`] is offered by the Server. The Agent must process it and call
+    /// The [`remote_config`] is offered by the Server. The Agent must process it and call
     /// OpAMPClient.SetRemoteConfigStatus to indicate success or failure. If the
     /// effective config has changed as a result of processing the Agent must also call
     /// OpAMPClient.UpdateEffectiveConfig. [`SetRemoteConfigStatus`] and [`UpdateEffectiveConfig`]
@@ -31,39 +31,39 @@ pub struct MessageData {
     /// Other connection settings offered by the Server.
     pub other_connection_settings: HashMap<String, OtherConnectionSettings>,
 
-    /// [`agent_identification`] indicates a new identification received from the Server.
+    /// This optional field indicates a new identification received from the Server.
     /// The Agent must save this identification and use it in the future instantiations
     /// of [`OpAMPClient`].
     pub agent_identification: Option<AgentIdentification>,
 
-    /// [`custom_capabilities`] the Server is offering to the Agent.
+    /// The capabilities the Server is offering to the Agent.
     pub custom_capabilities: Option<CustomCapabilities>,
 
-    /// [`custom_message`] is a custom message received from the Server that the Agent has capability to process.
+    /// Custom message received from the Server that the Agent has capability to process.
     pub custom_message: Option<CustomMessage>,
 }
 
-/// Callbacks is a trait for the Client to handle messages from the Server.
+/// An interface for the Client to handle messages from the Server.
 pub trait Callbacks {
     /// Associated type to return as Callbacks error.
     type Error: std::error::Error + Send + Sync;
 
-    /// [`on_connect`] is called when the connection is successfully established to the Server.
+    /// This method is called when the connection is successfully established to the Server.
     /// May be called after [`Start()`] is called and every time a connection is established to the Server.
     /// For WebSocket clients this is called after the handshake is completed without any error.
     /// For HTTP clients this is called for any request if the response status is OK.
     fn on_connect(&self);
 
-    /// [`on_connect_failed`] is called when the connection to the Server cannot be established.
+    /// This method is called when the connection to the Server cannot be established.
     fn on_connect_failed(&self, err: ConnectionError);
 
-    /// [`on_error`] is called when the Server reports an error in response to some previously
+    /// This method is called when the Server reports an error in response to some previously
     /// sent request. Useful for logging purposes. The Agent should not attempt to process
     /// the error by reconnecting or retrying previous operations. The client handles the
     /// [`ErrorResponse_UNAVAILABLE`] case internally by performing retries as necessary.
     fn on_error(&self, err: ServerErrorResponse);
 
-    /// [`on_message`] is called when the Agent receives a message that needs processing.
+    /// This method is called when the Agent receives a message that needs processing.
     /// See [`MessageData`] definition for the data that may be available for processing.
     /// During [`OnMessage`] execution the [`OpAMPClient`] functions that change the status
     /// of the client may be called, e.g. if [`RemoteConfig`] is processed then
@@ -73,7 +73,7 @@ pub trait Callbacks {
     /// to avoid blocking the [`OpAMPClient`].
     fn on_message(&self, msg: MessageData);
 
-    /// [`on_opamp_connection_settings`] is called when the Agent receives an OpAMP
+    /// This method is called when the Agent receives an OpAMP
     /// connection settings offer from the Server. Typically, the settings can specify
     /// authorization headers or TLS certificate, potentially also a different
     /// OpAMP destination to work with.
@@ -95,7 +95,7 @@ pub trait Callbacks {
         settings: &OpAmpConnectionSettings,
     ) -> Result<(), Self::Error>;
 
-    /// [`on_opamp_connection_settings_accepted`] will be called after the settings are
+    /// This method will be called after the settings are
     /// verified and accepted ([`OnOpampConnectionSettingsOffer`] and connection using
     /// new settings succeeds). The Agent should store the settings and use them
     /// in the future. Old connection settings should be forgotten.
@@ -104,7 +104,7 @@ pub trait Callbacks {
     /// [`on_command`] is called when the Server requests that the connected Agent perform a command.
     fn on_command(&self, command: &ServerToAgentCommand) -> Result<(), Self::Error>;
 
-    /// [`get_effective_config`] returns the current effective config. Only one
+    /// This method returns the current effective config. Only one
     /// [`get_effective_config`]  call can be active at any time. Until [`get_effective_config`]
     /// returns it will not be called again.
     fn get_effective_config(&self) -> Result<EffectiveConfig, Self::Error>;

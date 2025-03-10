@@ -1,4 +1,4 @@
-//! Implementation of the [[`NotStartedClient`]] and [`StartedClient`] traits for OpAMP
+//! Implementation of the [`NotStartedClient`] and [`StartedClient`] traits for OpAMP
 
 use crossbeam::channel::{bounded, select_biased, tick, Receiver, Sender, TrySendError};
 use std::{
@@ -28,7 +28,7 @@ const MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(1);
 // Minimum time between polls in case of multiple notifications too close to each other
 const DEFAULT_MINIMUM_DURATION_BETWEEN_POLL: Duration = Duration::from_secs(5);
 
-/// [`NotStartedHttpClient`] implements the [`NotStartedClient`] trait for HTTP.
+/// Implements the [`NotStartedClient`] trait for HTTP.
 pub struct NotStartedHttpClient<C>
 where
     C: UnManagedClient,
@@ -262,18 +262,18 @@ where
         self.opamp_client.get_agent_description()
     }
 
-    /// [`set_health`] sets the health status of the Agent.
+    /// Sets the health status of the Agent.
     fn set_health(&self, health: crate::opamp::proto::ComponentHealth) -> ClientResult<()> {
         self.opamp_client.set_health(health)
     }
 
-    // update_effective_config fetches the current local effective config using
+    // Fetches the current local effective config using
     // get_effective_config callback and sends it to the Server.
     fn update_effective_config(&self) -> ClientResult<()> {
         self.opamp_client.update_effective_config()
     }
 
-    // update_effective_config fetches the current local effective config using
+    // Fetches the current local effective config using
     // get_effective_config callback and sends it to the Server.
     fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()> {
         self.opamp_client.set_remote_config_status(status)

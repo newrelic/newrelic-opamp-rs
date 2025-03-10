@@ -14,7 +14,7 @@ use crate::{
 use super::{http_client::HttpClient, managed_client::Notifier, sender::HttpSender};
 use tracing::{debug, error, trace};
 
-/// [`UnManagedClient`] is a trait for clients that do not manage their own polling.
+/// A trait for clients that do not manage their own polling.
 pub trait UnManagedClient: Client {
     /// Executes a complete roundtrip of the opamp protocol.
     /// Sends a [`AgentToServer`] message, receives a [`ServerToAgent`] message, and processes it.
@@ -36,7 +36,7 @@ where
     instance_uid: String,
 }
 
-/// [`OpAMPHttpClient`] synchronous HTTP implementation of the Client trait.
+/// Synchronous HTTP implementation of the Client trait.
 // If there is an error sending, the syncState should still be updated, we want it to be consistent
 // with the agent status, and we leave the responsibility to the OpAMP server to call ReportFullState
 // if it detects a gap on sequence numbers.
@@ -166,8 +166,9 @@ where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
 {
-    /// [`set_agent_description`] sets the agent description of the Agent.
-    // It uses compression and will only modify the message if there is a change.
+    /// Sets the agent description of the Agent.
+    ///
+    /// It uses compression and will only modify the message if there is a change.
     fn set_agent_description(
         &self,
         description: crate::opamp::proto::AgentDescription,
@@ -196,7 +197,7 @@ where
         self.pending_msg.notify_or_warn();
         Ok(())
     }
-    /// [`get_agent_description`] returns the agent description from the synced state.
+    /// Returns the agent description from the synced state.
     fn get_agent_description(&self) -> ClientResult<crate::opamp::proto::AgentDescription> {
         match self.synced_state.agent_description() {
             Ok(Some(description)) => Ok(description),
@@ -205,8 +206,9 @@ where
         }
     }
 
-    /// [`set_health`] sets the health status of the Agent.
-    // It uses compression and will only modify the message if there is a change.
+    /// Sets the health status of the Agent.
+    ///
+    /// It uses compression and will only modify the message if there is a change.
     fn set_health(&self, health: crate::opamp::proto::ComponentHealth) -> ClientResult<()> {
         if !self
             .capabilities
@@ -236,8 +238,8 @@ where
         Ok(())
     }
 
-    // update_effective_config fetches the current local effective config using
-    // get_effective_config callback and sends it to the Server.
+    /// Fetches the current local effective config using
+    /// [`get_effective_config`] callback and sends it to the Server.
     fn update_effective_config(&self) -> ClientResult<()> {
         if !self
             .capabilities
@@ -267,9 +269,10 @@ where
         Ok(())
     }
 
-    // set_remote_config_status sends the status of the remote config
-    // that was previously received from the Server
-    // It uses compression and will only modify the message if there is a change.
+    /// Sends the status of the remote config
+    /// that was previously received from the Server.
+    ///
+    /// It uses compression and will only modify the message if there is a change.
     fn set_remote_config_status(
         &self,
         status: crate::opamp::proto::RemoteConfigStatus,
