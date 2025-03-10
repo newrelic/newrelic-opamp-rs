@@ -48,7 +48,7 @@ pub enum DecoderError {
     IO(#[from] io::Error),
 }
 
-/// [`encode_message`] encodes the provided message as a Protobuffer and compresses the result
+/// Encodes the provided message as a Protobuffer and compresses the result
 /// with the provided algorithm
 pub(crate) fn encode_message<M>(comp: &Compressor, msg: &M) -> Result<Vec<u8>, EncoderError>
 where
@@ -65,7 +65,7 @@ where
     }
 }
 
-/// [`decode_message`] extracts and decodes the Protobuffer message with the provided algorithm
+/// Extracts and decodes the Protobuffer message with the provided algorithm
 pub(crate) fn decode_message<M>(comp: &Compressor, msg: &[u8]) -> Result<M, DecoderError>
 where
     M: Message + Default,
