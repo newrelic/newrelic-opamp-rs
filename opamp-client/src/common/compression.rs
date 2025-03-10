@@ -114,23 +114,24 @@ mod tests {
 
     #[test]
     fn message_payload() {
-        let mut sample_message = AgentToServer::default();
-
         // generate a big random effective configuration
-        sample_message.effective_config = Some(EffectiveConfig {
-            config_map: Some(AgentConfigMap {
-                config_map: HashMap::from([(
-                    "/test".to_string(),
-                    AgentConfigFile {
-                        body: Alphanumeric
-                            .sample_string(&mut rand::rng(), 300)
-                            .as_bytes()
-                            .to_vec(),
-                        content_type: "random".to_string(),
-                    },
-                )]),
+        let sample_message = AgentToServer {
+            effective_config: Some(EffectiveConfig {
+                config_map: Some(AgentConfigMap {
+                    config_map: HashMap::from([(
+                        "/test".to_string(),
+                        AgentConfigFile {
+                            body: Alphanumeric
+                                .sample_string(&mut rand::rng(), 300)
+                                .as_bytes()
+                                .to_vec(),
+                            content_type: "random".to_string(),
+                        },
+                    )]),
+                }),
             }),
-        });
+            ..Default::default()
+        };
 
         let gzip_data = encode_message(&Compressor::Gzip, &sample_message).unwrap();
         let plain_data = encode_message(&Compressor::Plain, &sample_message).unwrap();
