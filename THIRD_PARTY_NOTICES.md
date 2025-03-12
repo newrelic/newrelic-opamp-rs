@@ -53,13 +53,6 @@ Distributed under the following license(s):
 * MIT
 * Apache-2.0
 
-## byteorder <https://crates.io/crates/byteorder>
-
-Distributed under the following license(s):
-
-* Unlicense
-* MIT
-
 ## bytes <https://crates.io/crates/bytes>
 
 Distributed under the following license(s):
@@ -539,14 +532,6 @@ Distributed under the following license(s):
 * MIT
 
 ## zerocopy <https://crates.io/crates/zerocopy>
-
-Distributed under the following license(s):
-
-* BSD-2-Clause
-* Apache-2.0
-* MIT
-
-## zerocopy-derive <https://crates.io/crates/zerocopy-derive>
 
 Distributed under the following license(s):
 
