@@ -1,3 +1,6 @@
+| ⚠️ | New Relic agent control is in preview and licensed under the New Relic Pre-Release Software Notice. |
+|----|:----------------------------------------------------------------------------------------------------|
+
 # `opamp-rs`: An OpAMP protocol client implementation in Rust
 
 [![test](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml) [![coverage](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml) [![pages-build-deployment](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment)
