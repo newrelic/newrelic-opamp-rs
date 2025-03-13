@@ -3,7 +3,7 @@
 
 # `opamp-rs`: An OpAMP protocol client implementation in Rust
 
-[![test](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml) [![coverage](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml) [![pages-build-deployment](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment)
+[![test](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml) [![coverage](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml) [![pages-build-deployment](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment) [![docs](https://github.com/newrelic/newrelic-opamp-rs/actions/workflows/docs.yaml/badge.svg)](https://newrelic.github.io/newrelic-opamp-rs/)
 
 [Open Agent Management Protocol (OpAMP)](https://github.com/open-telemetry/opamp-spec) is a network protocol for remote management of large fleets of data collection Agents.
 
@@ -61,5 +61,9 @@ To all contributors, we thank you! Without your contribution, this project would
 ## License
 
 `opamp-rs` is licensed under the New Relic Pre-Release Software Notice.
+
+## Tracking of old Pull Requests
+
+Head to the [private archive](https://github.com/newrelic/opamp-rs).
 
 `opamp-rs` also uses source code from third-party libraries. You can find full details on which libraries are used and the terms under which they are licensed in the third-party notices document.
