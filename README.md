@@ -3,8 +3,6 @@
 
 # `opamp-rs`: An OpAMP protocol client implementation in Rust
 
-[![test](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml) [![coverage](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml) [[![docs](https://github.com/newrelic/newrelic-opamp-rs/actions/workflows/docs.yaml/badge.svg)](https://newrelic.github.io/newrelic-opamp-rs/)
-
 [Open Agent Management Protocol (OpAMP)](https://github.com/open-telemetry/opamp-spec) is a network protocol for remote management of large fleets of data collection Agents.
 
 OpAMP allows Agents to report their status to and receive configuration from a Server and to receive agent package updates from the server. The protocol is vendor-agnostic, so the Server can remotely monitor and manage a fleet of different Agents that implement OpAMP, including a fleet of mixed agents from different vendors.
