@@ -66,4 +66,4 @@ To all contributors, we thank you! Without your contribution, this project would
 
 ## Upstream archive
 
-[Link](https://github.com/newrelic/opamp-rs) (private for NR employees).
+[Link](https://github.com/newrelic/opamp-rs) (private, for NR employees).
