@@ -62,8 +62,8 @@ To all contributors, we thank you! Without your contribution, this project would
 
 `opamp-rs` is licensed under the New Relic Pre-Release Software Notice.
 
-## Tracking of old Pull Requests
-
-Head to the [private archive](https://github.com/newrelic/opamp-rs).
-
 `opamp-rs` also uses source code from third-party libraries. You can find full details on which libraries are used and the terms under which they are licensed in the third-party notices document.
+
+## Upstream archive
+
+[Link](https://github.com/newrelic/opamp-rs) (private for NR employees).
