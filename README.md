@@ -26,7 +26,7 @@ After the above steps, calling `start` on the resulting value will start the ser
 
 Calling `stop` on this value will shut it down.
 
-For more details, please check the documentation.
+For more details, please check the [documentation page](https://newrelic.github.io/newrelic-opamp-rs/).
 
 ## Testing
 
