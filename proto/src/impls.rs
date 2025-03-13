@@ -6,7 +6,7 @@ use crate::proto::{
 use std::fmt::Debug;
 
 impl ComponentHealth {
-    /// Compares two `ComponentHealth` structs disregarding the status timestamps,
+    /// Compares two [`ComponentHealth`] structs disregarding the status timestamps,
     /// as we cannot reasonably expect these times to be equal. Start times are compared.
     ///
     /// This needs to be done as the component health information can be "compressed" if it hasn't

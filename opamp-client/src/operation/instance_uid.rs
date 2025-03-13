@@ -1,4 +1,4 @@
-//! Provide tools to represent and generate a valid `instance_uid`.
+//! Provide tools to represent and generate a valid [`instance_uid`].
 //!
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};

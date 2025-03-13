@@ -28,7 +28,7 @@ pub enum HttpClientError {
 
 /// A synchronous trait that defines the internal methods for HTTP clients.
 pub trait HttpClient {
-    /// A synchronous function that defines the `post` method for HTTP client.
+    /// A synchronous function that defines the [`post`] method for HTTP client.
     fn post(&self, body: Vec<u8>) -> Result<Response<Vec<u8>>, HttpClientError>;
 }
 
@@ -69,7 +69,7 @@ pub(crate) mod tests {
         }
     }
 
-    /// An implementation of the `HttpClient` trait using the ureq library.
+    /// An implementation of the [`HttpClient`] trait using the ureq library.
     pub struct HttpClientUreq {
         client: ureq::Agent,
         url: Url,
@@ -77,7 +77,7 @@ pub(crate) mod tests {
     }
 
     impl HttpClientUreq {
-        /// Construct a new `HttpClientUreq` from the given `HttpConfig`.
+        /// Construct a new [`HttpClientUreq`] from the given [`HttpConfig`].
         pub fn new(url: Url, headers: HeaderMap) -> Self {
             Self {
                 client: ureq::Agent::new(),
