@@ -1,4 +1,4 @@
-| ⚠️ | New Relic agent control is in preview and licensed under the New Relic Pre-Release Software Notice. |
+| ⚠️ | `opamp-rs` is in preview and licensed under the New Relic Pre-Release Software Notice. |
 |----|:----------------------------------------------------------------------------------------------------|
 
 # `opamp-rs`: An OpAMP protocol client implementation in Rust
