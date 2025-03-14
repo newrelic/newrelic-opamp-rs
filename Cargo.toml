@@ -21,7 +21,7 @@ tracing-subscriber = "0.3"
 httpmock = "0.7"
 mockall = "0.13"
 tracing-test = "0.2"
-ureq = "2.12"
+ureq = "3.0"
 assert_matches = "1.5"
 rand = "0.9"
 uuid = { version = "1", features = ["v7"] }
