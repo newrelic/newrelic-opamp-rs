@@ -6,7 +6,7 @@ use std::{
     thread::{sleep, spawn, JoinHandle},
     time::Duration,
 };
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info_span, instrument, trace, warn};
 
 use crate::{
     opamp::proto::{CustomCapabilities, RemoteConfigStatus},
@@ -167,17 +167,15 @@ where
 {
     type StartedClient = StartedHttpClient<C>;
 
+    #[instrument(name = "opamp", fields(instance_uid = %self.instance_uid), skip_all)]
     fn start(self) -> NotStartedClientResult<Self::StartedClient> {
         // use poll method to send an initial message
-        debug!(
-            instance_uid = self.instance_uid,
-            "sending first AgentToServer message"
-        );
+        debug!("sending first AgentToServer message");
         if let Err(err) = self.opamp_client.poll() {
             if self.perform_startup_check {
                 return Err(err.into());
             }
-            error!(%err, instance_uid = self.instance_uid, "error sending first AgentToServer message");
+            error!(%err, "error sending first AgentToServer message");
         }
 
         let (shutdown_notifier, exit) = Notifier::new("shut_down".to_string());
@@ -187,20 +185,28 @@ where
             let mut status_report_ticker = tick(self.poll_interval);
             move || {
                 loop {
+                    // We are in a separated thread so we create another span for each opamp
+                    // cycle. This will trace each cycle in a separate span and will propagate the
+                    // instance_uid
+                    let _guard = info_span!("opamp", instance_uid = %self.instance_uid).entered();
+                    // Create a span to track the time the opamp cycle is waiting
+                    let _guard_waiting = info_span!("waiting").entered();
                     select_biased! {
                         recv(exit) -> _ => {
-                            debug!(instance_uid=self.instance_uid, "gracefully shutting down the polling task");
+                            _guard_waiting.exit();
+                            debug!("gracefully shutting down the polling task");
                             break;
                         }
                         recv(self.has_pending_msg) -> res => {
+                            _guard_waiting.exit();
                             if let Err(err) = res {
-                                error!(%err, instance_uid=self.instance_uid, "pending message channel error");
+                                error!(%err, "pending message channel error");
                                 break;
                             }
-                            debug!(instance_uid=self.instance_uid, "sending requested AgentToServer message");
+                            debug!("sending requested AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "error while polling message"));
+                                .inspect_err(|err| error!(%err, "error while polling message"));
 
                             // reset the ticker so next status report is sent after the interval
                             status_report_ticker = tick(self.poll_interval);
@@ -209,18 +215,19 @@ where
                             sleep(self.min_duration_between_poll);
                         }
                         recv(status_report_ticker) -> res => {
+                             _guard_waiting.exit();
                             if let Err(err) = res {
-                                error!(%err, instance_uid=self.instance_uid, "poll interval ticker error");
+                                error!(%err, "poll interval ticker error");
                                 break;
                             }
-                            debug!(instance_uid=self.instance_uid, "sending scheduled status report AgentToServer message");
+                            debug!("sending scheduled status report AgentToServer message");
                             let _ = opamp_client
                                 .poll()
-                                .inspect_err(|err| error!(%err, instance_uid=self.instance_uid, "error while polling message"));
+                                .inspect_err(|err| error!(%err, "error while polling message"));
                         }
                     }
                 }
-                debug!(instance_uid = self.instance_uid, "polling task stopped");
+                debug!("polling task stopped");
             }
         });
         Ok(StartedHttpClient {
