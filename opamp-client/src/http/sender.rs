@@ -1,11 +1,13 @@
+use super::{http_client::HttpClient, HttpClientError};
+use crate::operation::instance_uid::InstanceUid;
 use crate::{
     common::compression::{decode_message, encode_message, Compressor},
     opamp::proto::AgentToServer,
     opamp::proto::ServerToAgent,
     OpampSenderResult,
 };
-
-use super::{http_client::HttpClient, HttpClientError};
+use std::fmt::Debug;
+use tracing::instrument;
 
 // The HttpSender struct holds the necessary components for sending HTTP messages.
 pub struct HttpSender<C>
@@ -14,6 +16,7 @@ where
 {
     compressor: Compressor,
     client: C,
+    instance_uid: InstanceUid,
 }
 
 impl<C> HttpSender<C>
@@ -21,14 +24,16 @@ where
     C: HttpClient,
 {
     // Initializes a new instance of HttpSender with the provided HTTP client.
-    pub(super) fn new(client: C) -> Self {
+    pub(super) fn new(client: C, instance_uid: InstanceUid) -> Self {
         Self {
             compressor: Compressor::Plain,
             client,
+            instance_uid,
         }
     }
 
     // Sends an AgentToServer message using the HttpSender and returns an optional ServerToAgent message as a result.
+    #[instrument(name = "post",fields(instance_uid = %self.instance_uid,sequence_number = msg.sequence_num), skip_all)]
     pub(super) fn send(&self, msg: AgentToServer) -> OpampSenderResult<ServerToAgent> {
         // Serialize the message to bytes
         let bytes = encode_message(&self.compressor, &msg)?;
@@ -87,7 +92,8 @@ mod tests {
             },
         ));
 
-        let sender = HttpSender::new(mock_client);
+        let instance_uid = InstanceUid::create();
+        let sender = HttpSender::new(mock_client, instance_uid);
         let res = sender.send(AgentToServer::default());
         assert!(res.is_err());
 
@@ -110,7 +116,8 @@ mod tests {
             },
         ));
 
-        let sender = HttpSender::new(mock_client);
+        let instance_uid = InstanceUid::create();
+        let sender = HttpSender::new(mock_client, instance_uid);
         let res = sender.send(AgentToServer::default());
         assert!(res.is_err());
 
@@ -134,8 +141,9 @@ custom_attributes:
   test: ulid-bug-3-removed-9
 ";
 
+        let instance_uid = InstanceUid::create();
         let server_to_agent = ServerToAgent {
-            instance_uid: "N0L1C3NS3INV3NT3D".into(),
+            instance_uid: instance_uid.clone().into(),
             remote_config: Some(AgentRemoteConfig {
                 config: Some(AgentConfigMap {
                     config_map: std::collections::HashMap::from([(
@@ -170,7 +178,7 @@ custom_attributes:
             Url::parse(server.url("/v1/opamp").as_str()).unwrap(),
             headers,
         );
-        let sender = HttpSender::new(http_client);
+        let sender = HttpSender::new(http_client, instance_uid);
         let res = sender.send(AgentToServer::default());
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), server_to_agent);
