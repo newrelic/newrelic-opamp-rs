@@ -1,27 +1,27 @@
 {
-  "extends": [
-    "config:base",
+  extends: [
+    'config:recommended',
   ],
-  "labels": [
-    "dependencies"
+  labels: [
+    'dependencies',
   ],
-  "enabledManagers": [
-    "cargo",
+  enabledManagers: [
+    'cargo',
   ],
-  "rangeStrategy": "auto", // See <https://docs.renovatebot.com/configuration-options/#rangestrategy>
-  "prConcurrentLimit": 0,
-  "printConfig": true,
-  "prHourlyLimit": 0,
-  "packageRules": [
+  rangeStrategy: 'auto',
+  prConcurrentLimit: 0,
+  printConfig: true,
+  prHourlyLimit: 0,
+  packageRules: [
     {
-      "managers": [
-        "cargo"
+      matchManagers: [
+        'cargo',
       ],
-      "updateTypes": [
-        "minor",
-        "patch"
+      matchUpdateTypes: [
+        'minor',
+        'patch',
       ],
-      "groupName": "minor and patch updates"
-    }
+      groupName: 'minor and patch updates',
+    },
   ],
 }
