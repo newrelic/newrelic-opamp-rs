@@ -47,11 +47,11 @@ pub(crate) enum ProcessResult {
 ///
 /// # Arguments
 ///
-/// * [`msg`] - The [`ServerToAgent`] message.
-/// * [`callbacks`] - A reference to the [`Callbacks`] object containing user-provided callbacks.
-/// * [`synced_state`] - A reference to the [`ClientSyncedState`] object holding the client state.
-/// * [`capabilities`] - A reference to the [`Capabilities`] object that describes agent capabilities.
-/// * [`next_message`] - An [`Arc<RwLock<NextMessage>>`] containing the next message to send.
+/// * `msg` - The [`ServerToAgent`] message.
+/// * `callbacks` - A reference to the [`Callbacks`] object containing user-provided callbacks.
+/// * `synced_state` - A reference to the [`ClientSyncedState`] object holding the client state.
+/// * `capabilities` - A reference to the [`Capabilities`] object that describes agent capabilities.
+/// * `next_message` - An [`Arc<RwLock<NextMessage>>`] containing the next message to send.
 ///
 /// # Returns
 ///
