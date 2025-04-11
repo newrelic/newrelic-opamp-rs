@@ -132,7 +132,7 @@ pub struct StartSettings {
     /// Agent identifier: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agenttoserverinstance_uid>
     pub instance_uid: InstanceUid,
 
-    /// Defines the capabilities of the Agent. [`AgentCapabilities_ReportsStatus`] bit does not need to
+    /// Defines the capabilities of the Agent. `AgentCapabilities_ReportsStatus` bit does not need to
     /// be set in this field, it will be set automatically since it is required by OpAMP protocol.
     pub capabilities: Capabilities,
 
@@ -143,7 +143,7 @@ pub struct StartSettings {
     pub agent_description: AgentDescription,
 }
 
-/// The default implementation creates a new [`instance_id`]
+/// The default implementation creates a new instance_id and sets the default capabilities.
 impl Default for StartSettings {
     fn default() -> Self {
         Self {

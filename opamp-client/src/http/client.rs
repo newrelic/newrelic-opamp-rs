@@ -17,7 +17,7 @@ use tracing::{debug, error, trace};
 /// A trait for clients that do not manage their own polling.
 pub trait UnManagedClient: Client {
     /// Executes a complete roundtrip of the opamp protocol.
-    /// Sends a [`AgentToServer`] message, receives a [`ServerToAgent`] message, and processes it.
+    /// Sends a [`AgentToServer`] message, receives a [`ServerToAgent`](crate::opamp::proto::ServerToAgent) message, and processes it.
     fn poll(&self) -> ClientResult<()>;
 }
 
@@ -239,7 +239,7 @@ where
     }
 
     /// Fetches the current local effective config using
-    /// [`get_effective_config`] callback and sends it to the Server.
+    /// [`get_effective_config`](Callbacks::get_effective_config) callback and sends it to the Server.
     fn update_effective_config(&self) -> ClientResult<()> {
         if !self
             .capabilities

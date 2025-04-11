@@ -75,8 +75,8 @@ pub trait Client: Send + Sync {
     fn set_health(&self, health: ComponentHealth) -> ClientResult<()>;
 
     /// Fetches the current local effective config (normally using
-    /// [`get_effective_config`] callback) and sends it to the Server.
-    /// The reason why there is a callback to fetch the [`EffectiveConfig`] from the Agent and it is not
+    /// [`get_effective_config`](crate::operation::callbacks::Callbacks::get_effective_config) callback) and sends it to the Server.
+    /// The reason why there is a callback to fetch the `EffectiveConfig` from the Agent and it is not
     /// sent by the Agent like health, is to allow the compression mechanism without storing it.
     fn update_effective_config(&self) -> ClientResult<()>;
 
@@ -94,7 +94,7 @@ pub trait NotStartedClient {
     /// start the client and begin attempts to connect to the Server. Once a connection
     /// is established the client will attempt to maintain it by reconnecting if
     /// the connection is lost. All failed connections attempts will be reported via
-    /// [`OnConnectFailed`] callback.
+    /// `OnConnectFailed` callback.
     ///
     /// Start may immediately return an error if the settings are incorrect (e.g. the
     /// serverURL is not a valid URL).
@@ -102,24 +102,25 @@ pub trait NotStartedClient {
     /// Start does not wait until the connection to the Server is established and will
     /// likely return before the connection attempts are even made.
     ///
-    /// It is guaranteed that after the [`start`] call returns without error one of the
-    /// following callbacks will be called eventually (unless [`stop`] is called earlier):
-    ///  - [`OnConnectFailed`]
-    ///  - [`OnError`]
-    ///  - [`OnRemoteConfig`]
+    /// It is guaranteed that after the `start` call returns without error one of the
+    /// following callbacks will be called eventually (unless `stop` is called earlier):
+    ///
+    ///  - `OnConnectFailed`
+    ///  - `OnError`
+    ///  - `OnRemoteConfig`
     ///
     ///  Starts should periodically poll status updates from the remote server and apply
     ///  the corresponding updates.
     fn start(self) -> NotStartedClientResult<Self::StartedClient>;
 }
 
-/// A trait defining the [`stop()`] method for stopping a client in the OpAMP library. Implements the [`Client`] trait.
+/// A trait defining the `stop` method for stopping a client in the OpAMP library. Implements the [`Client`] trait.
 pub trait StartedClient: Client {
     /// After this call returns successfully it is guaranteed that no
-    /// callbacks will be called. [`stop`] will cancel context of any in-fly
+    /// callbacks will be called. `stop` will cancel context of any in-fly
     /// callbacks, but will wait until such in-fly callbacks are returned before
     /// Stop returns, so make sure the callbacks don't block infinitely and react
     /// promptly to context cancellations.
-    /// Once stopped [`OpAMPClient`] cannot be started again.
+    /// Once stopped, [`Client`] cannot be started again.
     fn stop(self) -> StartedClientResult<()>;
 }

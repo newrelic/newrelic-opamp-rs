@@ -11,7 +11,7 @@ impl Capabilities {
     ///
     /// # Arguments
     ///
-    /// * [`caps`] - A vector of [`AgentCapabilities`] to be combined into the [`Capabilities`] instance.
+    /// * `caps` - A vector of [`AgentCapabilities`] to be combined into the [`Capabilities`] instance.
     ///
     /// # Example
     ///
@@ -76,9 +76,9 @@ macro_rules! capabilities {
     }};
 }
 
-// We should be sure this is handled properly. protos for [`Capabilities`] are [`repr(i32)`],
-// but [`AgentToServer.capabilities`] is [`uint64`].
-// casting [`i32`] to [`u64`] may lose the sign of the value:
+// We should be sure this is handled properly. protos for `Capabilities` are `repr(i32)`,
+// but `AgentToServer.capabilities` is `uint64`.
+// casting `i32` to `u64` may lose the sign of the value:
 // <https://rust-lang.github.io/rust-clippy/master/index.html#cast_sign_loss>
 impl From<Capabilities> for u64 {
     fn from(value: Capabilities) -> Self {

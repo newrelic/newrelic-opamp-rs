@@ -13,7 +13,7 @@ impl NextMessage {
     ///
     /// # Arguments
     ///
-    /// * [`init`] - An instance of [`AgentToServer`] to be used as the initial message.
+    /// * `init` - An instance of [`AgentToServer`] to be used as the initial message.
     ///
     /// # Returns
     ///
@@ -26,7 +26,7 @@ impl NextMessage {
     ///
     /// # Arguments
     ///
-    /// * [`modifier`] - A closure that accepts a mutable reference to [`AgentToServer`] and modifies its state.
+    /// * `modifier` - A closure that accepts a mutable reference to [`AgentToServer`] and modifies its state.
     pub(crate) fn update<F>(&mut self, modifier: F)
     where
         F: FnOnce(&mut AgentToServer),
