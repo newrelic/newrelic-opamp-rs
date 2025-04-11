@@ -3,8 +3,6 @@
 
 # `opamp-rs`: An OpAMP protocol client implementation in Rust
 
-[![test](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/test.yaml) [![coverage](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/coverage.yaml) [![pages-build-deployment](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/newrelic/opamp-rs/actions/workflows/pages/pages-build-deployment)
-
 [Open Agent Management Protocol (OpAMP)](https://github.com/open-telemetry/opamp-spec) is a network protocol for remote management of large fleets of data collection Agents.
 
 OpAMP allows Agents to report their status to and receive configuration from a Server and to receive agent package updates from the server. The protocol is vendor-agnostic, so the Server can remotely monitor and manage a fleet of different Agents that implement OpAMP, including a fleet of mixed agents from different vendors.
@@ -17,7 +15,7 @@ The library is not available on [`crates.io`](https://crates.io/) for now, but y
 
 ```toml
 [dependencies]
-opamp-client = { git = "ssh://git@github.com/newrelic/newrelic-opamp-rs.git", tag = "0.0.30" }
+opamp-client = { git = "https://github.com/newrelic/newrelic-opamp-rs.git", tag = "0.0.32" }
 ```
 
 ## Getting Started
@@ -28,7 +26,7 @@ After the above steps, calling `start` on the resulting value will start the ser
 
 Calling `stop` on this value will shut it down.
 
-For more details, please check the documentation.
+For more details, please check the [documentation page](https://newrelic.github.io/newrelic-opamp-rs/).
 
 ## Testing
 
@@ -63,3 +61,7 @@ To all contributors, we thank you! Without your contribution, this project would
 `opamp-rs` is licensed under the New Relic Pre-Release Software Notice.
 
 `opamp-rs` also uses source code from third-party libraries. You can find full details on which libraries are used and the terms under which they are licensed in the third-party notices document.
+
+## Upstream archive
+
+[Link](https://github.com/newrelic/opamp-rs) (private, for NR employees).

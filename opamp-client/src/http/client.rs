@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{http_client::HttpClient, managed_client::Notifier, sender::HttpSender};
-use tracing::{debug, error, trace};
+use tracing::{debug, error, info_span, trace, trace_span};
 
 /// A trait for clients that do not manage their own polling.
 pub trait UnManagedClient: Client {
@@ -62,7 +62,7 @@ where
         let instance_uid = start_settings.instance_uid.to_string();
 
         Ok(Self {
-            sender: HttpSender::new(http_client),
+            sender: HttpSender::new(http_client, start_settings.instance_uid.clone()),
             callbacks,
             message: Arc::new(RwLock::new(NextMessage::new(AgentToServer {
                 instance_uid: start_settings.instance_uid.into(),
@@ -103,7 +103,7 @@ where
             .write()
             .map_err(|_| ClientError::PoisonError)?
             .pop();
-        trace!(instance_uid = self.instance_uid, "Send payload: {:?}", msg);
+        trace!("Send payload: {:?}", msg);
         let server_to_agent = self.sender.send(msg).map_err(|e| {
             let err_msg = e.to_string();
             self.callbacks.on_connect_failed(e.into());
@@ -113,12 +113,9 @@ where
         // We consider it connected if we receive 2XX status from the Server.
         self.callbacks.on_connect();
 
-        trace!(
-            instance_uid = self.instance_uid,
-            "Received payload: {:?}",
-            server_to_agent
-        );
+        trace!("Received payload: {:?}", server_to_agent);
 
+        let _span = info_span!("process_message").entered();
         if let ProcessResult::NeedsResend = crate::common::message_processor::process_message(
             server_to_agent,
             &self.callbacks,
