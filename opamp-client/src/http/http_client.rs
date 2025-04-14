@@ -69,7 +69,7 @@ pub(crate) mod tests {
         }
     }
 
-    /// An implementation of the `HttpClient` trait using the ureq library.
+    /// An implementation of the [`HttpClient`] trait using the ureq library.
     pub struct HttpClientUreq {
         client: ureq::Agent,
         url: Url,
@@ -77,7 +77,7 @@ pub(crate) mod tests {
     }
 
     impl HttpClientUreq {
-        /// Construct a new `HttpClientUreq` from the given `HttpConfig`.
+        /// Construct a new [`HttpClientUreq`] from the given URL and headers.
         pub fn new(url: Url, headers: HeaderMap) -> Self {
             Self {
                 client: ureq::Agent::new(),

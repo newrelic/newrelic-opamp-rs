@@ -48,7 +48,7 @@ pub enum DecoderError {
     IO(#[from] io::Error),
 }
 
-/// `encode_message` encodes the provided message as a Protobuffer and compresses the result
+/// Encodes the provided message as a Protobuffer and compresses the result
 /// with the provided algorithm
 pub(crate) fn encode_message<M>(comp: &Compressor, msg: &M) -> Result<Vec<u8>, EncoderError>
 where
@@ -65,7 +65,7 @@ where
     }
 }
 
-/// `decode_message` extracts and decodes the Protobuffer message with the provided algorithm
+/// Extracts and decodes the Protobuffer message with the provided algorithm
 pub(crate) fn decode_message<M>(comp: &Compressor, msg: &[u8]) -> Result<M, DecoderError>
 where
     M: Message + Default,
@@ -114,23 +114,24 @@ mod tests {
 
     #[test]
     fn message_payload() {
-        let mut sample_message = AgentToServer::default();
-
         // generate a big random effective configuration
-        sample_message.effective_config = Some(EffectiveConfig {
-            config_map: Some(AgentConfigMap {
-                config_map: HashMap::from([(
-                    "/test".to_string(),
-                    AgentConfigFile {
-                        body: Alphanumeric
-                            .sample_string(&mut rand::rng(), 300)
-                            .as_bytes()
-                            .to_vec(),
-                        content_type: "random".to_string(),
-                    },
-                )]),
+        let sample_message = AgentToServer {
+            effective_config: Some(EffectiveConfig {
+                config_map: Some(AgentConfigMap {
+                    config_map: HashMap::from([(
+                        "/test".to_string(),
+                        AgentConfigFile {
+                            body: Alphanumeric
+                                .sample_string(&mut rand::rng(), 300)
+                                .as_bytes()
+                                .to_vec(),
+                            content_type: "random".to_string(),
+                        },
+                    )]),
+                }),
             }),
-        });
+            ..Default::default()
+        };
 
         let gzip_data = encode_message(&Compressor::Gzip, &sample_message).unwrap();
         let plain_data = encode_message(&Compressor::Plain, &sample_message).unwrap();

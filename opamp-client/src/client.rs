@@ -15,7 +15,7 @@ pub enum ClientError {
     /// Indicates a poison error, where a thread panicked while holding a lock.
     #[error("poison error, a thread panicked while holding a lock")]
     PoisonError,
-    /// Error to use when the `on_connect_failed` callback has been called with this error type, which would consume its value.
+    /// Error to use when the [`on_connect_failed`](operation::Callbacks::on_connect_failed) callback has been called with this error type, which would consume its value.
     #[error("connect failed: `{0}`")]
     ConnectFailedCallback(String),
     /// Represents a process message error.
@@ -64,25 +64,26 @@ pub type StartedClientResult<T> = Result<T, StartedClientError>;
 /// Client defines the communication methods with the Opamp server.
 /// It must be shared among threads safely.
 pub trait Client: Send + Sync {
-    /// `set_agent_description` sets attributes of the Agent. The attributes will be included
+    /// Sets attributes of the Agent. The attributes will be included
     /// in the next status report sent to the Server.
     fn set_agent_description(&self, description: AgentDescription) -> ClientResult<()>;
-    /// `get_agent_description` returns attributes of the Agent.
+
+    /// Returns attributes of the Agent.
     fn get_agent_description(&self) -> ClientResult<AgentDescription>;
 
-    /// `set_health` sets the health status of the Agent. The `ComponentHealth` will be included
+    /// Sets the health status of the Agent. The [`ComponentHealth`] will be included
     fn set_health(&self, health: ComponentHealth) -> ClientResult<()>;
 
-    /// `update_effective_config` fetches the current local effective config using
-    /// `get_effective_config` callback and sends it to the Server.
+    /// Fetches the current local effective config (normally using
+    /// [`get_effective_config`](crate::operation::callbacks::Callbacks::get_effective_config) callback) and sends it to the Server.
     /// The reason why there is a callback to fetch the `EffectiveConfig` from the Agent and it is not
     /// sent by the Agent like health, is to allow the compression mechanism without storing it.
     fn update_effective_config(&self) -> ClientResult<()>;
 
-    /// `set_remote_config_status` sets the current `RemoteConfigStatus`.
+    /// Sets the current [`RemoteConfigStatus`].
     fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()>;
 
-    /// `set_custom_capabilities` sets the custom capabilities of the Agent.
+    /// Sets the custom capabilities of the Agent.
     fn set_custom_capabilities(&self, custom_capabilities: CustomCapabilities) -> ClientResult<()>;
 }
 
@@ -103,6 +104,7 @@ pub trait NotStartedClient {
     ///
     /// It is guaranteed that after the `start` call returns without error one of the
     /// following callbacks will be called eventually (unless `stop` is called earlier):
+    ///
     ///  - `OnConnectFailed`
     ///  - `OnError`
     ///  - `OnRemoteConfig`
@@ -112,13 +114,13 @@ pub trait NotStartedClient {
     fn start(self) -> NotStartedClientResult<Self::StartedClient>;
 }
 
-/// A trait defining the `stop()` method for stopping a client in the `OpAMP` library. Implements the `Client` trait.
+/// A trait defining the `stop` method for stopping a client in the OpAMP library. Implements the [`Client`] trait.
 pub trait StartedClient: Client {
     /// After this call returns successfully it is guaranteed that no
     /// callbacks will be called. `stop` will cancel context of any in-fly
     /// callbacks, but will wait until such in-fly callbacks are returned before
     /// Stop returns, so make sure the callbacks don't block infinitely and react
     /// promptly to context cancellations.
-    /// Once stopped `OpAMPClient` cannot be started again.
+    /// Once stopped, [`Client`] cannot be started again.
     fn stop(self) -> StartedClientResult<()>;
 }

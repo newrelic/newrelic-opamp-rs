@@ -1,4 +1,4 @@
-//! Implementation of the `NotStartedClient` and `StartedClient` traits for OpAMP
+//! Implementation of the [`NotStartedClient`] and [`StartedClient`] traits for OpAMP
 
 use crossbeam::channel::{bounded, select_biased, tick, Receiver, Sender, TrySendError};
 use std::{
@@ -28,7 +28,7 @@ const MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(1);
 // Minimum time between polls in case of multiple notifications too close to each other
 const DEFAULT_MINIMUM_DURATION_BETWEEN_POLL: Duration = Duration::from_secs(5);
 
-/// `NotStartedHttpClient` implements the `NotStartedClient` trait for HTTP.
+/// Implements the [`NotStartedClient`] trait for HTTP.
 pub struct NotStartedHttpClient<C>
 where
     C: UnManagedClient,
@@ -40,7 +40,7 @@ where
     instance_uid: String,
     perform_startup_check: bool,
 }
-/// An `HttpClient` that frequently polls for `OpAMP` remote updates in a background thread
+/// An [`HttpClient`] that frequently polls for OpAMP remote updates in a background thread
 /// using HTTP transport for connections.
 #[derive(Debug)]
 pub struct StartedHttpClient<C>
@@ -62,7 +62,7 @@ where
     CB: Callbacks + Send + Sync + 'static,
     HC: HttpClient + Send + Sync,
 {
-    /// Creates a new instance of `NotStartedHttpClient` with provided parameters.
+    /// Creates a new instance of [`NotStartedHttpClient`] with provided parameters.
     pub fn new(
         http_client: HC,
         callbacks: CB,
@@ -89,7 +89,7 @@ where
         })
     }
 
-    /// Returns a new instance of the `NotStartedHttpClient` with the specified interval for polling
+    /// Returns a new instance of the [`NotStartedHttpClient`] with the specified interval for polling
     /// if the interval is smaller than default, a warning message will be printed and default
     /// value will be used
     pub fn with_interval(
@@ -269,18 +269,18 @@ where
         self.opamp_client.get_agent_description()
     }
 
-    /// `set_health` sets the health status of the Agent.
+    /// Sets the health status of the Agent.
     fn set_health(&self, health: crate::opamp::proto::ComponentHealth) -> ClientResult<()> {
         self.opamp_client.set_health(health)
     }
 
-    // update_effective_config fetches the current local effective config using
+    // Fetches the current local effective config using
     // get_effective_config callback and sends it to the Server.
     fn update_effective_config(&self) -> ClientResult<()> {
         self.opamp_client.update_effective_config()
     }
 
-    // update_effective_config fetches the current local effective config using
+    // Fetches the current local effective config using
     // get_effective_config callback and sends it to the Server.
     fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()> {
         self.opamp_client.set_remote_config_status(status)
