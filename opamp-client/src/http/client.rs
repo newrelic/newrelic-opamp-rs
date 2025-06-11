@@ -3,16 +3,16 @@
 use std::sync::{Arc, RwLock};
 
 use crate::{
+    Client, ClientError, ClientResult,
     common::{
         clientstate::ClientSyncedState, message_processor::ProcessResult, nextmessage::NextMessage,
     },
     opamp::proto::{AgentCapabilities, AgentDisconnect, AgentToServer, CustomCapabilities},
     operation::{callbacks::Callbacks, capabilities::Capabilities, settings::StartSettings},
-    Client, ClientError, ClientResult,
 };
 
 use super::{http_client::HttpClient, managed_client::Notifier, sender::HttpSender};
-use tracing::{debug, error, info_span, trace, trace_span};
+use tracing::{debug, error, info_span, trace};
 
 /// A trait for clients that do not manage their own polling.
 pub trait UnManagedClient: Client {
@@ -336,12 +336,12 @@ pub(crate) mod tests {
     use tracing_test::traced_test;
 
     use super::super::http_client::tests::{
-        response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
+        MockHttpClientMockall, ResponseParts, response_from_server_to_agent,
     };
 
     use crate::http::HttpClientError;
-    use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::AgentDescription;
+    use crate::opamp::proto::any_value::Value;
     use crate::opamp::proto::{
         AgentConfigFile, AgentConfigMap, AnyValue, ComponentHealth, EffectiveConfig, KeyValue,
         RemoteConfigStatus,

@@ -1,20 +1,20 @@
 //! Implementation of the [`NotStartedClient`] and [`StartedClient`] traits for OpAMP
 
-use crossbeam::channel::{bounded, select_biased, tick, Receiver, Sender, TrySendError};
+use crossbeam::channel::{Receiver, Sender, TrySendError, bounded, select_biased, tick};
 use std::{
     sync::Arc,
-    thread::{sleep, spawn, JoinHandle},
+    thread::{JoinHandle, sleep, spawn},
     time::Duration,
 };
 use tracing::{debug, error, info_span, instrument, trace, warn};
 
 use crate::{
-    opamp::proto::{CustomCapabilities, RemoteConfigStatus},
-    StartedClient, StartedClientError, StartedClientResult,
+    Client, ClientResult, NotStartedClient, NotStartedClientResult,
+    operation::{callbacks::Callbacks, settings::StartSettings},
 };
 use crate::{
-    operation::{callbacks::Callbacks, settings::StartSettings},
-    Client, ClientResult, NotStartedClient, NotStartedClientResult,
+    StartedClient, StartedClientError, StartedClientResult,
+    opamp::proto::{CustomCapabilities, RemoteConfigStatus},
 };
 
 use super::{
@@ -295,7 +295,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::super::http_client::tests::{
-        response_from_server_to_agent, MockHttpClientMockall, ResponseParts,
+        MockHttpClientMockall, ResponseParts, response_from_server_to_agent,
     };
     use super::*;
     use crate::http::client::tests::MockUnmanagedClientMockall;
@@ -304,7 +304,7 @@ mod tests {
     use crate::operation::callbacks::tests::MockCallbacksMockall;
     use crate::{ClientError, NotStartedClientError};
     use assert_matches::assert_matches;
-    use mockall::{predicate, Sequence};
+    use mockall::{Sequence, predicate};
     use std::ops::{Add, Div, Mul, Sub};
     use std::thread::sleep;
 

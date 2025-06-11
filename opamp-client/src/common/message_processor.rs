@@ -253,9 +253,10 @@ mod tests {
     use crate::capabilities;
     use crate::common::clientstate::ClientSyncedState;
     use crate::opamp::proto::{
-        any_value::Value, AgentConfigMap, AgentDescription, AgentIdentification, AgentRemoteConfig,
-        AnyValue, ComponentHealth, CustomCapabilities, CustomMessage, KeyValue, PackageStatuses,
+        AgentConfigMap, AgentDescription, AgentIdentification, AgentRemoteConfig, AnyValue,
+        ComponentHealth, CustomCapabilities, CustomMessage, KeyValue, PackageStatuses,
         RemoteConfigStatus, ServerErrorResponse, ServerToAgent, ServerToAgentCommand,
+        any_value::Value,
     };
     use crate::operation::callbacks::tests::MockCallbacksMockall;
     use tracing_test::traced_test;

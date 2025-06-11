@@ -180,12 +180,16 @@ mod tests {
         };
 
         let synced_state = ClientSyncedState::default();
-        assert!(synced_state
-            .set_agent_description(expected_agent_description.clone())
-            .is_ok());
-        assert!(synced_state
-            .agent_description_unchanged(&expected_agent_description)
-            .unwrap());
+        assert!(
+            synced_state
+                .set_agent_description(expected_agent_description.clone())
+                .is_ok()
+        );
+        assert!(
+            synced_state
+                .agent_description_unchanged(&expected_agent_description)
+                .unwrap()
+        );
     }
 
     #[test]
@@ -210,12 +214,16 @@ mod tests {
         };
 
         let synced_state = ClientSyncedState::default();
-        assert!(synced_state
-            .set_remote_config_status(expected_remote_config_status.clone())
-            .is_ok());
-        assert!(synced_state
-            .remote_config_status_unchanged(&expected_remote_config_status)
-            .unwrap());
+        assert!(
+            synced_state
+                .set_remote_config_status(expected_remote_config_status.clone())
+                .is_ok()
+        );
+        assert!(
+            synced_state
+                .remote_config_status_unchanged(&expected_remote_config_status)
+                .unwrap()
+        );
     }
 
     #[test]
@@ -292,8 +300,10 @@ mod tests {
             .set_custom_capabilities(custom_capabilities.clone())
             .unwrap();
 
-        assert!(synced_state
-            .custom_capabilities_unchanged(&custom_capabilities)
-            .unwrap());
+        assert!(
+            synced_state
+                .custom_capabilities_unchanged(&custom_capabilities)
+                .unwrap()
+        );
     }
 }

@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 
 use crate::opamp::proto::{
-    any_value::Value, AgentDescription as ProtobufAgentDescription, AnyValue, CustomCapabilities,
-    KeyValue,
+    AgentDescription as ProtobufAgentDescription, AnyValue, CustomCapabilities, KeyValue,
+    any_value::Value,
 };
 
 use super::{capabilities::Capabilities, instance_uid::InstanceUid};
@@ -158,7 +158,7 @@ impl Default for StartSettings {
 #[cfg(test)]
 mod tests {
     use crate::operation::settings::{
-        populate_agent_description, AgentDescription, DescriptionValueType,
+        AgentDescription, DescriptionValueType, populate_agent_description,
     };
     use std::collections::HashMap;
 
@@ -166,7 +166,7 @@ mod tests {
         BoolValue, BytesValue, DoubleValue, IntValue, StringValue,
     };
     use crate::opamp::proto::{
-        any_value::Value, AgentDescription as ProtobufAgentDescription, AnyValue, KeyValue,
+        AgentDescription as ProtobufAgentDescription, AnyValue, KeyValue, any_value::Value,
     };
 
     #[test]
