@@ -1,12 +1,11 @@
-use super::{http_client::HttpClient, HttpClientError};
+use super::{HttpClientError, http_client::HttpClient};
 use crate::operation::instance_uid::InstanceUid;
 use crate::{
-    common::compression::{decode_message, encode_message, Compressor},
+    OpampSenderResult,
+    common::compression::{Compressor, decode_message, encode_message},
     opamp::proto::AgentToServer,
     opamp::proto::ServerToAgent,
-    OpampSenderResult,
 };
-use std::fmt::Debug;
 use tracing::instrument;
 
 // The HttpSender struct holds the necessary components for sending HTTP messages.
@@ -68,7 +67,7 @@ mod tests {
     use super::*;
     use crate::common::compression::CompressorError;
     use crate::http::http_client::tests::{
-        response_from_server_to_agent, HttpClientUreq, MockHttpClientMockall, ResponseParts,
+        HttpClientUreq, MockHttpClientMockall, ResponseParts, response_from_server_to_agent,
     };
     use crate::opamp::proto::{AgentConfigFile, AgentConfigMap, AgentRemoteConfig};
     use crate::opamp::proto::{AgentToServer, ServerToAgent};
@@ -100,7 +99,9 @@ mod tests {
         let expected_err = CompressorError::UnsupportedEncoding("unsupported".to_string());
         match res.unwrap_err() {
             HttpClientError::CompressionError(e) => assert_eq!(expected_err, e),
-            err => panic!("Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {err}")
+            err => panic!(
+                "Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {err}"
+            ),
         }
     }
 
@@ -126,7 +127,9 @@ mod tests {
                 assert_eq!(StatusCode::FORBIDDEN, status_code);
                 assert_eq!("Forbidden".to_string(), message);
             }
-            err => panic!("Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {err}")
+            err => panic!(
+                "Wrong error variant was returned. Expected `HttpClientError::CompressionError`, found {err}"
+            ),
         }
     }
 

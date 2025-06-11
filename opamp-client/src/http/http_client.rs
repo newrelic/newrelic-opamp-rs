@@ -38,7 +38,7 @@ pub(crate) mod tests {
 
     use super::*;
     use http::HeaderMap;
-    use http::{response::Builder, StatusCode};
+    use http::{StatusCode, response::Builder};
     use mockall::mock;
     use prost::Message;
     use std::io::Cursor;

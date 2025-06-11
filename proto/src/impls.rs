@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_debug_server_to_agent() {
-        let expected_string ="ServerToAgent { instance_uid: [0, 1, 2, 3], error_response: None, remote_config: Some(AgentRemoteConfig { config: Some(AgentConfigMap { config_map: {\"test-fleet-list-erich\": AgentConfigFile { body: \"hocus pocus\", content_type: \"text/yaml\" }} }), config_hash: \"5298c05a10e7ca5c91edab6453bb60e8f2848491c15af0f2b2fe8710ad63c34f\" }), connection_settings: None, packages_available: None, flags: 0, capabilities: 0, agent_identification: None, command: None, custom_capabilities: None, custom_message: Some(CustomMessage { capability: \"cap\", type: \"type\", data: \"data\" }) }";
+        let expected_string = "ServerToAgent { instance_uid: [0, 1, 2, 3], error_response: None, remote_config: Some(AgentRemoteConfig { config: Some(AgentConfigMap { config_map: {\"test-fleet-list-erich\": AgentConfigFile { body: \"hocus pocus\", content_type: \"text/yaml\" }} }), config_hash: \"5298c05a10e7ca5c91edab6453bb60e8f2848491c15af0f2b2fe8710ad63c34f\" }), connection_settings: None, packages_available: None, flags: 0, capabilities: 0, agent_identification: None, command: None, custom_capabilities: None, custom_message: Some(CustomMessage { capability: \"cap\", type: \"type\", data: \"data\" }) }";
         let sample_message = ServerToAgent {
             instance_uid: vec![0, 1, 2, 3],
             remote_config: Some(AgentRemoteConfig {
@@ -136,7 +136,7 @@ mod tests {
     }
     #[test]
     fn test_debug_agent_to_server() {
-        let expected_string ="AgentToServer { instance_uid: [0, 1, 2, 3], sequence_num: 0, agent_description: Some(AgentDescription { identifying_attributes: [KeyValue { key: \"key\", value: Some(\"value\") }], non_identifying_attributes: [] }), capabilities: 0, health: None, effective_config: Some(EffectiveConfig { config_map: Some(AgentConfigMap { config_map: {\"test-fleet-list-erich\": AgentConfigFile { body: \"hocus pocus\", content_type: \"text/yaml\" }} }) }), remote_config_status: Some(RemoteConfigStatus { status: 0, last_remote_config_hash: \"hash\", last_error: \"error\" }), package_statuses: None, agent_disconnect: None, flags: 0, connection_settings_request: None, custom_capabilities: None, custom_message: None }";
+        let expected_string = "AgentToServer { instance_uid: [0, 1, 2, 3], sequence_num: 0, agent_description: Some(AgentDescription { identifying_attributes: [KeyValue { key: \"key\", value: Some(\"value\") }], non_identifying_attributes: [] }), capabilities: 0, health: None, effective_config: Some(EffectiveConfig { config_map: Some(AgentConfigMap { config_map: {\"test-fleet-list-erich\": AgentConfigFile { body: \"hocus pocus\", content_type: \"text/yaml\" }} }) }), remote_config_status: Some(RemoteConfigStatus { status: 0, last_remote_config_hash: \"hash\", last_error: \"error\" }), package_statuses: None, agent_disconnect: None, flags: 0, connection_settings_request: None, custom_capabilities: None, custom_message: None }";
         let sample_message = AgentToServer {
             instance_uid: vec![0, 1, 2, 3],
             effective_config: Some(EffectiveConfig {

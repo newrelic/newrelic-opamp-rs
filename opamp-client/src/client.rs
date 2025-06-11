@@ -1,12 +1,12 @@
 //! OpAMP client trait and error.
 
+use crate::NotStartedClientResult;
 use crate::common::clientstate::SyncedStateError;
 use crate::common::message_processor::ProcessError;
 use crate::http::HttpClientError;
 use crate::opamp::proto::{
     AgentDescription, ComponentHealth, CustomCapabilities, RemoteConfigStatus,
 };
-use crate::NotStartedClientResult;
 use thiserror::Error;
 
 /// Represents various errors that can occur during OpAMP connections.
