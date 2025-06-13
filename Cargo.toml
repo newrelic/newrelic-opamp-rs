@@ -9,8 +9,8 @@ edition = "2024"
 license-file = "LICENSE.md"
 
 [workspace.dependencies]
-prost = "0.13"
-prost-build = "0.13"
+prost = "0.14"
+prost-build = "0.14"
 crossbeam = "0.8"
 thiserror = "2.0"
 url = "2.5"
