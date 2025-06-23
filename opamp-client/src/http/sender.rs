@@ -67,7 +67,7 @@ mod tests {
     use super::*;
     use crate::common::compression::CompressorError;
     use crate::http::http_client::tests::{
-        HttpClientUreq, MockHttpClientMockall, ResponseParts, response_from_server_to_agent,
+        HttpClientImpl, MockHttpClientMockall, ResponseParts, response_from_server_to_agent,
     };
     use crate::opamp::proto::{AgentConfigFile, AgentConfigMap, AgentRemoteConfig};
     use crate::opamp::proto::{AgentToServer, ServerToAgent};
@@ -177,7 +177,7 @@ custom_attributes:
 
         let mut headers = HeaderMap::new();
         headers.insert("super-key", "5UP4H-K3Y".parse().unwrap());
-        let http_client = HttpClientUreq::new(
+        let http_client = HttpClientImpl::new(
             Url::parse(server.url("/v1/opamp").as_str()).unwrap(),
             headers,
         );
