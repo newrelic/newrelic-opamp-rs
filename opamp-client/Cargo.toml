@@ -1,6 +1,6 @@
 [package]
 name = "opamp-client"
-version = "0.0.33"
+version = "0.0.34"
 authors.workspace = true
 edition.workspace = true
 license-file.workspace = true
@@ -10,7 +10,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 httpmock.workspace = true
 mockall.workspace = true
 tracing-test.workspace = true
-ureq = { workspace = true, features = ["http-interop"] }
+reqwest =  { workspace = true, features = ["blocking"] }
 assert_matches.workspace = true
 rand.workspace = true
 url.workspace = true

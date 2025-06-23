@@ -334,6 +334,14 @@ Distributed under the following license(s):
 * MIT
 * Apache-2.0
 
+## r-efi <https://crates.io/crates/r-efi>
+
+Distributed under the following license(s):
+
+* MIT
+* Apache-2.0
+* LGPL-2.1-or-later
+
 ## regex <https://crates.io/crates/regex>
 
 Distributed under the following license(s):

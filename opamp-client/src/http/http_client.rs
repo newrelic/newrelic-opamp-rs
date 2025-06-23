@@ -37,12 +37,11 @@ pub(crate) mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use http::HeaderMap;
+    use http::{HeaderMap, Method};
     use http::{StatusCode, response::Builder};
     use mockall::mock;
     use prost::Message;
-    use std::io::Cursor;
-    use tracing::error;
+    use reqwest::blocking::Client;
     use url::Url;
 
     /////////////////////////////////////////////
@@ -69,67 +68,53 @@ pub(crate) mod tests {
         }
     }
 
-    /// An implementation of the [`HttpClient`] trait using the ureq library.
-    pub struct HttpClientUreq {
-        client: ureq::Agent,
+    pub struct HttpClientImpl {
+        client: Client,
         url: Url,
         headers: HeaderMap,
     }
 
-    impl HttpClientUreq {
-        /// Construct a new [`HttpClientUreq`] from the given URL and headers.
+    impl HttpClientImpl {
         pub fn new(url: Url, headers: HeaderMap) -> Self {
             Self {
-                client: ureq::Agent::new(),
+                client: Client::builder().build().unwrap(),
                 url,
                 headers,
             }
         }
     }
-
-    impl HttpClient for HttpClientUreq {
+    impl HttpClient for HttpClientImpl {
         fn post(&self, body: Vec<u8>) -> Result<Response<Vec<u8>>, HttpClientError> {
-            let mut req = self.client.post(self.url.as_str());
+            let request = self
+                .client
+                .request(Method::POST, self.url.clone())
+                .headers(self.headers.clone())
+                .body(body)
+                .build()
+                .unwrap();
 
-            for (name, value) in &self.headers {
-                if let Ok(value) = value.to_str() {
-                    req = req.set(name.as_str(), value);
-                } else {
-                    error!("invalid header value string: {:?}", value);
-                }
-            }
+            let response = self.client.execute(request);
 
-            match req.send(Cursor::new(body)) {
-                Ok(response) | Err(ureq::Error::Status(_, response)) => {
-                    Ok(build_response(response))
+            match response {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        let body = resp
+                            .bytes()
+                            .map_err(|e| HttpClientError::HTTPBodyError(e.to_string()))?;
+                        Ok(Response::new(body.to_vec()))
+                    } else {
+                        Err(HttpClientError::UnsuccessfulResponse(
+                            resp.status().as_u16(),
+                            resp.status()
+                                .canonical_reason()
+                                .unwrap_or_default()
+                                .to_string(),
+                        ))
+                    }
                 }
-
-                Err(ureq::Error::Transport(e)) => {
-                    Err(HttpClientError::TransportError(e.to_string()))
-                }
+                Err(e) => Err(HttpClientError::TransportError(e.to_string())),
             }
         }
-    }
-
-    fn build_response(response: ureq::Response) -> Response<Vec<u8>> {
-        let http_version = match response.http_version() {
-            "HTTP/0.9" => http::Version::HTTP_09,
-            "HTTP/1.0" => http::Version::HTTP_10,
-            "HTTP/1.1" => http::Version::HTTP_11,
-            "HTTP/2.0" => http::Version::HTTP_2,
-            "HTTP/3.0" => http::Version::HTTP_3,
-            _ => unreachable!(),
-        };
-
-        let response_builder = http::Response::builder()
-            .status(response.status())
-            .version(http_version);
-
-        let mut buf: Vec<u8> = vec![];
-
-        response.into_reader().read_to_end(&mut buf).unwrap();
-
-        response_builder.body(buf).unwrap()
     }
 
     pub(crate) struct ResponseParts {
