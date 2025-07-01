@@ -85,14 +85,14 @@ impl Debug for AnyValue {
         match &self.value {
             Some(Value::BytesValue(value)) => {
                 let data = String::from_utf8(value.clone()).unwrap_or(format!("{:?}", &value));
-                write!(f, "{:?}", data)
+                write!(f, "{data:?}")
             }
-            Some(Value::StringValue(value)) => write!(f, "{:?}", value),
-            Some(Value::IntValue(value)) => write!(f, "{:?}", value),
-            Some(Value::DoubleValue(value)) => write!(f, "{:?}", value),
-            Some(Value::BoolValue(value)) => write!(f, "{:?}", value),
-            Some(Value::ArrayValue(value)) => write!(f, "{:?}", value),
-            Some(Value::KvlistValue(value)) => write!(f, "{:?}", value),
+            Some(Value::StringValue(value)) => write!(f, "{value:?}"),
+            Some(Value::IntValue(value)) => write!(f, "{value:?}"),
+            Some(Value::DoubleValue(value)) => write!(f, "{value:?}"),
+            Some(Value::BoolValue(value)) => write!(f, "{value:?}"),
+            Some(Value::ArrayValue(value)) => write!(f, "{value:?}"),
+            Some(Value::KvlistValue(value)) => write!(f, "{value:?}"),
             None => write!(f, "None"),
         }
     }
