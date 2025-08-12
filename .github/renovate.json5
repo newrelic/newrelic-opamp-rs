@@ -12,6 +12,7 @@
   prConcurrentLimit: 0,
   printConfig: true,
   prHourlyLimit: 0,
+  lockFileMaintenance: { enabled: true }, // Update transitive dependencies by keeping lockfile updated
   packageRules: [
     {
       matchManagers: [
