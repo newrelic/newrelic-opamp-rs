@@ -130,9 +130,9 @@ mod tests {
             ..Default::default()
         };
 
-        eprintln!("{:?}", sample_message);
+        eprintln!("{sample_message:?}");
 
-        assert_eq!(format!("{:?}", sample_message), expected_string);
+        assert_eq!(format!("{sample_message:?}"), expected_string);
     }
     #[test]
     fn test_debug_agent_to_server() {
