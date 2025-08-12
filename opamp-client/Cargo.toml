@@ -10,7 +10,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 httpmock.workspace = true
 mockall.workspace = true
 tracing-test.workspace = true
-reqwest =  { workspace = true, features = ["blocking"] }
+reqwest = { workspace = true, features = ["blocking"] }
 assert_matches.workspace = true
 rand.workspace = true
 url.workspace = true
