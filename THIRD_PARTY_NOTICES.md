@@ -461,6 +461,13 @@ Distributed under the following license(s):
 * Apache-2.0
 * MIT
 
+## windows-link <https://crates.io/crates/windows-link>
+
+Distributed under the following license(s):
+
+* MIT
+* Apache-2.0
+
 ## windows-sys <https://crates.io/crates/windows-sys>
 
 Distributed under the following license(s):
