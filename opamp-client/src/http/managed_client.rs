@@ -1,5 +1,15 @@
 //! Implementation of the [`NotStartedClient`] and [`StartedClient`] traits for OpAMP
 
+use super::{
+    client::{OpAMPHttpClient, UnManagedClient},
+    http_client::HttpClient,
+};
+use crate::{
+    Client, ClientResult, NotStartedClient, NotStartedClientResult, StartedClient,
+    StartedClientError, StartedClientResult,
+    opamp::proto::{CustomCapabilities, RemoteConfigStatus},
+    operation::{callbacks::Callbacks, settings::StartSettings},
+};
 use crossbeam::channel::{Receiver, Sender, TrySendError, bounded, select_biased, tick};
 use std::{
     sync::Arc,
@@ -8,24 +18,11 @@ use std::{
 };
 use tracing::{debug, error, info_span, instrument, trace, warn};
 
-use crate::{
-    Client, ClientResult, NotStartedClient, NotStartedClientResult,
-    operation::{callbacks::Callbacks, settings::StartSettings},
-};
-use crate::{
-    StartedClient, StartedClientError, StartedClientResult,
-    opamp::proto::{CustomCapabilities, RemoteConfigStatus},
-};
-
-use super::{
-    client::{OpAMPHttpClient, UnManagedClient},
-    http_client::HttpClient,
-};
-
 // Default and minimum interval for OpAMP
 const DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
-const MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(1);
-// Minimum time between polls in case of multiple notifications too close to each other
+const MINIMUM_POLLING_INTERVAL: Duration = Duration::from_secs(10);
+
+// Minimum time between polls in case of multiple notifications to close to each other
 const DEFAULT_MINIMUM_DURATION_BETWEEN_POLL: Duration = Duration::from_secs(5);
 
 /// Implements the [`NotStartedClient`] trait for HTTP.
@@ -96,7 +93,7 @@ where
         self,
         interval: Duration,
     ) -> NotStartedHttpClient<OpAMPHttpClient<CB, HC>> {
-        let interval = if interval.le(&MINIMUM_POLLING_INTERVAL) {
+        let interval = if interval.lt(&MINIMUM_POLLING_INTERVAL) {
             warn!(
                 interval = interval.as_secs(),
                 default_inverval = MINIMUM_POLLING_INTERVAL.as_secs(),
