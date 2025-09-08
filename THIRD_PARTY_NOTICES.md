@@ -538,7 +538,7 @@ Distributed under the following license(s):
 * MIT
 * Apache-2.0
 
-## wit-bindgen-rt <https://crates.io/crates/wit-bindgen-rt>
+## wit-bindgen <https://crates.io/crates/wit-bindgen>
 
 Distributed under the following license(s):
 
