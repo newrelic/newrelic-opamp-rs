@@ -378,6 +378,27 @@ Distributed under the following license(s):
 * Apache-2.0
 * MIT
 
+## serde <https://crates.io/crates/serde>
+
+Distributed under the following license(s):
+
+* MIT
+* Apache-2.0
+
+## serde_core <https://crates.io/crates/serde_core>
+
+Distributed under the following license(s):
+
+* MIT
+* Apache-2.0
+
+## serde_derive <https://crates.io/crates/serde_derive>
+
+Distributed under the following license(s):
+
+* MIT
+* Apache-2.0
+
 ## syn <https://crates.io/crates/syn>
 
 Distributed under the following license(s):
@@ -433,13 +454,6 @@ Distributed under the following license(s):
 * Unicode-3.0
 
 ## uuid <https://crates.io/crates/uuid>
-
-Distributed under the following license(s):
-
-* Apache-2.0
-* MIT
-
-## value-bag <https://crates.io/crates/value-bag>
 
 Distributed under the following license(s):
 
