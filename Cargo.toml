@@ -6,6 +6,7 @@ members = ["opamp-client", "proto"]
 [workspace.package]
 authors = ["The New Relic Agent Control Team"]
 edition = "2024"
+rust-version = "1.89.0"
 license-file = "LICENSE.md"
 
 [workspace.dependencies]
