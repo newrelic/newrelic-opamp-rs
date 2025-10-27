@@ -18,13 +18,6 @@ Distributed under the following license(s):
 
 * Zlib
 
-## ahash <https://crates.io/crates/ahash>
-
-Distributed under the following license(s):
-
-* MIT
-* Apache-2.0
-
 ## aho-corasick <https://crates.io/crates/aho-corasick>
 
 Distributed under the following license(s):
@@ -170,6 +163,12 @@ Distributed under the following license(s):
 
 * Apache-2.0
 * MIT
+
+## foldhash <https://crates.io/crates/foldhash>
+
+Distributed under the following license(s):
+
+* Zlib
 
 ## getrandom <https://crates.io/crates/getrandom>
 
@@ -460,13 +459,6 @@ Distributed under the following license(s):
 * Apache-2.0
 * MIT
 
-## version_check <https://crates.io/crates/version_check>
-
-Distributed under the following license(s):
-
-* MIT
-* Apache-2.0
-
 ## wasi <https://crates.io/crates/wasi>
 
 Distributed under the following license(s):
@@ -502,13 +494,5 @@ Distributed under the following license(s):
 Distributed under the following license(s):
 
 * Apache-2.0 WITH LLVM-exception
-* Apache-2.0
-* MIT
-
-## zerocopy <https://crates.io/crates/zerocopy>
-
-Distributed under the following license(s):
-
-* BSD-2-Clause
 * Apache-2.0
 * MIT
