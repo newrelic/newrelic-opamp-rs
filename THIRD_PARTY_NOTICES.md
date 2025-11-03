@@ -459,14 +459,6 @@ Distributed under the following license(s):
 * Apache-2.0
 * MIT
 
-## wasi <https://crates.io/crates/wasi>
-
-Distributed under the following license(s):
-
-* Apache-2.0 WITH LLVM-exception
-* Apache-2.0
-* MIT
-
 ## wasip2 <https://crates.io/crates/wasip2>
 
 Distributed under the following license(s):
