@@ -4,7 +4,8 @@ on:
     # Scheduled to run at 8 a.m on every day-of-week from Monday through Friday.
     - cron:  '0 8 * * 1-5'
   workflow_dispatch:
-
+permissions:
+  contents: read
 jobs:
   security:
     uses: ./.github/workflows/component_security.yaml
