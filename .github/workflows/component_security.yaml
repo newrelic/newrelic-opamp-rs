@@ -5,6 +5,8 @@ on:
     secrets:
       slack_webhook:
         required: false
+permissions:
+  contents: read
 
 jobs:
   audit:
