@@ -12,11 +12,11 @@ jobs:
   render:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
         with:
           submodules: true
       - name: Install stable
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@eb231821b5a5669d0337b42f5623d77e0bcf01b7 # 1.85.0
         with:
           toolchain: stable
       - name: Clean docs folder
@@ -28,7 +28,7 @@ jobs:
       - name: Remove lock file
         run: rm target/doc/.lock
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: target/doc
 
@@ -50,5 +50,5 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4 # or specific "vX.X.X" version tag for this action
 
