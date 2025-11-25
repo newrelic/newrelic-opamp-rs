@@ -157,13 +157,6 @@ Distributed under the following license(s):
 * MIT
 * Apache-2.0
 
-## fnv <https://crates.io/crates/fnv>
-
-Distributed under the following license(s):
-
-* Apache-2.0
-* MIT
-
 ## foldhash <https://crates.io/crates/foldhash>
 
 Distributed under the following license(s):
