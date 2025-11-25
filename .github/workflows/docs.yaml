@@ -1,13 +1,13 @@
-permissions:
-  contents: read
+name: docs
 on:
   push:
     branches: [main]
+permissions:
+  contents: read
 # See https://docs.github.com/en/actions/using-jobs/using-concurrency
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
-name: docs
 jobs:
   render:
     runs-on: ubuntu-latest
