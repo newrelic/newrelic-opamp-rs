@@ -55,7 +55,7 @@ jobs:
       - run: cargo clippy -- -D clippy::all
 
   security:
-    uses: ./.github/workflows/component_security.yml
+    uses: ./.github/workflows/component_security.yaml
     secrets:
       slack_webhook: ${{ secrets.AC_SLACK_WEBHOOK }}
 
