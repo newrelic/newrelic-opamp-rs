@@ -334,6 +334,13 @@ Distributed under the following license(s):
 * Apache-2.0
 * LGPL-2.1-or-later
 
+## rand_core <https://crates.io/crates/rand_core>
+
+Distributed under the following license(s):
+
+* MIT
+* Apache-2.0
+
 ## regex <https://crates.io/crates/regex>
 
 Distributed under the following license(s):
@@ -453,6 +460,14 @@ Distributed under the following license(s):
 * MIT
 
 ## wasip2 <https://crates.io/crates/wasip2>
+
+Distributed under the following license(s):
+
+* Apache-2.0 WITH LLVM-exception
+* Apache-2.0
+* MIT
+
+## wasip3 <https://crates.io/crates/wasip3>
 
 Distributed under the following license(s):
 

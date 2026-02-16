@@ -25,4 +25,4 @@ tracing-test = "0.2.6"
 reqwest = "0.13.2"
 assert_matches = "1.5"
 rand = "0.10.0"
-uuid = { version = "1.20.0", features = ["v7"] }
+uuid = { version = "1.21.0", features = ["v7"] }
