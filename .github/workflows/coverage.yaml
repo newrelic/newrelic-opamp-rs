@@ -1,7 +1,9 @@
 name: coverage
 on:
   push:
-    branches: [main]
+    branches: 
+      - main
+      - renovate/**
   pull_request:
 permissions:
   contents: read
