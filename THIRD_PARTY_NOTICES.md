@@ -59,13 +59,6 @@ Distributed under the following license(s):
 * MIT
 * Apache-2.0
 
-## core2 <https://crates.io/crates/core2>
-
-Distributed under the following license(s):
-
-* Apache-2.0
-* MIT
-
 ## crc32fast <https://crates.io/crates/crc32fast>
 
 Distributed under the following license(s):
@@ -259,6 +252,13 @@ Distributed under the following license(s):
 
 * MIT
 * Apache-2.0
+
+## no_std_io2 <https://crates.io/crates/no_std_io2>
+
+Distributed under the following license(s):
+
+* Apache-2.0
+* MIT
 
 ## once_cell <https://crates.io/crates/once_cell>
 
