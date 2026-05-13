@@ -38,6 +38,10 @@ The usual way of testing Rust crates is enough.
 cargo test --locked --all-features --all-targets
 ```
 
+## Release Process
+
+For information about the release process, see the [release documentation](https://github.com/newrelic/newrelic-agent-control/blob/main/docs/RELEASE.md).
+
 ## Support
 
 * [New Relic Community](https://forum.newrelic.com/): The best place to engage in troubleshooting questions.
