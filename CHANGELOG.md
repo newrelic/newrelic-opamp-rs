@@ -7,3 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Unreleased section should follow [Release Toolkit](https://github.com/newrelic/release-toolkit/blob/main/README.md).
 
 ## Unreleased
+
+## v0.0.38 - 2026-05-13
+
+### ⛓️ Dependencies
+- Updated rust crate reqwest to 0.13.3

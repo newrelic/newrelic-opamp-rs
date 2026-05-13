@@ -1,6 +1,6 @@
 [package]
 name = "opamp-client"
-version = "0.0.36"
+version = "0.0.38"
 authors.workspace = true
 edition.workspace = true
 license-file.workspace = true
