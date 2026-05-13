@@ -1,0 +1,16 @@
+name: ⏯️ Generate pre-release PR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prerelease:
+    uses: newrelic/newrelic-agent-control/.github/workflows/shared_create_prerelease_pr.yml@main
+    with:
+      cargo_toml_path: "opamp-client/Cargo.toml"
+    secrets:
+      app_id: ${{ secrets.AGENT_CONTROL_APP_ID }}
+      app_private_key: ${{ secrets.AGENT_CONTROL_APP_PKEY }}
