@@ -1,13 +1,28 @@
-name: test
+name: on_push_pr
 on:
+  pull_request:
   push:
+    branches:
+      - main
+      - renovate/**
 permissions:
   contents: read
-# See https://docs.github.com/en/actions/using-jobs/using-concurrency
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+
 jobs:
+  codespell:
+    name: codespell
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Codespell test
+        uses: codespell-project/actions-codespell@406322ec52dd7b488e48c1c4b82e2a8b3a1bf630 # v2
+        with:
+          ignore_words_list: crate,implementor
+
   basic-tests:
     runs-on: ubuntu-latest
     name: test
@@ -15,10 +30,17 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: true
-      - name: Install stable
+
+      - name: Obtain Rust version from project
+        run: |
+          RUST_VERSION=$(grep "rust-version" Cargo.toml | cut -d "=" -f2 | tr -d "[:space:]")
+          echo "RUST_VERSION=${RUST_VERSION}" >> $GITHUB_ENV
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
-          toolchain: stable
+          toolchain: ${{ env.RUST_VERSION }}
+
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
@@ -29,30 +51,45 @@ jobs:
 
   cargo-fmt:
     runs-on: ubuntu-latest
-    name: Format test / stable
+    name: cargo fmt
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Install Rust
+
+      - name: Obtain Rust version from project
+        run: |
+          RUST_VERSION=$(grep "rust-version" Cargo.toml | cut -d "=" -f2 | tr -d "[:space:]")
+          echo "RUST_VERSION=${RUST_VERSION}" >> $GITHUB_ENV
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
-          toolchain: stable
           components: rustfmt
-      - run: cargo fmt --check
+          toolchain: ${{ env.RUST_VERSION }}
+      - name: Check code formatting
+        run: cargo fmt --check
 
   cargo-clippy:
     runs-on: ubuntu-latest
-    name: clippy / ${{ matrix.toolchain }}
+    name: cargo clippy
     permissions:
       contents: read
       checks: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Install Rust
+
+      - name: Obtain Rust version from project
+        run: |
+          RUST_VERSION=$(grep "rust-version" Cargo.toml | cut -d "=" -f2 | tr -d "[:space:]")
+          echo "RUST_VERSION=${RUST_VERSION}" >> $GITHUB_ENV
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
-          toolchain: stable
+          toolchain: ${{ env.RUST_VERSION }}
           components: clippy
-      - run: cargo clippy -- -D clippy::all
+
+      - name: cargo clippy with compiler warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings -D clippy::all
 
   security:
     uses: ./.github/workflows/component_security.yaml
@@ -64,7 +101,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
       - uses: newrelic/rust-licenses-noticer@dad311aea99fc619f7fdc7e09a5534f869e747ff # v1
         with:
           template-file: THIRD_PARTY_NOTICES.md.tmpl
@@ -74,6 +110,7 @@ jobs:
     if: always()
 
     needs:
+      - codespell
       - basic-tests
       - cargo-clippy
       - cargo-fmt
