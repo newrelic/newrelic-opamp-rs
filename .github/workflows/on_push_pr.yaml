@@ -1,0 +1,153 @@
+name: on_push_pr
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - renovate/**
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  codespell:
+    name: codespell
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Codespell test
+        uses: codespell-project/actions-codespell@406322ec52dd7b488e48c1c4b82e2a8b3a1bf630 # v2
+        with:
+          ignore_words_list: crate,implementor
+
+  basic-tests:
+    runs-on: ubuntu-latest
+    name: test
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: true
+
+      - name: Obtain Rust version from project
+        run: |
+          RUST_VERSION=$(grep "rust-version" Cargo.toml | cut -d "=" -f2 | tr -d "[:space:]")
+          echo "RUST_VERSION=${RUST_VERSION}" >> $GITHUB_ENV
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - name: cargo test --locked
+        run: cargo test --locked --all-features --all-targets
+      - name: cargo test --doc
+        run: cargo test --locked --all-features --doc
+
+  cargo-fmt:
+    runs-on: ubuntu-latest
+    name: cargo fmt
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Obtain Rust version from project
+        run: |
+          RUST_VERSION=$(grep "rust-version" Cargo.toml | cut -d "=" -f2 | tr -d "[:space:]")
+          echo "RUST_VERSION=${RUST_VERSION}" >> $GITHUB_ENV
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          components: rustfmt
+          toolchain: ${{ env.RUST_VERSION }}
+      - name: Check code formatting
+        run: cargo fmt --check
+
+  cargo-clippy:
+    runs-on: ubuntu-latest
+    name: cargo clippy
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Obtain Rust version from project
+        run: |
+          RUST_VERSION=$(grep "rust-version" Cargo.toml | cut -d "=" -f2 | tr -d "[:space:]")
+          echo "RUST_VERSION=${RUST_VERSION}" >> $GITHUB_ENV
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy
+
+      - name: cargo clippy with compiler warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings -D clippy::all
+
+  coverage:
+    runs-on: ubuntu-latest
+    name: ubuntu / stable / coverage
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: true
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      - name: cargo install cargo-llvm-cov
+        uses: taiki-e/install-action@71765c00dd3e08a5484a5b9e82a4c88b86520e0e # 71765c00dd3e08a5484a5b9e82a4c88b86520e0e
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - name: cargo llvm-cov
+        run: cargo llvm-cov --locked --all-features --json --output-path jcov.info -- --skip as_root
+      - name: Calculate and print total coverage
+        run: |
+          echo "Total functions coverage: $(jq '.data[].totals.functions.percent' jcov.info)"
+          echo "Total lines coverage: $(jq '.data[].totals.lines.percent' jcov.info)"
+          echo "Total regions coverage: $(jq '.data[].totals.regions.percent' jcov.info)"
+          echo "Total instantiations coverage: $(jq '.data[].totals.instantiations.percent' jcov.info)"
+
+  security:
+    uses: ./.github/workflows/component_security.yaml
+    secrets:
+      slack_webhook: ${{ secrets.AC_SLACK_WEBHOOK }}
+
+  third-party-notices-check:
+    name: ⚖️ Third party licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: newrelic/rust-licenses-noticer@dad311aea99fc619f7fdc7e09a5534f869e747ff # v1
+        with:
+          template-file: THIRD_PARTY_NOTICES.md.tmpl
+
+  check-all-green:
+    name: 🟢 All required checks and tests pass
+    if: always()
+
+    needs:
+      - codespell
+      - basic-tests
+      - cargo-clippy
+      - coverage
+      - cargo-fmt
+      - security
+      - third-party-notices-check
+
+    runs-on: Ubuntu-latest
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
