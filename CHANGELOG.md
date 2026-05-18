@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Unreleased section should follow [Release Toolkit](https://github.com/newrelic/release-toolkit/blob/main/README.md).
 
 ## Unreleased
-### Bugfix
+
+## v0.0.39 - 2026-05-18
+
+### 🐞 Bug fixes
 - Fixed custom capabilities
 
 ## v0.0.38 - 2026-05-15
