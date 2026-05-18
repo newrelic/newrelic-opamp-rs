@@ -56,8 +56,8 @@ where
         if !start_settings.agent_description.is_empty() {
             synced_state.set_agent_description(start_settings.agent_description.clone().into())?;
         }
-        if let Some(custom_capabilities) = start_settings.custom_capabilities {
-            synced_state.set_custom_capabilities(custom_capabilities)?;
+        if let Some(ref custom_capabilities) = start_settings.custom_capabilities {
+            synced_state.set_custom_capabilities(custom_capabilities.clone())?;
         }
         let instance_uid = start_settings.instance_uid.to_string();
 
@@ -68,6 +68,7 @@ where
                 instance_uid: start_settings.instance_uid.into(),
                 agent_description: Some(start_settings.agent_description.into()),
                 capabilities: u64::from(start_settings.capabilities),
+                custom_capabilities: start_settings.custom_capabilities,
                 ..Default::default()
             }))),
             synced_state,
