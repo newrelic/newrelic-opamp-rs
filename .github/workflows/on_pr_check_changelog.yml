@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   check-changelog:
-    uses: newrelic/newrelic-agent-control/.github/workflows/shared_check_changelog.yml@main
+    uses: newrelic/newrelic-agent-control/.github/workflows/shared_check_changelog.yml@7dfd95719801eac30f75e3cdf656b9ce6974c1b0 # main
