@@ -45,37 +45,61 @@ where
     C: Callbacks + Send + Sync,
     L: HttpClient + Send + Sync,
 {
-    /// Initializes a new [`OpAMPHttpClient`] with the provided Callbacks, uid, Capabilities, and [`HttpClient`].
+    /// Initializes a new [`OpAMPHttpClient`] with the provided arguments.
     pub(super) fn new(
         callbacks: C,
         start_settings: StartSettings,
         http_client: L,
         pending_msg: Notifier,
     ) -> ClientResult<Self> {
-        let synced_state = ClientSyncedState::default();
-        if !start_settings.agent_description.is_empty() {
-            synced_state.set_agent_description(start_settings.agent_description.clone().into())?;
-        }
-        if let Some(ref custom_capabilities) = start_settings.custom_capabilities {
-            synced_state.set_custom_capabilities(custom_capabilities.clone())?;
-        }
-        let instance_uid = start_settings.instance_uid.to_string();
+        let capabilities = start_settings.capabilities;
+        let instance_uid = start_settings.instance_uid.clone();
+
+        let (initial_message, synced_state) = Self::initial_message_and_state(start_settings)?;
 
         Ok(Self {
-            sender: HttpSender::new(http_client, start_settings.instance_uid.clone()),
+            sender: HttpSender::new(http_client, instance_uid.clone()),
             callbacks,
-            message: Arc::new(RwLock::new(NextMessage::new(AgentToServer {
-                instance_uid: start_settings.instance_uid.into(),
-                agent_description: Some(start_settings.agent_description.into()),
-                capabilities: u64::from(start_settings.capabilities),
-                custom_capabilities: start_settings.custom_capabilities,
-                ..Default::default()
-            }))),
+            message: Arc::new(RwLock::new(NextMessage::new(initial_message))),
             synced_state,
-            capabilities: start_settings.capabilities,
+            capabilities,
             pending_msg,
-            instance_uid,
+            instance_uid: instance_uid.to_string(),
         })
+    }
+
+    /// Helper to build the initial [AgentToServer] message to be sent to the server and the corresponding
+    /// internal state to keep track of sent fields (check [ClientSyncedState] for details).
+    fn initial_message_and_state(
+        start_settings: StartSettings,
+    ) -> ClientResult<(AgentToServer, ClientSyncedState)> {
+        // Destructured to get compile errors if any field is added to StartSettings
+        let StartSettings {
+            instance_uid,
+            capabilities,
+            custom_capabilities,
+            agent_description,
+        } = start_settings;
+
+        // Store initial state fields
+        let initial_state = ClientSyncedState::default();
+        if !agent_description.is_empty() {
+            initial_state.set_agent_description(agent_description.clone().into())?;
+        }
+        if let Some(custom_capabilities) = custom_capabilities.as_ref() {
+            initial_state.set_custom_capabilities(custom_capabilities.clone())?;
+        }
+
+        // build initial message
+        let initial_message = AgentToServer {
+            instance_uid: instance_uid.into(),
+            agent_description: Some(agent_description.into()),
+            capabilities: capabilities.into(),
+            custom_capabilities,
+            ..Default::default()
+        };
+
+        Ok((initial_message, initial_state))
     }
 }
 
@@ -347,6 +371,7 @@ pub(crate) mod tests {
         AgentConfigFile, AgentConfigMap, AnyValue, ComponentHealth, EffectiveConfig, KeyValue,
         RemoteConfigStatus,
     };
+    use crate::operation::instance_uid::InstanceUid;
     use crate::operation::settings::DescriptionValueType;
     use crate::{
         capabilities,
@@ -368,6 +393,21 @@ pub(crate) mod tests {
             fn update_effective_config(&self) -> ClientResult<()>;
             fn set_remote_config_status(&self, status: RemoteConfigStatus) -> ClientResult<()>;
             fn set_custom_capabilities(&self, custom_capabilities: CustomCapabilities) -> ClientResult<()>;
+        }
+    }
+
+    impl crate::operation::settings::AgentDescription {
+        /// Returns a non-empty agent-description for testing purposes
+        pub fn testing_non_empty() -> Self {
+            Self {
+                identifying_attributes: [("id.key".to_string(), DescriptionValueType::Int(42))]
+                    .into(),
+                non_identifying_attributes: [(
+                    "non-id.key".to_string(),
+                    DescriptionValueType::String("non-identifying".to_string()),
+                )]
+                .into(),
+            }
         }
     }
 
@@ -401,9 +441,66 @@ pub(crate) mod tests {
         ));
     }
 
-    //Check if the Agent description is into the synced state after deleting the rest of fields.
     #[test]
-    fn synced_state_contains_description_on_creation() {
+    fn initial_message_includes_all_start_settings_fields() {
+        let instance_uid = InstanceUid::create();
+        let custom_capabilities = CustomCapabilities {
+            capabilities: vec!["custom.capability".into()],
+        };
+        let capabilities = capabilities!(AgentCapabilities::ReportsStatus);
+        let agent_description = crate::operation::settings::AgentDescription::testing_non_empty();
+        let start_settings = StartSettings {
+            instance_uid: instance_uid.clone(),
+            capabilities,
+            custom_capabilities: Some(custom_capabilities.clone()),
+            agent_description: agent_description.clone(),
+        };
+
+        // Drop fires a disconnect post
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().once().returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+
+        let (pending_msg, _) = Notifier::new("name".to_string());
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            start_settings,
+            mock_client,
+            pending_msg,
+        )
+        .expect("Client creation expects to succeed");
+
+        // Check initial message
+        let message = client.message.write().unwrap().pop();
+        assert_eq!(
+            message.custom_capabilities,
+            Some(custom_capabilities.clone())
+        );
+        assert_eq!(
+            message.agent_description,
+            Some(agent_description.clone().into())
+        );
+        assert_eq!(message.capabilities, u64::from(capabilities));
+        assert_eq!(message.instance_uid, Vec::<u8>::from(instance_uid));
+        // Check state
+        assert_eq!(
+            client.synced_state.custom_capabilities().unwrap(),
+            Some(custom_capabilities)
+        );
+        assert_eq!(
+            client.synced_state.agent_description().unwrap(),
+            Some(agent_description.into())
+        );
+    }
+
+    // After a poll, message fields are compressed away but the synced state retains them.
+    // Specifically validates that an agent description provided via StartSettings is persisted.
+    #[test]
+    fn poll_compresses_message_but_synced_state_persists() {
         let mut mock_client = MockHttpClientMockall::new();
         mock_client.expect_post().times(2).returning(|_| {
             Ok(response_from_server_to_agent(
@@ -428,149 +525,55 @@ pub(crate) mod tests {
                 })
             });
 
-        let mut description: HashMap<String, DescriptionValueType> = HashMap::new();
-        description.insert(
-            "thing".to_string(),
-            DescriptionValueType::String("thing_value".to_string()),
-        );
-
+        let agent_description = crate::operation::settings::AgentDescription::testing_non_empty();
         let settings = StartSettings {
             capabilities: capabilities!(
                 AgentCapabilities::ReportsEffectiveConfig,
                 AgentCapabilities::ReportsHealth,
                 AgentCapabilities::ReportsRemoteConfig
             ),
-            custom_capabilities: None,
-            agent_description: crate::operation::settings::AgentDescription {
-                identifying_attributes: description.clone(),
-                non_identifying_attributes: description.clone(),
-            },
+            agent_description: agent_description.clone(),
             ..Default::default()
         };
         let (pending_msg, _) = Notifier::new("msg".to_string());
         let client =
             OpAMPHttpClient::new(mock_callbacks, settings, mock_client, pending_msg).unwrap();
 
-        let result = client.update_effective_config();
-        assert!(result.is_ok());
-
-        let result = client.set_health(ComponentHealth {
+        let health = ComponentHealth {
             healthy: false,
             start_time_unix_nano: 1689942447,
             last_error: "wow! what an error".to_string(),
             ..Default::default()
-        });
-        assert!(result.is_ok());
-
-        let result = client.set_remote_config_status(RemoteConfigStatus {
-            last_remote_config_hash: vec![],
+        };
+        let remote_config_status = RemoteConfigStatus {
             status: 2,
-            error_message: String::new(),
-        });
-        assert!(result.is_ok());
+            ..Default::default()
+        };
+
+        client.update_effective_config().unwrap();
+        client.set_health(health.clone()).unwrap();
+        client
+            .set_remote_config_status(remote_config_status.clone())
+            .unwrap();
 
         client.poll().unwrap();
 
-        // this pop should return a current message with the attributes reset
+        // After poll, the next message has its fields compressed away.
         let message = client.message.write().unwrap().pop();
+        assert_eq!(message.agent_description, None);
+        assert_eq!(message.health, None);
+        assert_eq!(message.remote_config_status, None);
+        assert_eq!(message.effective_config, None);
 
+        // Synced state retains the values.
         assert_eq!(
-            message.agent_description,
-            AgentToServer::default().agent_description
+            client.synced_state.agent_description().unwrap(),
+            Some(agent_description.into()),
         );
-        assert_eq!(message.health, AgentToServer::default().health);
+        assert_eq!(client.synced_state.health().unwrap(), Some(health));
         assert_eq!(
-            message.remote_config_status,
-            AgentToServer::default().remote_config_status
-        );
-        assert_eq!(
-            message.effective_config,
-            AgentToServer::default().effective_config
-        );
-
-        assert_ne!(
-            client.synced_state.health().unwrap(),
-            ClientSyncedState::default().health().unwrap()
-        );
-        assert_ne!(
             client.synced_state.remote_config_status().unwrap(),
-            ClientSyncedState::default().remote_config_status().unwrap()
-        );
-
-        let random_value = KeyValue {
-            key: "thing".to_string(),
-            value: Some(AnyValue {
-                value: Some(Value::StringValue("thing_value".to_string())),
-            }),
-        };
-
-        let expected_result = AgentDescription {
-            identifying_attributes: vec![random_value.clone()],
-            non_identifying_attributes: vec![random_value],
-        };
-
-        assert_eq!(
-            client
-                .synced_state
-                .agent_description()
-                .unwrap()
-                .unwrap()
-                .identifying_attributes
-                .first()
-                .unwrap()
-                .value,
-            expected_result
-                .identifying_attributes
-                .first()
-                .unwrap()
-                .value
-        );
-
-        assert_eq!(
-            client
-                .synced_state
-                .agent_description()
-                .unwrap()
-                .unwrap()
-                .identifying_attributes
-                .first()
-                .unwrap()
-                .key,
-            expected_result.identifying_attributes.first().unwrap().key
-        );
-
-        assert_eq!(
-            client
-                .synced_state
-                .agent_description()
-                .unwrap()
-                .unwrap()
-                .non_identifying_attributes
-                .first()
-                .unwrap()
-                .value,
-            expected_result
-                .non_identifying_attributes
-                .first()
-                .unwrap()
-                .value
-        );
-
-        assert_eq!(
-            client
-                .synced_state
-                .agent_description()
-                .unwrap()
-                .unwrap()
-                .non_identifying_attributes
-                .first()
-                .unwrap()
-                .key,
-            expected_result
-                .non_identifying_attributes
-                .first()
-                .unwrap()
-                .key
+            Some(remote_config_status),
         );
     }
 
