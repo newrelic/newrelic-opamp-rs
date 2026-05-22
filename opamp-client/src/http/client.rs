@@ -355,8 +355,10 @@ where
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use assert_matches::assert_matches;
     use http::StatusCode;
     use mockall::mock;
+    use rstest::rstest;
     use std::collections::HashMap;
     use tracing_test::traced_test;
 
@@ -411,6 +413,24 @@ pub(crate) mod tests {
         }
     }
 
+    /// Concrete `OpAMPHttpClient` configuration used across parametrized tests.
+    type TestClient = OpAMPHttpClient<MockCallbacksMockall, MockHttpClientMockall>;
+    /// A boxed action that exercises one client setter against a configured client.
+    type ClientAction = Box<dyn Fn(&TestClient) -> ClientResult<()>>;
+
+    /// Builds a mock HTTP client whose only expected `post` call is the disconnect
+    /// fired when the `OpAMPHttpClient` is dropped at the end of the test.
+    fn drop_only_http_mock() -> MockHttpClientMockall {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().once().returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+        mock_client
+    }
+
     #[test]
     fn unsuccessful_http_response() {
         let mut mock_client = MockHttpClientMockall::new();
@@ -435,10 +455,10 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        assert!(matches!(
+        assert_matches!(
             client.send_process().unwrap_err(),
             ClientError::ConnectFailedCallback(_)
-        ));
+        );
     }
 
     #[test]
@@ -456,20 +476,11 @@ pub(crate) mod tests {
             agent_description: agent_description.clone(),
         };
 
-        // Drop fires a disconnect post
-        let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().once().returning(|_| {
-            Ok(response_from_server_to_agent(
-                &ServerToAgent::default(),
-                ResponseParts::default(),
-            ))
-        });
-
         let (pending_msg, _) = Notifier::new("name".to_string());
         let client = OpAMPHttpClient::new(
             MockCallbacksMockall::new(),
             start_settings,
-            mock_client,
+            drop_only_http_mock(),
             pending_msg,
         )
         .expect("Client creation expects to succeed");
@@ -715,10 +726,7 @@ pub(crate) mod tests {
 
         let result = client.poll();
 
-        assert!(matches!(
-            result.unwrap_err(),
-            ClientError::ConnectFailedCallback(_)
-        ));
+        assert_matches!(result.unwrap_err(), ClientError::ConnectFailedCallback(_));
 
         assert_eq!(
             client.synced_state.remote_config_status().unwrap().unwrap(),
@@ -729,21 +737,13 @@ pub(crate) mod tests {
     #[traced_test]
     #[test]
     fn test_drop_success() {
-        let mut mock_client = MockHttpClientMockall::new();
-        mock_client.expect_post().once().returning(|_| {
-            Ok(response_from_server_to_agent(
-                &ServerToAgent::default(),
-                Default::default(),
-            ))
-        });
-
         let (pending_msg, _) = Notifier::new("msg".to_string());
         let start_settings = StartSettings::default();
         let instance_uid = start_settings.instance_uid.clone();
         let client = OpAMPHttpClient::new(
             MockCallbacksMockall::new(),
             start_settings,
-            mock_client,
+            drop_only_http_mock(),
             pending_msg,
         )
         .unwrap();
@@ -774,5 +774,167 @@ pub(crate) mod tests {
         drop(client);
 
         assert!(logs_contain("some error"));
+    }
+
+    #[rstest]
+    #[case::health(
+        Box::new(|c: &TestClient| c.set_health(ComponentHealth::default())) as ClientAction,
+        Box::new(|e| assert_matches!(e, ClientError::UnsetHealthCapability)),
+    )]
+    #[case::effective_config(
+        Box::new(|c: &TestClient| c.update_effective_config()) as ClientAction,
+        Box::new(|e| assert_matches!(e, ClientError::UnsetEffectConfigCapability)),
+    )]
+    #[case::remote_config_status(
+        Box::new(|c: &TestClient| c.set_remote_config_status(RemoteConfigStatus::default())) as ClientAction,
+        Box::new(|e| assert_matches!(e, ClientError::UnsetRemoteConfigStatusCapability)),
+    )]
+    fn setter_without_capability_returns_error(
+        #[case] action: ClientAction,
+        #[case] assert_expected_error: Box<dyn Fn(ClientError)>,
+    ) {
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            StartSettings::default(), // capabilities are empty by default
+            drop_only_http_mock(),
+            pending_msg,
+        )
+        .unwrap();
+
+        assert_expected_error(action(&client).unwrap_err());
+    }
+
+    /// Checks that compression works as expected for each setter by setting an attribute twice.
+    /// The first call triggers a message notification while the second, that doesn't change
+    /// the value, doesn't.
+    #[rstest]
+    #[case::agent_description(
+        StartSettings::default(),
+        Box::new(|c: &TestClient| c.set_agent_description(AgentDescription {
+            identifying_attributes: vec![KeyValue {
+                key: "k".to_string(),
+                value: Some(AnyValue {
+                    value: Some(Value::StringValue("v".to_string())),
+                }),
+            }],
+            ..Default::default()
+        })) as ClientAction,
+    )]
+    #[case::health(
+        StartSettings {
+            capabilities: capabilities!(AgentCapabilities::ReportsHealth),
+            ..Default::default()
+        },
+        Box::new(|c: &TestClient| c.set_health(ComponentHealth {
+            healthy: true,
+            ..Default::default()
+        })) as ClientAction,
+    )]
+    #[case::remote_config_status(
+        StartSettings {
+            capabilities: capabilities!(AgentCapabilities::ReportsRemoteConfig),
+            ..Default::default()
+        },
+        Box::new(|c: &TestClient| c.set_remote_config_status(RemoteConfigStatus {
+            status: 2,
+            ..Default::default()
+        })) as ClientAction,
+    )]
+    #[case::custom_capabilities(
+        StartSettings::default(),
+        Box::new(|c: &TestClient| c.set_custom_capabilities(CustomCapabilities {
+            capabilities: vec!["custom.cap".to_string()],
+        })) as ClientAction,
+    )]
+    fn setter_with_unchanged_value_skips_resend_notification(
+        #[case] settings: StartSettings,
+        #[case] action: ClientAction,
+    ) {
+        let (pending_msg, has_pending_msg) = Notifier::new("msg".to_string());
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            settings,
+            drop_only_http_mock(),
+            pending_msg,
+        )
+        .unwrap();
+
+        // First call differs from the default synced state, so it must notify.
+        action(&client).unwrap();
+        has_pending_msg
+            .try_recv()
+            .expect("first call should notify");
+
+        // Second call with the same value should hit the unchanged guard.
+        action(&client).unwrap();
+        assert!(
+            has_pending_msg.try_recv().is_err(),
+            "unchanged value should not notify",
+        );
+    }
+
+    #[test]
+    fn get_agent_description_returns_synced_value() {
+        let agent_description = crate::operation::settings::AgentDescription::testing_non_empty();
+        let settings = StartSettings {
+            agent_description: agent_description.clone(),
+            ..Default::default()
+        };
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            settings,
+            drop_only_http_mock(),
+            pending_msg,
+        )
+        .unwrap();
+
+        assert_eq!(
+            client.get_agent_description().unwrap(),
+            agent_description.into(),
+        );
+    }
+
+    #[test]
+    fn get_agent_description_default_when_unset() {
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            StartSettings::default(),
+            drop_only_http_mock(),
+            pending_msg,
+        )
+        .unwrap();
+
+        assert_eq!(
+            client.get_agent_description().unwrap(),
+            AgentDescription::default(),
+        );
+    }
+
+    #[test]
+    fn update_effective_config_callback_error_maps_to_effective_config_error() {
+        use crate::operation::callbacks::tests::CallbacksMockError;
+
+        let mut mock_callbacks = MockCallbacksMockall::new();
+        mock_callbacks
+            .expect_get_effective_config()
+            .once()
+            .returning(|| Err(CallbacksMockError));
+
+        let settings = StartSettings {
+            capabilities: capabilities!(AgentCapabilities::ReportsEffectiveConfig),
+            ..Default::default()
+        };
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client =
+            OpAMPHttpClient::new(mock_callbacks, settings, drop_only_http_mock(), pending_msg)
+                .unwrap();
+
+        assert_matches!(
+            client.update_effective_config().unwrap_err(),
+            ClientError::EffectiveConfigError
+        );
     }
 }
