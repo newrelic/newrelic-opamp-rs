@@ -15,7 +15,7 @@ pub(crate) enum Compressor {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum CompressorError {
-    #[error("encoding format not supported: `{0}`")]
+    #[error("encoding format not supported: {0}")]
     UnsupportedEncoding(String),
 }
 
@@ -36,15 +36,15 @@ impl TryFrom<&[u8]> for Compressor {
 
 #[derive(Error, Debug)]
 pub enum EncoderError {
-    #[error("`{0}`")]
+    #[error("{0}")]
     IO(#[from] io::Error),
 }
 
 #[derive(Error, Debug)]
 pub enum DecoderError {
-    #[error("`{0}`")]
+    #[error("{0}")]
     Prost(#[from] DecodeError),
-    #[error("`{0}`")]
+    #[error("{0}")]
     IO(#[from] io::Error),
 }
 

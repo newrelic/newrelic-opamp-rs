@@ -27,11 +27,11 @@ use crate::opamp::proto::AgentCapabilities;
 
 #[derive(Error, Debug)]
 pub enum ProcessError {
-    #[error("Error while acquiring read-write lock")]
+    #[error("acquiring read-write lock")]
     PoisonError,
 
     /// Represents a synced state error.
-    #[error("synced state error: `{0}`")]
+    #[error("synced state error: {0}")]
     SyncedStateError(#[from] SyncedStateError),
 }
 
