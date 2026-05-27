@@ -13,6 +13,7 @@ tracing-test.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
 assert_matches.workspace = true
 rand.workspace = true
+rstest.workspace = true
 url.workspace = true
 
 [dependencies]
