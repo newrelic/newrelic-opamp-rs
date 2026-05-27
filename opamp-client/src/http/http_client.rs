@@ -7,22 +7,22 @@ use crate::common::compression::{CompressorError, DecoderError, EncoderError};
 #[derive(thiserror::Error, Debug)]
 pub enum HttpClientError {
     /// Represents an http transport crate error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     TransportError(String),
     /// Unsuccessful HTTP response.
-    #[error("Status code: `{0}` Canonical reason: `{1}`")]
+    #[error("status code: '{0}' canonical reason: '{1}'")]
     UnsuccessfulResponse(u16, String),
     /// Represents a decode error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     DecoderError(#[from] DecoderError),
     /// Represents an encode error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     EncoderError(#[from] EncoderError),
     /// Represents a compression error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     CompressionError(#[from] CompressorError),
     /// Represents an http crate consume body error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     HTTPBodyError(String),
 }
 

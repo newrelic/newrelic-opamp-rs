@@ -14,7 +14,7 @@ pub enum ConnectionError {
 #[derive(Error, Debug)]
 pub enum NotStartedClientError {
     /// Represents a client error in the OpAMP started client.
-    #[error("`{0}`")]
+    #[error("{0}")]
     ClientError(#[from] crate::client::ClientError),
 }
 

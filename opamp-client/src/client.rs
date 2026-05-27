@@ -16,16 +16,16 @@ pub enum ClientError {
     #[error("poison error, a thread panicked while holding a lock")]
     PoisonError,
     /// Error to use when the [`on_connect_failed`](operation::Callbacks::on_connect_failed) callback has been called with this error type, which would consume its value.
-    #[error("connect failed: `{0}`")]
+    #[error("connect failed: {0}")]
     ConnectFailedCallback(String),
     /// Represents a process message error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     ProcessMessageError(#[from] ProcessError),
     /// Represents an HTTP client error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     SenderError(#[from] HttpClientError),
     /// Represents a synchronized state error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     SyncedStateError(#[from] SyncedStateError),
     /// Indicates that the report effective configuration capability is not set.
     #[error("report effective configuration capability is not set")]
@@ -48,7 +48,7 @@ pub enum StartedClientError {
     #[error("error while joining internal thread")]
     JoinError,
     /// Represents a synchronized state error.
-    #[error("`{0}`")]
+    #[error("{0}")]
     ClientError(#[from] ClientError),
 }
 
