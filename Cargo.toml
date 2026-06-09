@@ -26,4 +26,4 @@ reqwest = "0.13.4"
 assert_matches = "1.5"
 rand = "0.10.1"
 rstest = "0.26.1"
-uuid = { version = "1.23.2", features = ["v7"] }
+uuid = { version = "1.23.3", features = ["v7"] }
