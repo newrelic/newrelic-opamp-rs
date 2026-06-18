@@ -15,7 +15,9 @@ pub enum HttpClientError {
     /// Represents a decode error.
     #[error("decoding server response: `{source}`. response body: `{body}`")]
     DecoderError {
+        /// Response body captured at decode-failure time.
         body: String,
+        /// Underlying protobuf decode error.
         #[source]
         source: DecoderError,
     },
