@@ -82,6 +82,7 @@ mod tests {
     use httpmock::prelude::*;
     use prost::Message;
     use std::collections::HashMap;
+    use tracing_test::traced_test;
     use url::Url;
 
     #[test]
@@ -192,5 +193,30 @@ custom_attributes:
         let res = sender.send(AgentToServer::default());
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), server_to_agent);
+    }
+
+    #[traced_test]
+    #[test]
+    fn logs_response_body_when_decode_fails() {
+        let invalid_body =
+            b"<!DOCTYPE html><html><body><form action=\"https://newrelic.okta.com/app\"></form></body></html>"
+                .to_vec();
+
+        let response = http::Response::builder()
+            .status(StatusCode::OK)
+            .body(invalid_body)
+            .unwrap();
+
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.should_post(response);
+
+        let sender = HttpSender::new(mock_client, InstanceUid::create());
+        let res = sender.send(AgentToServer::default());
+        assert!(res.is_err());
+
+        // The body must appear in the log so future incidents are diagnosable.
+        assert!(logs_contain("failed to decode ServerToAgent response"));
+        assert!(logs_contain("<!DOCTYPE html>"));
+        assert!(logs_contain("newrelic.okta.com"));
     }
 }
