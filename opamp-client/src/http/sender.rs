@@ -6,7 +6,7 @@ use crate::{
     opamp::proto::AgentToServer,
     opamp::proto::ServerToAgent,
 };
-use tracing::{error, instrument};
+use tracing::instrument;
 
 // The HttpSender struct holds the necessary components for sending HTTP messages.
 pub struct HttpSender<C>
@@ -57,12 +57,11 @@ where
         };
 
         let body = response.body();
-        let response = decode_message::<ServerToAgent>(&compression, body).inspect_err(|err| {
-            error!(
-                %err,
-                response_body = %String::from_utf8_lossy(body),
-                "failed to decode ServerToAgent response"
-            )
+        let response = decode_message::<ServerToAgent>(&compression, body).map_err(|source| {
+            HttpClientError::DecoderError {
+                body: String::from_utf8_lossy(body).to_string(),
+                source,
+            }
         })?;
 
         Ok(response)
@@ -82,7 +81,6 @@ mod tests {
     use httpmock::prelude::*;
     use prost::Message;
     use std::collections::HashMap;
-    use tracing_test::traced_test;
     use url::Url;
 
     #[test]
@@ -195,9 +193,10 @@ custom_attributes:
         assert_eq!(res.unwrap(), server_to_agent);
     }
 
-    #[traced_test]
     #[test]
-    fn logs_response_body_when_decode_fails() {
+    fn decode_error_carries_response_body() {
+        // Body that isn't valid protobuf — modeled on the STG-host incident
+        // where the OpAMP server returned an HTML SAML redirect page.
         let invalid_body =
             b"<!DOCTYPE html><html><body><form action=\"https://newrelic.okta.com/app\"></form></body></html>"
                 .to_vec();
@@ -212,11 +211,13 @@ custom_attributes:
 
         let sender = HttpSender::new(mock_client, InstanceUid::create());
         let res = sender.send(AgentToServer::default());
-        assert!(res.is_err());
 
-        // The body must appear in the log so future incidents are diagnosable.
-        assert!(logs_contain("failed to decode ServerToAgent response"));
-        assert!(logs_contain("<!DOCTYPE html>"));
-        assert!(logs_contain("newrelic.okta.com"));
+        match res.unwrap_err() {
+            HttpClientError::DecoderError { body, source: _ } => {
+                assert!(body.contains("<!DOCTYPE html>"));
+                assert!(body.contains("newrelic.okta.com"));
+            }
+            err => panic!("Expected `HttpClientError::DecoderError`, found {err}"),
+        }
     }
 }
