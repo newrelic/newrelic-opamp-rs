@@ -6,7 +6,7 @@ use crate::{
     opamp::proto::AgentToServer,
     opamp::proto::ServerToAgent,
 };
-use tracing::instrument;
+use tracing::{error, instrument};
 
 // The HttpSender struct holds the necessary components for sending HTTP messages.
 pub struct HttpSender<C>
@@ -56,7 +56,14 @@ where
             None => Compressor::Plain,
         };
 
-        let response = decode_message::<ServerToAgent>(&compression, response.body())?;
+        let body = response.body();
+        let response = decode_message::<ServerToAgent>(&compression, body).inspect_err(|err| {
+            error!(
+                %err,
+                response_body = %String::from_utf8_lossy(body),
+                "failed to decode ServerToAgent response"
+            )
+        })?;
 
         Ok(response)
     }
