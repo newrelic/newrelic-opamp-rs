@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Unreleased section should follow [Release Toolkit](https://github.com/newrelic/release-toolkit/blob/main/README.md).
 
 ## Unreleased
+### bugfix
+- Decorates client decoder error message
 
 ## v0.0.40 - 2026-06-16
 

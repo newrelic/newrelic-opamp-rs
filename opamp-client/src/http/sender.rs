@@ -8,6 +8,12 @@ use crate::{
 };
 use tracing::instrument;
 
+/// Max characters of the response body to retain in [`HttpClientError::DecoderError`]
+/// when decoding fails. Bounds error-message size — the diagnostic goal
+/// (recognising gateway/auth-redirect responses) only needs the first
+/// ~hundred characters.
+const RESPONSE_BODY_LOG_LIMIT: usize = 200;
+
 // The HttpSender struct holds the necessary components for sending HTTP messages.
 pub struct HttpSender<C>
 where
@@ -56,7 +62,16 @@ where
             None => Compressor::Plain,
         };
 
-        let response = decode_message::<ServerToAgent>(&compression, response.body())?;
+        let body = response.body();
+        let response = decode_message::<ServerToAgent>(&compression, body).map_err(|source| {
+            HttpClientError::DecoderError {
+                body: String::from_utf8_lossy(body)
+                    .chars()
+                    .take(RESPONSE_BODY_LOG_LIMIT)
+                    .collect(),
+                source,
+            }
+        })?;
 
         Ok(response)
     }
@@ -185,5 +200,57 @@ custom_attributes:
         let res = sender.send(AgentToServer::default());
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), server_to_agent);
+    }
+
+    #[test]
+    fn decode_error_carries_response_body() {
+        // Body that isn't valid protobuf — modeled on the STG-host incident
+        // where the OpAMP server returned an HTML SAML redirect page.
+        let invalid_body =
+            b"<!DOCTYPE html><html><body><form action=\"https://newrelic.okta.com/app\"></form></body></html>"
+                .to_vec();
+
+        let response = http::Response::builder()
+            .status(StatusCode::OK)
+            .body(invalid_body)
+            .unwrap();
+
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.should_post(response);
+
+        let sender = HttpSender::new(mock_client, InstanceUid::create());
+        let res = sender.send(AgentToServer::default());
+
+        match res.unwrap_err() {
+            HttpClientError::DecoderError { body, source: _ } => {
+                assert!(body.contains("<!DOCTYPE html>"));
+                assert!(body.contains("newrelic.okta.com"));
+            }
+            err => panic!("Expected `HttpClientError::DecoderError`, found {err}"),
+        }
+    }
+
+    #[test]
+    fn decode_error_truncates_large_response_body() {
+        // Body longer than the cap — should be truncated to RESPONSE_BODY_LOG_LIMIT chars.
+        let large_body = "X".repeat(300).into_bytes();
+
+        let response = http::Response::builder()
+            .status(StatusCode::OK)
+            .body(large_body)
+            .unwrap();
+
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.should_post(response);
+
+        let sender = HttpSender::new(mock_client, InstanceUid::create());
+        let res = sender.send(AgentToServer::default());
+
+        match res.unwrap_err() {
+            HttpClientError::DecoderError { body, source: _ } => {
+                assert_eq!(body.chars().count(), RESPONSE_BODY_LOG_LIMIT);
+            }
+            err => panic!("Expected `HttpClientError::DecoderError`, found {err}"),
+        }
     }
 }

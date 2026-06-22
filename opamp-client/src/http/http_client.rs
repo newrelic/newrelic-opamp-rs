@@ -13,8 +13,14 @@ pub enum HttpClientError {
     #[error("status code: '{0}' canonical reason: '{1}'")]
     UnsuccessfulResponse(u16, String),
     /// Represents a decode error.
-    #[error("{0}")]
-    DecoderError(#[from] DecoderError),
+    #[error("decoding server response: `{source}`. response body: `{body}`")]
+    DecoderError {
+        /// Response body captured at decode-failure time.
+        body: String,
+        /// Underlying protobuf decode error.
+        #[source]
+        source: DecoderError,
+    },
     /// Represents an encode error.
     #[error("{0}")]
     EncoderError(#[from] EncoderError),
