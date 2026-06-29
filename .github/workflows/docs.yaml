@@ -12,7 +12,7 @@ jobs:
   render:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           submodules: true
       - name: Read Rust version from Cargo.toml
@@ -21,7 +21,7 @@ jobs:
           RUST_VERSION=$(grep "rust-version" Cargo.toml | cut -d "=" -f2 | tr -d "[:space:]")
           echo "RUST_VERSION=${RUST_VERSION}" >> $GITHUB_ENV
       - name: Install Rust ${{ env.RUST_VERSION }}
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        uses: dtolnay/rust-toolchain@67ef31d5b988238dd797d409d6f9574278e20537 # master
         with:
           toolchain: ${{ env.RUST_VERSION }}
       - name: Clean docs folder
