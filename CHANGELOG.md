@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Unreleased section should follow [Release Toolkit](https://github.com/newrelic/release-toolkit/blob/main/README.md).
 
 ## Unreleased
-### bugfix
+
+## v0.0.41 - 2026-07-01
+
+### 🐞 Bug fixes
 - Decorates client decoder error message
+
+### ⛓️ Dependencies
+- Updated rust crate uuid to 1.23.4
+- Updated rust crate mockall to 0.15.0
+- Updated rust to v1.96.1
 
 ## v0.0.40 - 2026-06-16
 

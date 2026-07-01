@@ -459,22 +459,6 @@ Distributed under the following license(s):
 * Apache-2.0
 * MIT
 
-## wasip2 <https://crates.io/crates/wasip2>
-
-Distributed under the following license(s):
-
-* Apache-2.0 WITH LLVM-exception
-* Apache-2.0
-* MIT
-
-## wasip3 <https://crates.io/crates/wasip3>
-
-Distributed under the following license(s):
-
-* Apache-2.0 WITH LLVM-exception
-* Apache-2.0
-* MIT
-
 ## windows-link <https://crates.io/crates/windows-link>
 
 Distributed under the following license(s):
@@ -488,11 +472,3 @@ Distributed under the following license(s):
 
 * MIT
 * Apache-2.0
-
-## wit-bindgen <https://crates.io/crates/wit-bindgen>
-
-Distributed under the following license(s):
-
-* Apache-2.0 WITH LLVM-exception
-* Apache-2.0
-* MIT
