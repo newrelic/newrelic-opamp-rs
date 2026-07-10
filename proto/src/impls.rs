@@ -30,7 +30,7 @@ impl ComponentHealth {
 impl Debug for RemoteConfigStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let hash = String::from_utf8(self.last_remote_config_hash.clone())
-            .unwrap_or(format!("{:?}", &self.last_remote_config_hash));
+            .unwrap_or(format!("{:?}", self.last_remote_config_hash));
 
         write!(
             f,
@@ -43,7 +43,7 @@ impl Debug for RemoteConfigStatus {
 impl Debug for AgentRemoteConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let hash = String::from_utf8(self.config_hash.clone())
-            .unwrap_or(format!("{:?}", &self.config_hash));
+            .unwrap_or(format!("{:?}", self.config_hash));
         write!(
             f,
             r#"AgentRemoteConfig {{ config: {:?}, config_hash: "{}" }}"#,
@@ -60,7 +60,7 @@ impl Debug for AgentConfigMap {
 
 impl Debug for AgentConfigFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let body = String::from_utf8(self.body.clone()).unwrap_or(format!("{:?}", &self.body));
+        let body = String::from_utf8(self.body.clone()).unwrap_or(format!("{:?}", self.body));
         write!(
             f,
             r#"AgentConfigFile {{ body: "{}", content_type: {:?} }}"#,
@@ -71,7 +71,7 @@ impl Debug for AgentConfigFile {
 
 impl Debug for CustomMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let data = String::from_utf8(self.data.clone()).unwrap_or(format!("{:?}", &self.data));
+        let data = String::from_utf8(self.data.clone()).unwrap_or(format!("{:?}", self.data));
         write!(
             f,
             r#"CustomMessage {{ capability: {:?}, type: {:?}, data: "{}" }}"#,
@@ -84,7 +84,7 @@ impl Debug for AnyValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.value {
             Some(Value::BytesValue(value)) => {
-                let data = String::from_utf8(value.clone()).unwrap_or(format!("{:?}", &value));
+                let data = String::from_utf8(value.clone()).unwrap_or(format!("{:?}", value));
                 write!(f, "{data:?}")
             }
             Some(Value::StringValue(value)) => write!(f, "{value:?}"),
