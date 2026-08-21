@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   prerelease:
-    uses: newrelic/newrelic-agent-control/.github/workflows/shared_create_prerelease_pr.yml@070859fa692ebf2bbb9315d2be6ab3932495ad32 # main
+    uses: newrelic/newrelic-agent-control/.github/workflows/shared_create_prerelease_pr.yml@fb6f37eb3b1f11e0f32ddca4f2ebb7db7e2e5f55 # main
     with:
       cargo_toml_path: "opamp-client/Cargo.toml"
     secrets:
