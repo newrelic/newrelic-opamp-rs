@@ -8,6 +8,16 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+## v0.0.42 - 2026-08-25
+
+### ⛓️ Dependencies
+- Updated rust crate rand to 0.10.2
+- Updated rust to v1.97.1
+- Updated rust crate uuid to 1.25.0
+- Updated rust crate thiserror to 2.0.20
+- Updated rust crate libflate to 2.3.1
+- Updated rust crate http to 1.5.0
+
 ## v0.0.41 - 2026-07-01
 
 ### 🐞 Bug fixes
