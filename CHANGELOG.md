@@ -8,8 +8,18 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancement
+## v0.1.0 - 2026-09-16
+
+### 🚀 Enhancements
 - OpAMP client logs a trace message even when it disconnects from the OpAMP server
+
+### ⛓️ Dependencies
+- Updated rust to v1.98.1
+- Updated rust crate uuid to v1.26.1
+- Updated rust crate crossbeam to v0.8.5
+- Updated rust crate libflate to v2.3.2
+- Updated rust crate rstest to 0.27.0
+- Updated rust crate reqwest to v0.13.5
 
 ## v0.0.42 - 2026-08-25
 
