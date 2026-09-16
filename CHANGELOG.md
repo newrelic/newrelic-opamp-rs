@@ -8,6 +8,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### enhancement
+- OpAMP client logs a trace message even when it disconnects from the OpAMP server
+
 ## v0.0.42 - 2026-08-25
 
 ### ⛓️ Dependencies

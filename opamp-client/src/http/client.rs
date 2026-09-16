@@ -167,6 +167,7 @@ where
                 let mut msg = next_message.pop();
                 msg.agent_disconnect = Some(AgentDisconnect::default());
 
+                trace!("Send payload: {:?}", msg);
                 let _ = self.sender.send(msg).inspect_err(|err| {
                     error!(%err, instance_id=self.instance_uid, "sending disconnect OpAMP message");
                 });
@@ -753,6 +754,35 @@ pub(crate) mod tests {
         assert!(logs_contain("OpAMPHttpClient disconnected from server"));
         assert!(logs_contain(instance_uid.to_string().as_str()));
     }
+
+    #[traced_test]
+    #[test]
+    fn test_drop_traces_agent_disconnect_payload() {
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().once().returning(|_| {
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                Default::default(),
+            ))
+        });
+
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client = OpAMPHttpClient::new(
+            MockCallbacksMockall::new(),
+            StartSettings::default(),
+            mock_client,
+            pending_msg,
+        )
+        .unwrap();
+
+        drop(client);
+
+        // AgentDisconnect is an empty struct, so `{:?}` renders it as `AgentDisconnect`
+        // — the disconnect field shows up as `agent_disconnect: Some(AgentDisconnect)`.
+        assert!(logs_contain("Send payload:"));
+        assert!(logs_contain("agent_disconnect: Some(AgentDisconnect)"));
+    }
+
     #[traced_test]
     #[test]
     fn test_fail_to_drop() {
