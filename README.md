@@ -1,8 +1,5 @@
 <a href="https://opensource.newrelic.com/oss-category/#community-project"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/dark/Community_Project.png"><source media="(prefers-color-scheme: light)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Project.png"><img alt="New Relic Open Source community project banner." src="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Project.png"></picture></a>
 
-| ⚠️ | `opamp-rs` is in preview and licensed under the New Relic Pre-Release Software Notice. |
-|----|:----------------------------------------------------------------------------------------------------|
-
 # `opamp-rs`: An OpAMP protocol client implementation in Rust
 
 [Open Agent Management Protocol (OpAMP)](https://github.com/open-telemetry/opamp-spec) is a network protocol for remote management of large fleets of data collection Agents.
@@ -65,9 +62,10 @@ To all contributors, we thank you! Without your contribution, this project would
 
 ## License
 
-`opamp-rs` is licensed under the New Relic Pre-Release Software Notice.
+`opamp-rs` is licensed under the New Relic Software License.
 
-`opamp-rs` also uses source code from third-party libraries. You can find full details on which libraries are used and the terms under which they are licensed in the third-party notices document.
+It also uses source code from third-party libraries. You can find full details on which libraries are used and the terms
+under which they are licensed in the third-party notices document.
 
 ## Upstream archive
 
