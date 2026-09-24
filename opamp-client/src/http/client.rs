@@ -34,6 +34,7 @@ where
     capabilities: Capabilities,
     pending_msg: Notifier,
     instance_uid: String,
+    enable_compression: bool,
 }
 
 /// Synchronous HTTP implementation of the Client trait.
@@ -54,6 +55,7 @@ where
     ) -> ClientResult<Self> {
         let capabilities = start_settings.capabilities;
         let instance_uid = start_settings.instance_uid.clone();
+        let enable_compression = start_settings.enable_compression;
 
         let (initial_message, synced_state) = Self::initial_message_and_state(start_settings)?;
 
@@ -65,6 +67,7 @@ where
             capabilities,
             pending_msg,
             instance_uid: instance_uid.to_string(),
+            enable_compression,
         })
     }
 
@@ -79,6 +82,7 @@ where
             capabilities,
             custom_capabilities,
             agent_description,
+            enable_compression: _,
         } = start_settings;
 
         // Store initial state fields
@@ -123,11 +127,15 @@ where
     // whether to resend or remain synced.
     fn send_process(&self) -> ClientResult<()> {
         // send message
-        let msg = self
-            .message
-            .write()
-            .map_err(|_| ClientError::PoisonError)?
-            .pop();
+        let msg = {
+            let mut msg_lock = self.message.write().map_err(|_| ClientError::PoisonError)?;
+            let msg = msg_lock.pop();
+            if self.enable_compression {
+                msg_lock.reset_message();
+            }
+            msg
+        }; // we need a block to drop msg_lock
+
         trace!("Send payload: {:?}", msg);
         let server_to_agent = self.sender.send(msg).map_err(|e| {
             let err_msg = e.to_string();
@@ -475,6 +483,7 @@ pub(crate) mod tests {
             capabilities,
             custom_capabilities: Some(custom_capabilities.clone()),
             agent_description: agent_description.clone(),
+            enable_compression: true,
         };
 
         let (pending_msg, _) = Notifier::new("name".to_string());
@@ -587,6 +596,55 @@ pub(crate) mod tests {
             client.synced_state.remote_config_status().unwrap(),
             Some(remote_config_status),
         );
+    }
+
+    // After a poll + drop, the disconnect message carries agent_description iff compression
+    // is disabled. With compression on (default), the poll resets the buffer and the
+    // disconnect goes out without identifying attributes; with compression off, the buffer
+    // retains them and the disconnect carries them — the driving use case for the flag.
+    #[rstest]
+    #[case::compression_enabled(true, None)]
+    #[case::compression_disabled(
+        false,
+        Some(crate::operation::settings::AgentDescription::testing_non_empty().into())
+    )]
+    fn disconnect_agent_description_depends_on_compression(
+        #[case] compression_enabled: bool,
+        #[case] expected_agent_description: Option<AgentDescription>,
+    ) {
+        use prost::Message;
+        use std::sync::Mutex;
+
+        let sent: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(Vec::new()));
+        let captured = sent.clone();
+        let mut mock_client = MockHttpClientMockall::new();
+        mock_client.expect_post().returning(move |body| {
+            captured.lock().unwrap().push(body);
+            Ok(response_from_server_to_agent(
+                &ServerToAgent::default(),
+                ResponseParts::default(),
+            ))
+        });
+        let mut mock_callbacks = MockCallbacksMockall::new();
+        mock_callbacks.expect_on_connect().times(1).return_const(());
+        mock_callbacks.expect_on_message().times(1).return_const(());
+
+        let settings = StartSettings {
+            agent_description: crate::operation::settings::AgentDescription::testing_non_empty(),
+            enable_compression: compression_enabled,
+            ..Default::default()
+        };
+        let (pending_msg, _) = Notifier::new("msg".to_string());
+        let client =
+            OpAMPHttpClient::new(mock_callbacks, settings, mock_client, pending_msg).unwrap();
+
+        client.poll().unwrap();
+        drop(client);
+
+        let bodies = sent.lock().unwrap();
+        let disconnect = AgentToServer::decode(bodies[1].as_slice()).unwrap();
+        assert!(disconnect.agent_disconnect.is_some());
+        assert_eq!(disconnect.agent_description, expected_agent_description);
     }
 
     #[test]

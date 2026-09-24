@@ -6,7 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Unreleased section should follow [Release Toolkit](https://github.com/newrelic/release-toolkit/blob/main/README.md).
 
+Remember that the keywords that you can use under Unreleased section are:
+ - breaking    => Major
+ - security    => Minor
+ - enhancement => Minor
+ - bugfix      => Patch
+
 ## Unreleased
+
+### enhancement
+- OpAMP client now accepts disabling the compression via StartSettings
+
 
 ## v0.1.0 - 2026-09-16
 
