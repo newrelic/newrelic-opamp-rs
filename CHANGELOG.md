@@ -14,9 +14,13 @@ Remember that the keywords that you can use under Unreleased section are:
 
 ## Unreleased
 
-### enhancement
+## v0.2.0 - 2026-09-25
+
+### 🚀 Enhancements
 - OpAMP client now accepts disabling the compression via StartSettings
 
+### ⛓️ Dependencies
+- Updated rust crate rand to v0.10.3
 
 ## v0.1.0 - 2026-09-16
 
