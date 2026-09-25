@@ -141,6 +141,12 @@ pub struct StartSettings {
 
     /// Agent's description: <https://github.com/open-telemetry/opamp-spec/blob/main/specification.md#agentdescription-message>
     pub agent_description: AgentDescription,
+
+    /// When `false`, disables OpAMP status compression: all status sub-messages
+    /// (agent_description, health, effective_config, remote_config_status, package_statuses,
+    /// custom_capabilities) are included in every outgoing message rather than being omitted when
+    /// unchanged.
+    pub enable_compression: bool,
 }
 
 /// The default implementation creates a new instance_id and sets the default capabilities.
@@ -151,6 +157,7 @@ impl Default for StartSettings {
             capabilities: Capabilities::default(),
             custom_capabilities: Option::default(),
             agent_description: AgentDescription::default(),
+            enable_compression: true,
         }
     }
 }

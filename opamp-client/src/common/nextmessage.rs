@@ -41,14 +41,11 @@ impl NextMessage {
     /// A clone of the current message with its sequence number incremented.
     pub(crate) fn pop(&mut self) -> AgentToServer {
         self.message.sequence_num += 1;
-        let current_msg = self.message.clone();
-        self.reset_message();
-
-        current_msg
+        self.message.clone()
     }
 
     /// Resets the fields from the message that shouldn't be sent unless changed
-    fn reset_message(&mut self) {
+    pub(crate) fn reset_message(&mut self) {
         self.message.agent_description = None;
         self.message.health = None;
         self.message.effective_config = None;
