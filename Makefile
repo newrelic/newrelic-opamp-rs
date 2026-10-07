@@ -1,3 +1,7 @@
+.PHONY: lint/actions
+lint/actions:
+	actionlint -color
+
 .PHONY: third-party-notices
 third-party-notices:
 	@echo "Checking third-party licenses..."
