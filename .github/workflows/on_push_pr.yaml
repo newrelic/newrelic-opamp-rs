@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: taiki-e/install-action@71765c00dd3e08a5484a5b9e82a4c88b86520e0e # 71765c00dd3e08a5484a5b9e82a4c88b86520e0e
+      - uses: taiki-e/install-action@e407f7bafb71fd004bc5c2da3032e5470cbb6ef0 # v2.87.24
         with:
           tool: shellcheck@0.11.0
 
