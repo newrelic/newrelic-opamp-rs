@@ -14,6 +14,12 @@ Remember that the keywords that you can use under Unreleased section are:
 
 ## Unreleased
 
+## v0.2.1 - 2026-10-09
+
+### ⛓️ Dependencies
+- Updated rust to v1.99.0
+- Updated rust crate uuid to v1.27.0
+
 ## v0.2.0 - 2026-09-25
 
 ### 🚀 Enhancements
