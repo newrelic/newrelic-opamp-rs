@@ -14,6 +14,9 @@ Remember that the keywords that you can use under Unreleased section are:
 
 ## Unreleased
 
+### enhancement
+- CI now lints GitHub Actions workflows via actionlint.
+
 ## v0.2.1 - 2026-10-09
 
 ### ⛓️ Dependencies
