@@ -18,6 +18,17 @@ Before submitting an Issue, please search for similar ones in the
 2. Increase the version numbers in any examples files and the README.md to the new version that this Pull Request would represent. The versioning scheme we use is [SemVer](http://semver.org/).
 3. You may merge the Pull Request in once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
 
+## Changelog
+
+Every user-facing change adds a change file to `.changelog/`. Copy `.changelog/TEMPLATE.yaml` to `.changelog/<branch-or-pr>.yaml` and fill it in:
+
+```yaml
+type: bugfix   # breaking | security | enhancement | bugfix | dependency
+message: Description of the change in a single line.
+```
+
+The `type` sets the version bump: `breaking` is major, `security` and `enhancement` are minor, `bugfix` and `dependency` are patch. Skip internal refactors, documentation-only, test-only and CI changes unless they add support for something new. The CI checks that the PR adds a change file; use the `skip-changelog` label if it is not required. Dependency updates are added automatically at release time. The release PR moves the change files into `CHANGELOG.md` and deletes them.
+
 ## Contributor License Agreement
 
 Keep in mind that when you submit your Pull Request, you'll need to sign the CLA via the click-through using CLA-Assistant. If you'd like to execute our corporate CLA, or if you have any questions, please drop us an email at opensource@newrelic.com.
