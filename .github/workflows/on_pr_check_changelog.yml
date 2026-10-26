@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   check-changelog:
-    uses: newrelic/newrelic-agent-control/.github/workflows/shared_check_changelog.yml@47e9aedbd5a3282cec560ac705f11b58fbfaa5ad # main
+    uses: newrelic/newrelic-agent-control/.github/workflows/shared_check_changelog.yml@3061917a8ac7712b8e04a1664d032e7bf66fda3b # TODO: replace with the merge commit of newrelic-agent-control#3066
