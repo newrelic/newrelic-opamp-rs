@@ -8,6 +8,11 @@ New changes are added as change files in `.changelog/`, not here: the release mo
 
 ## Unreleased
 
+## v0.3.1 - 2026-11-09
+
+### ⛓️ Dependencies
+- Updated rust crate uuid to v1.29.2
+
 ## v0.3.0 - 2026-10-22
 
 ### 🚀 Enhancements
