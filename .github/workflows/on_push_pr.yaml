@@ -104,19 +104,17 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings -D clippy::all
 
   coverage:
-    runs-on: ubuntu-latest
     name: ubuntu / stable / coverage
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: newrelic/newrelic-agent-control/.github/actions/install-rust-toolchain@3aed884be84afddab168b2cebffe72a1549de0a0 # main
         with:
-          submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: stable
           components: llvm-tools-preview
-      - name: cargo install cargo-llvm-cov
+      - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@71765c00dd3e08a5484a5b9e82a4c88b86520e0e # 71765c00dd3e08a5484a5b9e82a4c88b86520e0e
+        with:
+          tool: cargo-llvm-cov
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
