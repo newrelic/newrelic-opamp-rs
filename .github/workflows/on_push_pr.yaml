@@ -49,7 +49,7 @@ jobs:
           echo "RUST_VERSION=${RUST_VERSION}" >> "$GITHUB_ENV"
 
       - name: Install Rust ${{ env.RUST_VERSION }}
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
@@ -73,7 +73,7 @@ jobs:
           echo "RUST_VERSION=${RUST_VERSION}" >> "$GITHUB_ENV"
 
       - name: Install Rust ${{ env.RUST_VERSION }}
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           components: rustfmt
           toolchain: ${{ env.RUST_VERSION }}
@@ -95,7 +95,7 @@ jobs:
           echo "RUST_VERSION=${RUST_VERSION}" >> "$GITHUB_ENV"
 
       - name: Install Rust ${{ env.RUST_VERSION }}
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy
@@ -108,11 +108,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: newrelic/newrelic-agent-control/.github/actions/install-rust-toolchain@3aed884be84afddab168b2cebffe72a1549de0a0 # main
+      - uses: newrelic/newrelic-agent-control/.github/actions/install-rust-toolchain@8530c419485782ea964c5f5e4a2678c14569cb10 # main
         with:
           components: llvm-tools-preview
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: cargo-llvm-cov
       - name: cargo generate-lockfile
