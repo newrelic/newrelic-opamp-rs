@@ -15,6 +15,8 @@ _: {
         cargoExtraArgs = "--workspace --all-features";
         # Tests rely on debug assertions, as in CI.
         CARGO_PROFILE = "dev";
+        # The HTTP client loads the system CA roots when built, and the sandbox has none on Linux.
+        SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
       };
       cargoArtifacts = craneLib.buildDepsOnly workspaceArgs;
     in
