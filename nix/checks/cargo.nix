@@ -2,7 +2,12 @@
 # treefmt and git-hooks contribute their own checks from their modules.
 _: {
   perSystem =
-    { config, ... }:
+    {
+      config,
+      pkgs,
+      lib,
+      ...
+    }:
     let
       inherit (config) rustLib;
       inherit (rustLib) craneLib;
@@ -27,9 +32,16 @@ _: {
           workspaceArgs
           // {
             inherit cargoArtifacts;
-            # These two assert on poll counts over real sleeps and fail in the macOS build sandbox, while
-            # passing in the dev shell.
-            cargoNextestExtraArgs = "--all-targets --no-fail-fast --retries 2 -E 'not test(=http::managed_client::tests::test_next_message_backoff) and not test(=http::managed_client::tests::test_poll_status_report)'";
+            cargoNextestExtraArgs = lib.concatStringsSep " " (
+              [
+                "--all-targets"
+                "--no-fail-fast"
+                "--retries 2"
+              ]
+              # These two count polls over real timers, which tick late in the macOS build sandbox
+              # (9 polls instead of 11 in 1.2s) while passing in the dev shell.
+              ++ lib.optional pkgs.stdenv.hostPlatform.isDarwin "-E 'not test(=http::managed_client::tests::test_next_message_backoff) and not test(=http::managed_client::tests::test_poll_status_report)'"
+            );
           }
         );
 
