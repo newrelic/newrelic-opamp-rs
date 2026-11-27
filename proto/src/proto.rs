@@ -141,12 +141,12 @@ pub struct AgentToServer {
 /// forget association of all Agent instances that were previously established for
 /// this message stream using AgentConnect message, even if the corresponding
 /// AgentDisconnect message were not explicitly received from the Agent.
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AgentDisconnect {}
 /// ConnectionSettingsRequest is a request from the Agent to the Server to create
 /// and respond with an offer of connection settings for the Agent.
 /// Status: \[Development\]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ConnectionSettingsRequest {
     /// Request for OpAMP connection settings. If this field is unset
     /// then the ConnectionSettingsRequest message is empty and is not actionable
@@ -157,7 +157,7 @@ pub struct ConnectionSettingsRequest {
 /// OpAMPConnectionSettingsRequest is a request for the Server to produce
 /// a OpAMPConnectionSettings in its response.
 /// Status: \[Development\]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct OpAmpConnectionSettingsRequest {
     /// A request to create a client certificate. This is used to initiate a
     /// Client Signing Request (CSR) flow.
@@ -166,7 +166,7 @@ pub struct OpAmpConnectionSettingsRequest {
     pub certificate_request: ::core::option::Option<CertificateRequest>,
 }
 /// Status: \[Development\]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CertificateRequest {
     /// PEM-encoded Client Certificate Signing Request (CSR), signed by client's private key.
     /// The Server SHOULD validate the request and SHOULD respond with a
@@ -338,7 +338,7 @@ pub struct Headers {
     pub headers: ::prost::alloc::vec::Vec<Header>,
 }
 /// Status: \[Beta\]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Header {
     #[prost(string, tag = "1")]
     pub key: ::prost::alloc::string::String,
@@ -359,7 +359,7 @@ pub struct Header {
 ///
 /// Alternatively the certificate may be self-signed, assuming the Server can
 /// verify the certificate.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TlsCertificate {
     /// PEM-encoded public key of the certificate. Required.
     #[prost(bytes = "vec", tag = "1")]
@@ -460,7 +460,7 @@ pub struct PackagesAvailable {
 /// hash then the Agent does not need to do anything, it already
 /// has the right version of the package.
 /// Status: \[Beta\]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct PackageAvailable {
     #[prost(enumeration = "PackageType", tag = "1")]
     pub r#type: i32,
@@ -480,7 +480,7 @@ pub struct PackageAvailable {
     pub hash: ::prost::alloc::vec::Vec<u8>,
 }
 /// Status: \[Beta\]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DownloadableFile {
     /// The URL from which the file can be downloaded using HTTP GET request.
     /// The Server at the specified URL SHOULD support range requests
@@ -500,7 +500,7 @@ pub struct DownloadableFile {
     #[prost(bytes = "vec", tag = "3")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ServerErrorResponse {
     #[prost(enumeration = "ServerErrorResponseType", tag = "1")]
     pub r#type: i32,
@@ -512,14 +512,14 @@ pub struct ServerErrorResponse {
 }
 /// Nested message and enum types in `ServerErrorResponse`.
 pub mod server_error_response {
-    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Oneof)]
     pub enum Details {
         /// Additional information about retrying if type==UNAVAILABLE.
         #[prost(message, tag = "3")]
         RetryInfo(super::RetryInfo),
     }
 }
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RetryInfo {
     #[prost(uint64, tag = "1")]
     pub retry_after_nanoseconds: u64,
@@ -527,7 +527,7 @@ pub struct RetryInfo {
 /// ServerToAgentCommand is sent from the Server to the Agent to request that the Agent
 /// perform a command.
 /// Status: \[Beta\]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ServerToAgentCommand {
     #[prost(enumeration = "CommandType", tag = "1")]
     pub r#type: i32,
@@ -605,7 +605,7 @@ pub struct EffectiveConfig {
     #[prost(message, optional, tag = "1")]
     pub config_map: ::core::option::Option<AgentConfigMap>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 #[prost(skip_debug)]
 pub struct RemoteConfigStatus {
     /// The hash of the remote config that was last received by this Agent in the
@@ -647,7 +647,7 @@ pub struct PackageStatuses {
 }
 /// The status of a single package.
 /// Status: \[Beta\]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct PackageStatus {
     /// Package name. MUST be always set and MUST match the key in the packages field
     /// of PackageStatuses message.
@@ -701,7 +701,7 @@ pub struct PackageStatus {
 }
 /// Properties related to identification of the Agent, which can be overridden
 /// by the Server if needed
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AgentIdentification {
     /// When new_instance_uid is set, Agent MUST update instance_uid
     /// to the value provided and use it for all further communication.
@@ -741,7 +741,7 @@ pub struct AgentConfigMap {
     #[prost(map = "string, message", tag = "1")]
     pub config_map: ::std::collections::HashMap<::prost::alloc::string::String, AgentConfigFile>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 #[prost(skip_debug)]
 pub struct AgentConfigFile {
     /// Config file or section body. The content, format and encoding depends on the Agent
@@ -753,7 +753,7 @@ pub struct AgentConfigFile {
     #[prost(string, tag = "2")]
     pub content_type: ::prost::alloc::string::String,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CustomCapabilities {
     /// A list of custom capabilities that are supported. Each capability is a reverse FQDN
     /// with optional version information that uniquely identifies the custom capability
@@ -762,7 +762,7 @@ pub struct CustomCapabilities {
     #[prost(string, repeated, tag = "1")]
     pub capabilities: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 #[prost(skip_debug)]
 pub struct CustomMessage {
     /// A reverse FQDN that uniquely identifies the capability and matches one of the
