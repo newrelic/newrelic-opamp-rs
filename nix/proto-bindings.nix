@@ -3,14 +3,15 @@
 { inputs, ... }:
 {
   perSystem =
-    { config, pkgs, ... }:
-    let
-      inherit (config) rustLib;
-      inherit (rustLib) craneLib;
-    in
+    {
+      pkgs,
+      craneLib,
+      commonArgs,
+      ...
+    }:
     {
       checks.proto-bindings = craneLib.mkCargoDerivation (
-        rustLib.commonArgs
+        commonArgs
         // {
           pname = "proto-bindings";
           cargoArtifacts = null;

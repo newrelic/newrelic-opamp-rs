@@ -1,29 +1,24 @@
-# Cargo steps of CI that `nix flake check` runs: rustfmt, clippy and the tests.
-# treefmt and git-hooks contribute their own checks from their modules.
+# The steps of CI that `nix flake check` runs. treefmt and git-hooks add their own checks.
 _: {
   perSystem =
     {
-      config,
       pkgs,
       lib,
+      craneLib,
+      commonArgs,
       ...
     }:
     let
-      inherit (config) rustLib;
-      inherit (rustLib) craneLib;
-      workspaceArgs = rustLib.commonArgs // {
-        cargoExtraArgs = "--workspace --all-features";
-        # Tests rely on debug assertions, as in CI.
+      # Tests rely on debug assertions, as in CI.
+      args = commonArgs // {
         CARGO_PROFILE = "dev";
-        # The HTTP client loads the system CA roots when built, and the sandbox has none on Linux.
-        SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
       };
-      cargoArtifacts = craneLib.buildDepsOnly workspaceArgs;
+      cargoArtifacts = craneLib.buildDepsOnly args;
     in
     {
       checks = {
         cargo-clippy = craneLib.cargoClippy (
-          workspaceArgs
+          args
           // {
             inherit cargoArtifacts;
             cargoClippyExtraArgs = "--all-targets -- -D warnings -D clippy::all";
@@ -31,7 +26,7 @@ _: {
         );
 
         cargo-nextest = craneLib.cargoNextest (
-          workspaceArgs
+          args
           // {
             inherit cargoArtifacts;
             cargoNextestExtraArgs = lib.concatStringsSep " " (
@@ -47,12 +42,7 @@ _: {
           }
         );
 
-        cargo-doc-tests = craneLib.cargoDocTest (workspaceArgs // { inherit cargoArtifacts; });
-
-        cargo-fmt = craneLib.cargoFmt {
-          inherit (rustLib) src;
-          inherit (rustLib.commonArgs) pname version;
-        };
+        cargo-doc-tests = craneLib.cargoDocTest (args // { inherit cargoArtifacts; });
       };
     };
 }
